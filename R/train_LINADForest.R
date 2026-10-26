@@ -69,7 +69,7 @@ make_linadforest_tree_runner <- function(
 #' builds a reference-coded design matrix internally.
 #'
 #' The forest builds its own validation sets from the bootstrap, so it takes no
-#' `dat_validation` and is deliberately absent from `early_stopping_algs`.
+#' `dat_validation` and is absent from `early_stopping_algs`.
 #'
 #' Missing values are not supported: every case contributes to every node model
 #' through the soft weights, so there is no node at which an absent value can be
@@ -243,7 +243,7 @@ method(train_, LINADForestHyperparameters) <- function(
 #' convention and matches this method's contract.
 #'
 #' Each tree subsets `newdata` to the features it holds, so `mtry_tree` needs no
-#' code here at all.
+#' code here.
 #'
 #' @param model `LINADForest` object.
 #' @param newdata tabular data: Data to predict on.

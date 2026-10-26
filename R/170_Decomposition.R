@@ -158,7 +158,7 @@ split_decomp_features <- function(decom, new_data) {
 #' The numeric matrix a decomposition operates on
 #'
 #' `config@features` selects the columns and `as.matrix()` puts them in the form
-#' every `decomp_` method works in, so this is the data a fit actually sees.
+#' every `decomp_` method works in, so this is the data a fit sees.
 #'
 #' Everything that has to agree about "the data this decomposition saw" goes
 #' through here -- the fingerprint `decomp()` stores, the fingerprint

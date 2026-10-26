@@ -126,18 +126,16 @@ set_preferred_plan <- function(
     return(identify_plan())
   }
 
-  # If user has not requested a specific plan, check if they have set one
+  # No plan requested: read the plan currently set.
   current_plan <- future::plan()
 
-  # If the plan is not sequential, we must assume user set it and respect it (though it might
-  # have been set by a different package)
+  # A non-sequential plan is treated as the user's and kept, although another package may
+  # have set it.
   if (!inherits(current_plan, "sequential")) {
     return(identify_plan(current_plan))
   }
-  # If the plan is sequential, we can't currently tell if it was set by the user or is default
-  # -> Ideally, we would know this. <-
-  # We therefore proceed to set our preferred plan based on the requested n workers.
-  # If n_workers was set to 1 and no requested_plan was defined, use sequential
+  # A sequential plan is indistinguishable from the default, so the plan is set from the
+  # requested number of workers: sequential for one worker.
   if (!is.null(n_workers) && n_workers == 1L) {
     with(
       future::plan(strategy = "sequential"),
@@ -153,9 +151,9 @@ set_preferred_plan <- function(
   # frequently is not; R's own documentation restricts `mcparallel()` on those grounds. The
   # failure is not graceful: a child can die at the fork, which surfaces as a task that
   # resolves instantly and comes back a `FutureInterruptError`, and it is load-dependent
-  # enough to look intermittent. This branch is reached precisely because no plan was
-  # requested, so it picks the one that works everywhere; `setup_FutureExecution()` defaults
-  # the same way, and `"multicore"` stays available to anyone who asks for it by name.
+  # enough to look intermittent. This branch is reached when no plan was requested, so it
+  # sets the plan that runs on every platform; `setup_FutureExecution()` defaults the same
+  # way, and `"multicore"` is available by name.
   with(
     future::plan(strategy = "multisession", workers = n_workers),
     local = TRUE,
@@ -340,8 +338,7 @@ worker_pool_stop <- function() {
 #' in-process dispatcher goes on delivering the cancellation to the daemon running
 #' it and reassigning the freed daemon. Shutting the pool down in that window
 #' (`mirai::daemons(0L)`) can deadlock inside nanonext 1.10.3: closing the
-#' dispatcher's daemon socket waits for a pipe task that never completes (native
-#' stack in the private spec `rtemis/parallel-worker-tests`, 2026-09-29). Every
+#' dispatcher's daemon socket waits for a pipe task that never completes. Every
 #' shutdown after an idle dispatcher -- the end of every map that ran to
 #' completion -- is clean, so a map that cancels its tasks waits for that state
 #' before anything can shut the pool down.
@@ -392,9 +389,8 @@ worker_pool_available <- function(backend) {
 } # /rtemis::worker_pool_available
 
 
-# Future plans that are known to place workers on this machine. `cluster` is absent
-# deliberately: it accepts remote hostnames and its name alone does not say which, so it
-# cannot be treated as local without inspecting the plan's workers.
+# Future plans that place workers on this machine. `cluster` is absent: it accepts remote
+# hostnames, and its name does not say whether its workers are local.
 LOCAL_PLANS <- c(
   "sequential",
   "multicore",
@@ -443,7 +439,7 @@ workers_are_local <- function(backend, future_plan) {
 #'
 #' @details
 #' The returned wrapper reads directly from the shared region and behaves like the
-#' original object, so callers index it exactly as before; a worker slicing rows
+#' original object, so callers index it as they index the original; a worker slicing rows
 #' materializes only its own subset. Regions are mapped read-only, so a worker cannot
 #' corrupt what the others are reading.
 #'
@@ -546,8 +542,8 @@ format_bytes <- function(bytes) {
 #'
 #' @details
 #' Conditions are ordered so the reason given is the first one that applies, which is
-#' also the most specific: "not asked to" before "cannot". There is no "not worth it":
-#' the transport is cheaper at every size measured, so anything that can be shared is.
+#' also the most specific: "not asked to" before "cannot". No size threshold applies:
+#' sharing was cheaper at every size measured, so anything that can be shared is.
 #'
 #' `"always"` reports as sharing. Its one impossible case -- workers that are not on this
 #' machine -- is an error, raised by `share_payload()`.
@@ -592,8 +588,7 @@ share_decision <- function(obj, mode, backend, future_plan, n_workers) {
   }
   # No size test. Measured on a 190 x 117 frame (~190 kB), sharing costs 0.06 ms once and
   # 0.17 ms per task in slower slicing, against 0.30 ms per task saved on serializing and
-  # unserializing it -- a net gain before the transport those bytes would also have to
-  # cross. The fixed cost a threshold would be avoiding is not there to avoid.
+  # unserializing it, a net gain before counting the transport of those bytes.
   list(share = TRUE, reason = NULL, bytes = bytes)
 } # /rtemis::share_decision
 
@@ -601,8 +596,8 @@ share_decision <- function(obj, mode, backend, future_plan, n_workers) {
 # %% report_shared_memory ----
 #' Report what a run will do about shared memory
 #'
-#' Reported once per run, from `train()`, and only when sharing was asked for: a run left
-#' on the default policy has nothing to say about a feature it is not using.
+#' Reported once per run, from `train()`, and only when sharing was requested
+#' explicitly.
 #'
 #' @details
 #' The individual `share_payload()` calls are silent. There are two payloads per
@@ -695,8 +690,8 @@ with_preserved_rng <- function(expr) {
   old_kind <- RNGkind()
   on.exit(
     {
-      # `sample.kind = "Rounding"` is deprecated and warns when set; a caller already on
-      # it should not be scolded for our round-trip.
+      # `sample.kind = "Rounding"` is deprecated and warns when set; the warning is
+      # suppressed for this restore of the caller's own setting.
       suppressWarnings(RNGkind(
         kind = old_kind[1L],
         normal.kind = old_kind[2L],
@@ -926,8 +921,8 @@ progress_plapply <- function(
     return(list())
   }
 
-  # A single worker has nothing to gain from a backend and everything to lose in
-  # serialization, so it takes the sequential path regardless of what was requested.
+  # A single worker gains nothing from a backend and pays its serialization cost, so it
+  # takes the sequential path regardless of what was requested.
   if (n_workers == 1L) {
     backend <- "none"
   }

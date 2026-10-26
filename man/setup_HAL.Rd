@@ -58,10 +58,11 @@ the encoder is re-applied at predict time.
 
 Scaling: the basis has one function per knot per feature subset, so its size
 grows as \code{C(n_features, max_degree)} and, through the knots, with the number
-of cases -- making the lasso that follows quadratic in the number of cases.
-Training projects the basis size up front, reports it at \code{verbosity >= 1},
-warns past a million, and aborts past \code{max_basis}. \code{max_degree} is the
-strongest lever on that count, \code{num_knots} the next.
+of cases, making the lasso that follows quadratic in the number of cases.
+Training projects the basis size before fitting, reports it at
+\code{verbosity >= 1}, warns above one million, and aborts above \code{max_basis}.
+\code{max_degree} has the largest effect on that count, followed by
+\code{num_knots}.
 
 \code{get_varimp()} reports two measures, both aggregated over the basis
 functions that involve each feature:

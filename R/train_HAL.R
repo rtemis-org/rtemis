@@ -73,8 +73,8 @@ hal_num_knots <- function(max_degree, smoothness_orders) {
 #' the features have been binned to `knots` values, so the bound per degree is
 #' `C(n_features, d) * min(n_cases, knots^d)`.
 #'
-#' The bound is what the guardrail acts on, so it is deliberately an upper
-#' bound: measured against the backend it runs 0-30% above the realized count.
+#' The guardrail acts on this bound, an upper bound: measured against the
+#' backend, it runs 0-30% above the realized count.
 #'
 #' @param n_cases Integer: Number of training cases.
 #' @param n_features Integer: Number of columns of the design matrix.

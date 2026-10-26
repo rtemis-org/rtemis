@@ -38,13 +38,12 @@ misspecified one.
 \strong{The guarantee is marginal.} \verb{P(Y in C(X)) >= 1 - alpha} averages over the
 draw of both the calibration set and the test case. It is \emph{not} conditional:
 90\% marginal coverage is compatible with 99\% coverage on easy cases and 60\%
-on a hard subgroup, and averaged over everyone is not the same as guaranteed
-for anyone. It is also void, silently, under distribution shift --
-exchangeability is the whole assumption.
+on a hard subgroup. The guarantee rests on exchangeability and does not
+hold under distribution shift.
 
-\strong{Width is the quality measure; coverage is the correctness check.} A
-useless model attains valid coverage by returning intervals wide enough to be
-uninformative, so read the two together. The region reports its widths (or
+\strong{Width is the quality measure; coverage is the correctness check.} A model
+with no predictive value attains valid coverage with intervals wide enough
+to be uninformative, so the two are read together. The region reports its widths (or
 set sizes); \code{conformal_metrics()} scores coverage against outcomes the region
 did not see.
 
@@ -57,8 +56,8 @@ model chosen by its test metric has used that split for selection, which
 nothing in the object records.
 
 Conformal calibration is unrelated to the probability calibration
-\link{calibrate} performs, and the two must not share rows. Where rtemis can see
-that they do, it refuses.
+\link{calibrate} performs, and the two must not share rows. rtemis raises an
+error where it detects shared rows.
 
 \strong{Which method.} \code{config} NULL takes the method the object supports: split
 conformal for a \code{Supervised}, CV+ for a \code{SupervisedRes}. See

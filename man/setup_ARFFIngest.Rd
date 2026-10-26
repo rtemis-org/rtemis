@@ -14,8 +14,8 @@ setup_ARFFIngest(
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
 name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
-here is converted to that type after reading, so a known type takes
-precedence over the reader's inference.}
+here is converted to the declared type after reading, replacing the type the
+reader assigned.}
 
 \item{character2factor}{Logical: If TRUE, read character columns as factors.}
 
@@ -27,7 +27,8 @@ precedence over the reader's inference.}
 \code{ARFFIngestConfig} object.
 }
 \description{
-Reading an ARFF file. Its header declares the attribute types.
+Creates the settings \code{ingest()} uses to read an ARFF file. The ARFF header
+declares the attribute types, and the format has no settings of its own.
 }
 \examples{
 setup_ARFFIngest()

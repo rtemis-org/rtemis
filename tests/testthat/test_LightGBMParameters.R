@@ -16,7 +16,7 @@
 # a reviewer can read and a version bump cannot silently move.
 #
 # `.PARAMETER_ALIASES()` is read from the installed 'lightgbm' rather than
-# transcribed, so the audit describes the backend actually in use. It calls
+# transcribed, so the audit describes the backend in use. It calls
 # `LGBM_DumpParamAliases_R`, which dumps the compiled library's own parameter
 # table -- every parameter, not only the aliased ones: 71 of its 141 entries
 # have no alias at all. Checked against the published v4.7.0 parameter list,
@@ -79,7 +79,7 @@
 
 
 # %% .lgb_class_covered ----
-# The same, for one wrapper: what a user can actually reach from that
+# The same, for one wrapper: what a user can reach from that
 # algorithm's `setup_*`.
 .lgb_class_covered <- function(class_name) {
   aliases <- .lgb_aliases()

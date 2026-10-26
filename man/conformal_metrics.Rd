@@ -24,13 +24,12 @@ outcomes of the cases it bounds.
 \details{
 \strong{Coverage on the calibration data is not a check.} The threshold is chosen
 as the \code{1 - alpha} empirical quantile of the calibration scores, so coverage
-measured back on those same cases is \code{1 - alpha} by construction. Score
-against outcomes nothing in the pipeline has seen, or the number means
-nothing.
+measured back on those same cases is \code{1 - alpha} by construction. Coverage
+is scored against outcomes nothing in the pipeline has seen.
 
 \strong{Read coverage and size together.} A model with no signal attains valid
-coverage by returning intervals wide enough to be useless, so coverage alone
-cannot separate a good model from a wide one. Width -- or set size, and the
+coverage by returning uninformatively wide intervals, so coverage alone does
+not distinguish an accurate model from a wide one. Width -- or set size, and the
 rate of singleton and empty sets -- is the part that carries information
 about the model.
 

@@ -219,9 +219,8 @@ method(se_super, class_gam) <- function(model, newdata) {
 #' The terms are re-centered on the supplied background, so the baseline is the
 #' mean prediction over that background, as for every other estimator.
 #'
-#' Exact, and computed by the fit itself, so it is both more accurate and faster
-#' than the kernel estimator here. Applies to regression and binary fits; a
-#' multiclass fit is refused.
+#' Exact and computed by the fit itself, unlike the sampled kernel estimator.
+#' Applies to regression and binary fits; a multiclass fit is refused.
 #'
 #' @param model `gam` object.
 #' @param newdata tabular data: Cases to explain.

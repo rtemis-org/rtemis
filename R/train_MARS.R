@@ -11,7 +11,7 @@
 #'
 #' `earth` expands factors itself, but only through `model.matrix()` with the
 #' contrasts it finds on the search path. Reached as `earth::earth()` the
-#' package is loaded and not attached, so a multiclass outcome dies looking up
+#' package is loaded and not attached, so a multiclass outcome fails looking up
 #' `contr.earth.response`, and a feature level absent from a prediction set
 #' produces a design matrix narrower than the fitted model expects. Encoding
 #' here avoids both: the encoder is returned so `train_` can hand it back as

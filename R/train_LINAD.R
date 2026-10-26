@@ -49,8 +49,8 @@ linad_consumed_settings <- function(settings, selects_on_validation) {
 #' grown by stagewise gradient descent so that a leaf's coefficients are the
 #' accumulated sum along its root-to-leaf path.
 #'
-#' The node models are fitted natively, elastic net included, so training
-#' reaches outside the package for nothing.
+#' The node models, elastic net included, are fitted natively, with no external
+#' backend.
 #'
 #' LINAD needs no encoding preprocessor. It searches and routes splits on the
 #' features as given, so a factor splits on a set of its levels, and builds a

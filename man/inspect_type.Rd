@@ -27,8 +27,8 @@ numeric.
 \details{
 All data can be represented as a character string. A numeric variable may be read as
 a character variable if there are non-numeric characters in the data.
-It is important to be able to automatically detect such variables and convert them,
-which would mean introducing NA values.
+Such variables are detected so they can be converted to numeric, which
+introduces NA values.
 }
 \examples{
 x <- c("3", "5", "undefined", "21", "4", NA)

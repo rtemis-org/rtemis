@@ -152,18 +152,16 @@ missing values.}
 than or equal to this number of unique values to factors. 0 and 1 both
 disable it: a feature with one unique value is a constant, which
 \code{remove_constants} covers.
-For example, if binary variables are encoded with 1, 2, you could use
-\code{unique_len2factor = 2} to convert them to factors.}
+For example, \code{unique_len2factor = 2} converts binary variables encoded as
+1, 2 to factors.}
 
 \item{character2factor}{Logical: If TRUE, convert all character variables to
 factors.}
 
 \item{factorNA2missing}{Logical: If TRUE, make NA values in factors be of
-level \code{factorNA2missing_level}. In many cases this is the preferred way
-to handle missing data in categorical variables. Note that since this step
-is performed before imputation, you can use this option to handle missing
-data in categorical variables and impute numeric variables in the same
-\code{preprocess} call.}
+level \code{factorNA2missing_level}. This step runs before imputation, so one
+\code{preprocess} call can code missing values in categorical variables as a
+level and impute numeric variables.}
 
 \item{factorNA2missing_level}{Character: Name of level if
 \code{factorNA2missing = TRUE}.}

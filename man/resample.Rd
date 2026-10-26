@@ -20,16 +20,15 @@ functions, e.g. \link{setup_KFold}.}
 \code{Resampler} object.
 }
 \description{
-Create resamples of your data, e.g. for model building or validation.
-"KFold" creates stratified folds, , "StratSub" creates stratified subsamples,
+Create resamples of data, e.g. for model building or validation.
+"KFold" creates stratified folds, "StratSub" creates stratified subsamples,
 "Bootstrap" gives the standard bootstrap, i.e. random sampling with replacement,
 while "StratBoot" uses StratSub and then randomly duplicates some of the training cases to
 reach the original length of the input, or the length defined by \code{target_length}.
 }
 \details{
-Note that option 'KFold' may result in resamples of slightly different length. Avoid all
-operations which rely on equal-length vectors. For example, you can't place resamples in a
-data.frame, but must use a list instead.
+'KFold' can produce resamples of slightly different length, so resamples are returned
+as a list, not a data.frame.
 }
 \examples{
 y <- rnorm(200)

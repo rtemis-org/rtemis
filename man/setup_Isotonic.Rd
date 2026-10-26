@@ -16,7 +16,7 @@ IsotonicHyperparameters object.
 Setup hyperparameters for Isotonic Regression.
 }
 \details{
-There are not hyperparameters for this algorithm at this moment.
+Isotonic regression has no hyperparameters.
 }
 \examples{
 isotonic_hyperparams <- setup_Isotonic(ifw = TRUE)

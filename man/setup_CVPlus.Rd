@@ -28,10 +28,9 @@ over a model trained with outer resampling.
 \details{
 CV+ (Barber, Candes, Ramdas and Tibshirani, 2021) spends no data on
 calibration: every case is out-of-fold exactly once, so every case both
-trains and calibrates. Over a \code{SupervisedRes} the expensive part is already
-paid -- the per-fold models and their out-of-fold predictions are stored --
-and what remains is predicting \code{newdata} under each fold's model and taking
-two order statistics.
+trains and calibrates. A \code{SupervisedRes} stores the per-fold models and their
+out-of-fold predictions, so the computation is predicting \code{newdata} under
+each fold's model and taking two order statistics.
 
 \strong{It delivers \code{1 - 2 * alpha} in the worst case}, not \code{1 - alpha}. The bound
 is conservative and observed coverage usually sits near \code{1 - alpha}; the

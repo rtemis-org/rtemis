@@ -28,9 +28,8 @@ setup_ICA(
 before ICA, i.e. subtract each case's mean and divide by its standard
 deviation. Appropriate when the features share units and each case's overall
 level and scale are a nuisance rather than signal, as for spectra or assays
-whose total intensity varies by sample -- the usual situation for the wide,
-single-instrument matrices decomposition is run on, which is why it is the
-default. It spends two degrees of freedom per case, so its cost is roughly
+whose total intensity varies by sample. It spends two degrees of freedom per
+case, so its cost is roughly
 \code{2 / ncol(x)}: negligible for hundreds of features, but substantial for a
 handful, where each case's level and scale are more likely to be signal.
 Set FALSE for narrow or mixed-unit data.}

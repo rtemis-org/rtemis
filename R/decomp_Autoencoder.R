@@ -740,8 +740,8 @@ method(decomp_, AutoencoderBaseConfig) <- function(
     algorithm = config@algorithm,
     device = device
   )
-  # Resolved here, from the data, so the record would otherwise report unset
-  # values the fit demonstrably used.
+  # Resolved here, from the data, and returned so the record reports the
+  # values the fit used.
   config@hidden_units <- hidden_units
   config@batch_size <- batch_size
   list(decom = decom, transformed = transformed, config = config)
@@ -832,7 +832,7 @@ method(reconstruct_, AutoencoderBaseConfig) <- function(
 #'
 #' Resolved once here for `decomp()`'s resources line and again in `decomp_()`
 #' for the fit; the resolution is deterministic, so the two agree. NULL when
-#' libtorch is absent, since `decomp_()` is about to report that.
+#' libtorch is absent, which `decomp_()` then reports.
 #'
 #' @param x `AutoencoderBaseConfig` object.
 #' @param requested Optional `DeviceConfig` object.

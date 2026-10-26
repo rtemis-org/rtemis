@@ -21,7 +21,7 @@ Initializes Directory Structure: "R", "Data", "Results"
 }
 \examples{
 \dontrun{
-# Will create "my_project" directory with
+# Creates the "my_project" directory and its subdirectories
 init_project_dir("my_project")
 }
 }

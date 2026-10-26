@@ -12,7 +12,7 @@
 \item{\code{type}}{Character: resampler type -- one of \code{"KFold"},
 \code{"StratSub"}, \code{"StratBoot"}, \code{"Bootstrap"}, \code{"LOOCV"}. \code{"Custom"} has
 no wire form and is rejected here.}
-\item{\code{n}}{Integer: number of resamples (not used for \code{"LOOCV"}).}
+\item{\code{n_resamples}}{Integer: number of resamples (not used for \code{"LOOCV"}).}
 \item{\code{train_p}}{Numeric: training proportion (used by \code{"StratSub"} and
 \code{"StratBoot"}).}
 \item{\code{stratify_var}}{Character or \code{NULL}: stratification variable name.}

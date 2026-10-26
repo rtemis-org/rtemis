@@ -5,7 +5,7 @@
 # What `validate_config()` reports: one finding per problem, in a container that
 # is empty when there is nothing wrong.
 #
-# A finding carries two texts, and the split is the point. `message` is
+# A finding carries two texts. `message` is
 # technical and names the fields involved, for a developer reading a log.
 # `plain` is written for someone with no statistics background, and it is
 # *stored data*, authored once per code and looked up -- never composed at
@@ -282,9 +282,8 @@ method(print, Diagnostic) <- function(x, pad = 0L, output_type = NULL, ...) {
 #'
 #' @description
 #' What [validate_config] returns: the findings for one config, in the order
-#' they were made. An empty `Diagnostics` means the config is clean -- there is
-#' no separate "valid" flag, because an empty list of problems is the same
-#' statement and cannot disagree with itself.
+#' they were made. An empty `Diagnostics` means the config is clean; there is no
+#' separate "valid" flag.
 #'
 #' @field diagnostics List of `Diagnostic` objects: The findings.
 #'

@@ -66,15 +66,14 @@ make_bias_variance_runner <- function(
 #' left, which is what makes the predictions comparable across resamples: a test
 #' set that moved would confound the model's variability with the sample's.
 #'
-#' @section Whether the bias is really the bias:
-#' Squared bias is measured against `true_values` when you have them, and
-#' against the observed outcome when you do not. The difference is not
-#' cosmetic:
+#' @section Bias against true values and against observed outcomes:
+#' Squared bias is measured against `true_values` when supplied, and against
+#' the observed outcome otherwise:
 #'
 #' \describe{
 #'   \item{With `true_values`}{`bias_squared` is the bias, exactly. Only
-#'     simulated data has this, which is what makes a simulation study the place
-#'     to ask how a learner divides its error.}
+#'     simulated data has true values, so a simulation study measures how a
+#'     learner divides its error.}
 #'   \item{Without}{The observed outcome carries the irreducible noise, so what
 #'     is reported is \eqn{bias^2 + \sigma^2} and no amount of resampling
 #'     separates them. It stays comparable **between learners on the same data**
@@ -184,8 +183,7 @@ bias_variance <- function(
   check_is_S7(resampler_config, ResamplerConfig)
   if (is.null(resampler_config@seed)) {
     # Without this the resamples come from the ambient RNG, so two identical
-    # calls in one session give different answers -- which for a function whose
-    # output is an estimate of variability is the worst place to be unseeded.
+    # calls in one session give different estimates of variability.
     # A `ResamplerConfig` seed governs how data is split and the execution seed
     # governs computation; tying them here is only a default, and a config that
     # names its own seed keeps it.

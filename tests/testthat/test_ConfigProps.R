@@ -424,7 +424,7 @@ test_that("a resampler declares n_resamples per type, not on the base", {
     loocv[["properties"]][["n_resamples"]][["x-rtemis"]][["role"]],
     "state"
   )
-  # The dispatcher no longer carries it, and no `if/then` branch requires it.
+  # The dispatcher does not carry it, and no `if/then` branch requires it.
   disp <- S7_dispatcher_JSONSchema(
     classes = list(KFoldConfig, LOOCVConfig),
     id = "https://schema.rtemis.org/resampler/r/v1/schema.json",

@@ -75,15 +75,14 @@ one_hot_groups <- function(cols, one_hot_levels) {
 #' `one_hot()` expanded the factor, so the result is in the pre-expansion column
 #' order.
 #'
-#' Two claims, which are not the same and are worth keeping apart. **Additivity
-#' is preserved exactly**, always: the totals still reconstruct the prediction,
+#' Two distinct properties. **Additivity is preserved exactly**, always: the totals still reconstruct the prediction,
 #' because summing a partition of the columns cannot change their sum. Whether a
 #' group's total is also **the Shapley value of that feature as a single
 #' player** is exact when the value function has no interaction among the
-#' columns being merged -- true of every linear model with a marginal value
-#' function, which is every path that reaches this today -- and an approximation
-#' when there is one, as for a tree or a kernel estimator over one-hot columns.
-#' The second claim needs re-examining before such a path is added.
+#' columns being merged, which holds for every linear model with a marginal
+#' value function and so for every path that reaches this function. It is an
+#' approximation where the columns interact, as for a tree or a kernel
+#' estimator over one-hot columns.
 #'
 #' @param phi Numeric matrix: Contributions, one column per encoded feature.
 #' @param one_hot_levels Named list: Per-feature levels.
@@ -186,10 +185,9 @@ shap_aggregate <- function(phi, object, input_names = NULL) {
 # %% shap_require_background ----
 #' Demand the background an estimator cannot do without
 #'
-#' Path-dependent estimators take their baseline from the model. Everything that
-#' needs `E[x]` or a reference set needs data, and there is nowhere to get it
-#' from: a fitted `Supervised` stores `y_training` and `xnames`, not the
-#' training features.
+#' Path-dependent estimators take their baseline from the model. Every other
+#' estimator needs `E[x]` or a reference set, and a fitted `Supervised` stores
+#' `y_training` and `xnames`, not the training features.
 #'
 #' @param background Optional tabular data.
 #' @param estimator Character: Estimator asking for it.
@@ -391,7 +389,7 @@ linear_shap <- function(
 #' disagree. `spls::coef()` and `e1071::coef()` both report coefficients in a
 #' space the model scaled internally, so multiplying the *input* features by
 #' them does not reproduce the model's own predictions -- for SPLS the two
-#' differ by about 1%. Probing recovers the map `predict()` actually implements,
+#' differ by about 1%. Probing recovers the map `predict()` implements,
 #' whatever it scaled on the way.
 #'
 #' Costs one prediction call on `p + 1` rows.
@@ -431,9 +429,8 @@ probe_linear_map <- function(margin_fn, base) {
 #' LinearSHAP for a backend whose coefficients cannot be read directly
 #'
 #' Recovers the map by probing, then hands it to `linear_shap()`, which checks
-#' the reconstruction against the model's own predictions. That check is what
-#' makes probing safe: a model that is *not* affine reconstructs badly and is
-#' refused.
+#' the reconstruction against the model's own predictions. A model that is not
+#' affine fails that check and is rejected.
 #'
 #' @param design tabular data: Cases to explain.
 #' @param background tabular data: Reference cases.
@@ -685,8 +682,7 @@ model_matrix_shap <- function(
   # The design-matrix values are kept, not discarded: they are the per-level
   # view, and `explain()` publishes them as `@phi_encoded`. For a contrast-coded
   # factor they are relative to the reference level, which has no column of its
-  # own -- see `shap_by_level()` for the question they are usually asked to
-  # answer, which they answer badly.
+  # own. `shap_by_level()` reports contributions by level.
   computed[["phi_encoded"]] <- computed[["phi"]]
   computed[["phi"]] <- lapply(
     computed[["phi"]],
@@ -716,10 +712,9 @@ resolve_shap_estimator <- function(requested, algorithm) {
   if (requested == "kernel") {
     return("KernelSHAP")
   }
-  # "exact". A row whose `exact` is FALSE has no exact estimator to offer, and
-  # asking for one explicitly is a request the package cannot honor -- silently
-  # falling back to the kernel estimator would answer a different question than
-  # the one asked.
+  # "exact". A row whose `exact` is FALSE has no exact estimator, so an
+  # explicit request for one is an error rather than a fallback to the kernel
+  # estimator.
   if (isFALSE(row[["exact"]])) {
     rtemis.core::abort(
       "No exact explanation estimator for ",
@@ -741,10 +736,8 @@ resolve_shap_estimator <- function(requested, algorithm) {
 # %% explain.Supervised ----
 #' Explain `Supervised`
 #'
-#' Per-case contributions for `newdata`, computed on demand, for the reason
-#' `se()` gives: a quantity that is O(n x p), depends on
-#' `newdata` and on a background sample, and that most users never ask for, is
-#' computed when asked.
+#' Per-case contributions for `newdata`, computed on demand: the quantity is
+#' O(n x p) and depends on `newdata` and on a background sample.
 #'
 #' `newdata` and `background` hold predictors only, in training order, as
 #' `predict()` requires.
@@ -801,10 +794,9 @@ method(explain, Supervised) <- function(
       verbosity = verbosity
     )
   } else {
-    # A missing method means the estimator is not written yet, which is a fact
-    # about this build. S7's dispatch error names a
-    # backend class the user never chose, so it is translated into the algorithm
-    # they did.
+    # A missing method means this build implements no such estimator for the
+    # backend. S7's dispatch error names the backend class, so the message names
+    # the algorithm instead.
     tryCatch(
       explain_super(
         model = x@model,
@@ -972,9 +964,8 @@ name_shap_outputs <- function(computed, x) {
 #' `background` shared across folds, which is why one is taken here for all
 #' models.
 #'
-#' `type` echoes [stats::predict()] on the same object deliberately -- same word,
-#' same concept -- and `explain()` on a single `Supervised` likewise has no
-#' `type`, as `predict()` does not.
+#' `type` matches [stats::predict()] on the same object, and `explain()` on a
+#' single `Supervised` has no `type`, as `predict()` does not.
 #'
 #' For a classification the folds' *margins* are averaged, which is not the mean
 #' probability `predict(type = "avg")` returns; the two differ by the link, as
@@ -1032,10 +1023,10 @@ method(explain, SupervisedRes) <- function(
 #' Exact: each fold's contributions decompose that
 #' fold's prediction, so their mean decomposes the mean prediction.
 #'
-#' The folds must agree on everything that gives the numbers meaning -- the
-#' feature space, the scale, the value function -- or their mean describes
-#' nothing. Models fitted to different resamples of one dataset by one algorithm
-#' always do; it is checked because a mismatch raises no error of its own.
+#' The folds must agree on the feature space, the scale, and the value
+#' function. Models fitted to different resamples of one dataset by one
+#' algorithm always do; the check catches a mismatch, which raises no error of
+#' its own.
 #'
 #' @param explanations List of `SHAP` objects.
 #'
@@ -1208,16 +1199,14 @@ supervised_outputs <- function(object, features) {
 # %% kernel_shap ----
 #' Model-agnostic Shapley values, via shapr
 #'
-#' The fallback that makes `explain()` answer for every algorithm. It is handled
-#' here, outside the `explain_super()` methods, because it is model-agnostic:
-#' it reads a prediction function, so it does not dispatch on the fitted
-#' object's class. That also means an algorithm sharing a backend class with another
-#' cannot shadow it.
+#' The estimator available for every algorithm. It is handled here, outside the
+#' `explain_super()` methods, because it is model-agnostic: it reads a
+#' prediction function and does not dispatch on the fitted object's class, so
+#' an algorithm sharing a backend class with another cannot shadow it.
 #'
 #' `perturbation` selects the value function directly: `"interventional"` is
 #' shapr's `independence` approach, and a conditional one is whichever
-#' `approach` was asked for. That is the whole reason this plan chose shapr --
-#' the choice decision 1 says must never be implicit is a first-class argument.
+#' `approach` was asked for, so the value function is always explicit.
 #'
 #' Not exact: shapr samples coalitions and Monte Carlo samples within them, so
 #' `@exact` is FALSE even where the sampling happens to be exhaustive.
@@ -1251,8 +1240,8 @@ kernel_shap <- function(
     # function. `@approach` is gated to conditional runs for this reason.
     "independence"
   } else if (is.null(config@approach)) {
-    # Nonparametric and makes no distributional assumption, which suits data
-    # that has already been through a preprocessor and may be anything.
+    # Nonparametric, with no distributional assumption about the preprocessed
+    # features.
     "empirical"
   } else {
     config@approach
@@ -1350,13 +1339,13 @@ method(get_varimp, SHAP) <- function(x) {
 # %% shap_case ----
 #' One case's contributions, ordered by how much they moved the prediction
 #'
-#' The three things a per-case explanation is: where the prediction would have
-#' started, what each feature did to it, and where it ended.
+#' The three parts of a per-case explanation: the baseline, each feature's
+#' contribution, and the prediction.
 #'
 #' @details
 #' Shaped here, following `session_timeline()`: the
 #' table is the shared input for rtemis.draw's chart and for rtemislive, so both
-#' show the same thing, and it is useful on its own without either.
+#' show the same values.
 #'
 #' Features are ordered by the magnitude of their contribution, which is the
 #' order a waterfall reads in, and each carries the value it took for this case
@@ -1547,22 +1536,20 @@ shap_check_class <- function(x, class) {
 #' one level of a diagnosis drives the prediction and the others do nothing.
 #'
 #' @details
-#' This is the right tool for "which level matters", and per-level contributions
-#' are not. A case has exactly one level, so its per-feature contribution
-#' **is** the contribution of the level it has -- there is nothing to split. What
-#' averaging loses is only that cases at different levels were averaged together,
-#' and grouping them is what restores it.
+#' A case has exactly one level, so its per-feature contribution is the
+#' contribution of the level it has. Grouping cases by level reports how each
+#' level contributes.
 #'
 #' Splitting a contribution across the columns of an encoding answers a
-#' different and worse question. Those values include a term for every level the case does
-#' *not* have; they depend on the encoding, since a contrast-coded factor's
-#' reference level has no column at all and so cannot appear; and for a linear
-#' model they are identical for every case at the same level. Grouping has none
-#' of those problems and shows the reference level like any other.
+#' different question. Those values include a term for every level the case
+#' does not have; they depend on the encoding, since a contrast-coded factor's
+#' reference level has no column; and for a linear model they are identical for
+#' every case at the same level. Grouping by level does not depend on the
+#' encoding and includes the reference level.
 #'
 #' `newdata` must be the data the explanation was computed on, which is checked
-#' against its fingerprint: contributions lined up against other rows would
-#' produce a plausible but meaningless table.
+#' against its fingerprint, so contributions are never paired with the values
+#' of other rows.
 #'
 #' @param x `SHAP` object.
 #' @param newdata tabular data: The cases `x` explains.

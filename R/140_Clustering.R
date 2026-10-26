@@ -123,8 +123,8 @@ SoftClustering <- new_class(
     if (any(row_sums == 0)) {
       return("@membership must not contain all-zero rows.")
     }
-    # An engineering tolerance, not a theorem: both current backends return
-    # exact sums, but one accumulating in log space would not.
+    # An engineering tolerance: both backends return exact sums, and one
+    # accumulating in log space would not.
     if (any(abs(row_sums - 1) > sqrt(.Machine[["double.eps"]]))) {
       return("@membership rows must sum to 1.")
     }

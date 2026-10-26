@@ -3,7 +3,7 @@
 # 2017- EDG rtemis.org
 
 # %% preprocessor_ops_set ----
-#' Which of a set of preprocessing steps a config actually turns on
+#' Which of a set of preprocessing steps a config turns on
 #'
 #' @param config `PreprocessorConfig` object.
 #' @param ops Character: Property names to test.
@@ -33,9 +33,9 @@ preprocessor_ops_set <- function(config, ops) {
 #' corrective message for the one way a caller still meets the distinction --
 #' handing `train()` a `PreprocessorConfig` built for `preprocess()`.
 #'
-#' Naming the operations they actually set is the useful part: a config that
-#' happens to set none of the four differs from the supervised type in nothing
-#' but its class, and saying so is what makes the fix obvious.
+#' The message names the operations the config sets. A config that sets none
+#' of the four differs from the supervised type only in its class, and the
+#' message says so.
 #'
 #' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
 #'
@@ -104,13 +104,13 @@ frame_structure <- function(x) {
 # %% as_working_dt ----
 #' Copy tabular data into a data.table to work on
 #'
-#' The one copy `preprocess()` pays, and it is not optional: `setDT()` converts
-#' *by reference*, so calling it on a caller's data.frame would turn their object
-#' into a data.table underneath them, and a caller's data.table would be
-#' rewritten by the first `set()`. Every step downstream mutates this copy by
-#' reference and costs nothing.
+#' The one copy `preprocess()` makes. `setDT()` converts *by reference*, so
+#' calling it on a caller's data.frame would convert the caller's object to a
+#' data.table, and a caller's data.table would be rewritten by the first
+#' `set()`. Every later step mutates this copy by reference, without further
+#' copies.
 #'
-#' Row names are dropped here, which is deliberate -- see `preprocess()`.
+#' Row names are dropped here; see `preprocess()`.
 #'
 #' @param x tabular data.
 #'
@@ -181,8 +181,7 @@ dt_filter_cases <- function(x, keep) {
 #' Reject a step that left the working table with no columns
 #'
 #' A data.table with no columns has no cases either, so the pipeline cannot
-#' carry a case count past this point -- and a preprocessed dataset with no
-#' features is not usable by anything downstream regardless.
+#' carry a case count past this point.
 #'
 #' @param x data.table: Working table.
 #' @param step Character: Name of the configuration field responsible.
@@ -592,10 +591,8 @@ preprocess_data <- function(
   # and exit costs none; the caller's structure is restored at the end and their
   # object is never written through.
   #
-  # Row names do not survive, by design: a data.table has none, a case
-  # identifier that matters belongs in a column where it can be selected,
-  # joined, validated and serialized, and nothing a run record reports can carry
-  # one.
+  # Row names are not kept: a data.table has none, case identifiers are carried
+  # in columns, and a run record has no field for row names.
   input_structure <- frame_structure(x)
   x <- as_working_dt(x)
   if (ncol(x) == 0L) {
@@ -1351,7 +1348,7 @@ apply_preprocessor <- function(preprocessor, new_data, verbosity = 1L) {
 #' `@config` holds what the user asked for and `@values` what preprocessing
 #' learned, which keeps the input intact -- but re-applying to new data needs
 #' the two merged, and so does a run record, which must report the values
-#' actually used. One merge, so the two cannot disagree.
+#' used. One merge, so the two cannot disagree.
 #'
 #' The merged fields are settable inputs: supplying `scale_centers` makes
 #' `preprocess()` use it instead of computing one. That is why the merge is
@@ -1499,8 +1496,8 @@ factor2integer_code <- function(
 #' which levels the feature is encoded against, which of them each case takes,
 #' what the resulting columns are called, and how many cases had no column to
 #' take. Only the materialization differs per data structure -- a matrix for a
-#' data.frame, a column per level for a data.table -- so keeping this here is
-#' what stops two encoders from drifting into two encodings.
+#' data.frame, a column per level for a data.table -- so both encoders share
+#' this policy.
 #'
 #' Levels come from `factor_levels` when it carries the feature and from the
 #' feature itself otherwise. Lookup is by name and tolerant of entries with no
@@ -1699,7 +1696,7 @@ method(one_hot, class_data.frame) <- function(
   # `cbind.data.frame` keeps each column's type but prefixes an expanded
   # matrix's columns with its list element's name (`grp.grp_a`). Dropping the
   # list names is what stops the prefixing; the names are then restored from
-  # what each element actually contributes -- an encoded factor's matrix
+  # what each element contributes -- an encoded factor's matrix
   # columns, or the column's own name.
   out <- do.call(cbind.data.frame, unname(one.hot))
   names(out) <- unlist(
@@ -1770,7 +1767,7 @@ method(one_hot, class_data.table) <- function(
   # pass-through column was copied above: a column shared with `x` would carry a
   # later `:=` on either object through to the other. `as.data.table()` would
   # copy instead, but it would copy the fresh indicator columns too.
-  # `dt_set_one_hot()` is the deliberate in-place encoder.
+  # `dt_set_one_hot()` is the in-place encoder.
   setDT(unlist(columns, recursive = FALSE))[]
 } # /rtemis::one_hot.data.table
 

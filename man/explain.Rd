@@ -46,8 +46,7 @@ their baseline from the model itself, such as the LightGBM family's; those
 ignore it, and everything else aborts without it.
 
 Two explanations of one model against different backgrounds are not
-comparable, and nothing in the returned numbers says so -- which is why the
-result carries a fingerprint of the background it used.
+comparable. The result carries a fingerprint of the background it used.
 
 \strong{\code{config} chooses the method}, built by \link{setup_SHAP}:
 \code{setup_SHAP(perturbation = "conditional")} picks the value function,

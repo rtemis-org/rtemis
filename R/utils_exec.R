@@ -74,8 +74,8 @@ do_call <- function(
         },
         warning = function(w) {
           # No `invokeRestart("muffleWarning")`: the warning continues to the
-          # caller as the condition the backend raised. Removing this line
-          # would silently make every backend warning uncatchable again.
+          # caller as the condition the backend raised. Muffling it here would
+          # make every backend warning uncatchable.
           if (verbosity < 1L) {
             return(invisible(NULL))
           }

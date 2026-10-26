@@ -77,17 +77,15 @@ a binary logistic one; rtemis selects between them from the outcome.
 }
 \section{How it splits}{
 
-Not by loss reduction. A node is split when a \strong{parameter-instability test}
-says its model's coefficients are not constant across a candidate
-partitioning variable -- a structural change test, at significance level
-\code{alpha}. That is the method's distinguishing feature and the source of both
-its strengths and its limits:
+A node is split when a parameter-instability test, a structural change
+test at significance level \code{alpha}, rejects constancy of its model's
+coefficients across a candidate partitioning variable. Consequences:
 
 \describe{
 \item{It has a hypothesis-testing foundation}{Splits carry p-values, and
 \code{alpha} is a significance level with a direct interpretation.}
-\item{It sees a slope change with no shift in the mean}{Which a tree
-splitting on the response cannot: there is nothing in the mean to find.}
+\item{It detects a slope change with no shift in the mean}{A tree that
+splits on the response mean does not.}
 \item{It needs statistical power}{With few cases, many partitioning
 variables, or both, the tests do not reach \code{alpha} and the tree does not
 split at all -- returning a single global model.}
@@ -99,29 +97,27 @@ split at all -- returning a single global model.}
 The default \code{minsize} is \strong{ten times the number of parameters in a leaf's
 model}, and that scales with the number of regressors. A split has to leave
 \code{minsize} cases on each side, so with \code{p} regressors no split is possible
-below \code{n = 20 * (p + 1)} -- 420 cases at 20 regressors, whatever \code{alpha}
-says. A tree that returns one leaf on a wide design has usually hit this,
-not the significance level, and raising \code{alpha} will not move it. Set
-\code{minsize} directly, or narrow \code{regressors}.
+below \code{n = 20 * (p + 1)}: 420 cases at 20 regressors, for any \code{alpha}. On a
+wide design, a single-leaf tree results from this bound rather than from
+\code{alpha}. Set \code{minsize} directly, or narrow \code{regressors}.
 
-\code{regressors} and \code{partitioning_variables} are separable, and the separation
-is the point: the model in each leaf need not read the variables the tree
-splits on. Both default to every feature.
+\code{regressors} and \code{partitioning_variables} are set independently: the model
+in each leaf may use features other than those the tree splits on. Both
+default to every feature.
 }
 
 \section{Interpretability}{
 
-Every leaf carries a full model over \code{regressors} -- there is no selection or
-shrinkage, so a leaf holds one coefficient per regressor whether or not it
-earned one. Restrict \code{regressors} to keep that number down.
+Every leaf carries a full model over \code{regressors}, with no selection or
+shrinkage: one coefficient per regressor. Restrict \code{regressors} to reduce
+the number of coefficients.
 }
 
 \section{What it does not provide}{
 
-No variable-importance measure: \code{partykit} has one for \code{cforest} and for
-constant-fit trees, and none for a model-based tree. \code{get_varimp()} therefore
-returns NULL, and \code{get_varimp(explain(mod, newdata))} is the route to a
-per-feature measure.
+\code{partykit} provides variable importance for \code{cforest} and for constant-fit
+trees, not for a model-based tree. \code{get_varimp()} returns NULL;
+\code{get_varimp(explain(mod, newdata))} returns a per-feature measure.
 }
 
 \examples{

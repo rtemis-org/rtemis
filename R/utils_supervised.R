@@ -525,10 +525,8 @@ class_imbalance <- function(x) {
 #'
 #' Expand grid, converting NULL values to "null"
 #'
-#' Since the "null" characters in the resulting data.frame cannot be replaced to NULL,
-#' they have to be converted back to NULL as needed downstream.
-#' So make sure your data does not have cheeky character vector with "null" values in it that are
-#' not actually NULLs.
+#' A data.frame cannot hold NULL, so the "null" strings are converted back to NULL
+#' downstream. A character value "null" in the input is therefore read as NULL.
 #'
 #' @param x named list
 #'
@@ -559,8 +557,8 @@ expand_grid <- function(x, stringsAsFactors = FALSE) {
 #'
 #' `weights` is kept whatever `features` says. The weights column is not a
 #' predictor, but it has to survive selection so that `resolve_weights_column()`
-#' can still find it -- dropping it here would turn a named weights column into
-#' a missing-column error one call later, blaming the wrong thing.
+#' can still find it; dropping it here would produce a missing-column error one
+#' call later.
 #'
 #' @param dat Tabular data.
 #' @param outcome Optional Character: Name of the outcome column.

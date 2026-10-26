@@ -11,7 +11,7 @@ class_matrix <- new_S3_class("matrix")
 class_POSIXct <- new_S3_class("POSIXct")
 class_data.table <- new_S3_class("data.table")
 class_lgb.Booster <- new_S3_class("lgb.Booster")
-# All internal methods should support data.frame, data.table, tbl_df
+# All internal methods support data.frame, data.table, and tbl_df.
 class_tabular <- new_union(class_data.frame, class_data.table)
 # Supervised learning model classes
 class_glm <- new_S3_class("glm")
@@ -57,9 +57,7 @@ class_glmtree <- new_S3_class("glmtree")
 #' Forcing the rest would evaluate defaults nothing asked for
 #' (`setup_FutureExecution()` for a `train_` method that ignores it) and would
 #' turn an omitted required formal into "argument "x" is missing, with no
-#' default" before the method can say anything better. It is not about
-#' preserving method defaults: S7 requires a method's defaults to match its
-#' generic's and warns when they differ.
+#' default" before the method can raise its own error.
 #'
 #' This reads the calling frame, so it is only meaningful called directly from
 #' the generic.
@@ -153,8 +151,7 @@ inspect <- new_generic("inspect", "x", function(x) {
 #'
 #' The preprocessed data comes back in the structure it was given -- data.frame,
 #' data.table or tibble -- and the object passed in is never modified. It carries
-#' no row names: a case identifier that matters belongs in a column, where it can
-#' be selected, joined, validated and serialized.
+#' no row names; case identifiers are carried in columns.
 #'
 #' @param x Tabular data, i.e. data.frame, data.table, or tbl_df (tibble):
 #' Training set data to preprocess.
@@ -236,9 +233,8 @@ preprocess <- new_generic(
 #'   * `hyperparameters` -- Optional `Hyperparameters`: returned **only** by a
 #'     method that resolved values into it (LightGBM's `objective` from the
 #'     outcome type, GLMNET's `lambda` from `cv.glmnet`). R copies the object
-#'     into the method, so without returning it the caller keeps the unresolved
-#'     one and the fitted model reports NULL for settings it demonstrably used.
-#'     `train()` adopts it when present.
+#'     into the method, so the method returns the resolved copy, which
+#'     `train()` adopts when present.
 #'
 #' @author EDG
 #' @keywords internal
@@ -495,8 +491,7 @@ explain_super <- new_generic(
 #' ignore it, and everything else aborts without it.
 #'
 #' Two explanations of one model against different backgrounds are not
-#' comparable, and nothing in the returned numbers says so -- which is why the
-#' result carries a fingerprint of the background it used.
+#' comparable. The result carries a fingerprint of the background it used.
 #'
 #' **`config` chooses the method**, built by [setup_SHAP]:
 #' `setup_SHAP(perturbation = "conditional")` picks the value function,
@@ -599,13 +594,12 @@ explain <- new_generic(
 #' **The guarantee is marginal.** `P(Y in C(X)) >= 1 - alpha` averages over the
 #' draw of both the calibration set and the test case. It is *not* conditional:
 #' 90% marginal coverage is compatible with 99% coverage on easy cases and 60%
-#' on a hard subgroup, and averaged over everyone is not the same as guaranteed
-#' for anyone. It is also void, silently, under distribution shift --
-#' exchangeability is the whole assumption.
+#' on a hard subgroup. The guarantee rests on exchangeability and does not
+#' hold under distribution shift.
 #'
-#' **Width is the quality measure; coverage is the correctness check.** A
-#' useless model attains valid coverage by returning intervals wide enough to be
-#' uninformative, so read the two together. The region reports its widths (or
+#' **Width is the quality measure; coverage is the correctness check.** A model
+#' with no predictive value attains valid coverage with intervals wide enough
+#' to be uninformative, so the two are read together. The region reports its widths (or
 #' set sizes); `conformal_metrics()` scores coverage against outcomes the region
 #' did not see.
 #'
@@ -618,8 +612,8 @@ explain <- new_generic(
 #' nothing in the object records.
 #'
 #' Conformal calibration is unrelated to the probability calibration
-#' [calibrate] performs, and the two must not share rows. Where rtemis can see
-#' that they do, it refuses.
+#' [calibrate] performs, and the two must not share rows. rtemis raises an
+#' error where it detects shared rows.
 #'
 #' **Which method.** `config` NULL takes the method the object supports: split
 #' conformal for a `Supervised`, CV+ for a `SupervisedRes`. See
@@ -731,8 +725,8 @@ apply_decomp_ <- new_generic(
 #' `x` is the data being reconstructed, in input units. Methods need it only
 #' when the backend's preprocessing is per-case and therefore not recoverable
 #' from the components -- ICA's `row_norm`. It is required, since a caller
-#' computing reconstruction error already holds `x`, and reconstruction against
-#' other cases would produce errors nothing downstream could detect.
+#' computing reconstruction error already holds `x`, and a reconstruction
+#' against other cases would produce incorrect errors without warning.
 #'
 #' `execution_config` describes where the reconstruction runs, as for
 #' `apply_decomp_()`.
@@ -1156,8 +1150,7 @@ describe <- new_generic("describe", "x", function(x, verbosity = 1L, ...) {
 #' is deterministic: it draws no random numbers.
 #'
 #' @details
-#' The review holds every value it rests on, so a reader can judge for
-#' themselves: `@sample` (sample sizes, input predictors and the columns the
+#' The review holds every value it rests on: `@sample` (sample sizes, input predictors and the columns the
 #' learner received), `@class_counts`, `@performance` (one row per metric:
 #' training, test, training minus test, the spread over resamples, and the
 #' test interval or pooled value), `@baseline` (one row per comparison with a
@@ -1570,8 +1563,8 @@ to_html <- new_generic("to_html", "x")
 #' primitive properties as-is. A computed view or an R-only value is omitted:
 #' the first is recoverable from what is published, and the second has no wire
 #' form at all, so emitting either would put a value on the wire that no schema
-#' declares. Per-class methods override where the default isn't appropriate
-#' (e.g. where some props should be excluded for size or relevance reasons).
+#' declares. Per-class methods override the default, for example to exclude
+#' properties for size.
 #'
 #' @param x rtemis S7 object.
 #' @param ... Additional arguments passed to method.
@@ -1962,7 +1955,7 @@ get_factor_names <- function(x) {
 #' scores changes the ranking of the predictions, and so changes AUC; a
 #' non-decreasing one cannot. [available_calibration] lists the algorithms
 #' that carry that guarantee. Any other `Hyperparameters` object is accepted
-#' and trained like any other model, but nothing then constrains the map.
+#' and trained like any other model, and the map is then unconstrained.
 #'
 #' * [setup_Isotonic] (the default) fits isotonic regression. The map is a step
 #'   function, so it merges nearby scores into ties, which moves AUC slightly
@@ -1977,8 +1970,8 @@ get_factor_names <- function(x) {
 #'   `smoothness_orders = 0` with `penalized = FALSE` lifts that restriction,
 #'   at the cost of ties and a markedly slower fit.
 #'
-#' Isotonic is the default because no monotonic lasso configuration is
-#' uniformly better and every one of them is several times slower.
+#' In rtemis benchmarks, no monotonic lasso configuration was uniformly more
+#' accurate than isotonic regression, and each was several times slower.
 #' `data-raw/benchmark_calibrators.R` reproduces the comparison.
 #'
 #' The calibrator that ran is recorded on the returned object's `@calibrator`

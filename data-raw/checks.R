@@ -99,7 +99,7 @@ CHECKS_LET <- list(
   expr("outcome_n_missing", 'first(outcome_columns, "n_missing")', "any"),
   expr("outcome_is_categorical", "outcome_dtype === 'categorical'", "boolean"),
 
-  # Predictors: what the run will actually train on.
+  # Predictors: what the run will train on.
   #
   # Reading the config here is what makes a finding about the *run* rather than
   # about the table: without it a plan that excludes a date column still gets
@@ -285,7 +285,7 @@ CHECKS_LET <- list(
     "any"
   ),
 
-  # Missingness. `runs_*` credits a step only where `train()` will actually run
+  # Missingness. `runs_*` credits a step only where `train()` will run
   # it: a step it rejects resolves nothing, and the gaps it was meant to remove
   # are still there.
   expr("total_missing", 'sum(profile.columns, "n_missing")', "number"),

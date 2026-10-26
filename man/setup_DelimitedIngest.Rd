@@ -18,8 +18,8 @@ setup_DelimitedIngest(
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
 name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
-here is converted to that type after reading, so a known type takes
-precedence over the reader's inference.}
+here is converted to the declared type after reading, replacing the type the
+reader assigned.}
 
 \item{character2factor}{Logical: If TRUE, read character columns as factors.}
 
@@ -40,13 +40,10 @@ used to read the file.}
 \code{DelimitedIngestConfig} object.
 }
 \description{
-Reading a delimited file -- the format that declares nothing, and therefore
-the one with the most to say.
+Creates the settings \code{ingest()} uses to read a delimited file.
 
-One constructor per format: each takes exactly the settings its format has,
-so an argument from another format is rejected by R as unused, and each
-format's own enums and defaults can be documented
-against the class they belong to.
+Each format has its own constructor, which takes the settings of that format
+only; an argument of another format is an unused-argument error.
 }
 \examples{
 setup_DelimitedIngest(sep = ";")

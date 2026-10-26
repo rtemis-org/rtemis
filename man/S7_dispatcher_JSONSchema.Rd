@@ -56,8 +56,7 @@ the discriminator (\code{algorithm}, \code{type}, ...), the properties the famil
 declares for every variant, and an \code{allOf} of \verb{if/then} clauses that apply
 the selected variant's leaf schema (\verb{<family>/<variant>/v1}) to the whole
 object. The discriminator enum, the leaf \verb{$ref} URLs and the \code{allOf} table
-are all derived from the classes, so the dispatcher cannot drift from the
-leaves it dispatches to.
+are all derived from the classes.
 }
 \details{
 The leaf URLs are derived from \code{id}: for a dispatcher
@@ -67,9 +66,8 @@ The leaf URLs are derived from \code{id}: for a dispatcher
 
 One shape, matching how every family serializes (\code{dispatched_props()}): the
 variant's settings are \strong{siblings of the discriminator}. A document holding
-only the discriminator is that variant with every default, so "nothing set"
-is said by absence, as a delta config says everything else, and a writer
-has no empty settings object to emit.
+only the discriminator is that variant with every default: "nothing set" is
+expressed by absence.
 
 Each \code{then} is exactly the leaf \verb{$ref}, applied to the whole object; readers
 key on that. \code{additionalProperties} is evaluated per schema and would not
@@ -79,11 +77,11 @@ by the applied \verb{$ref}. Leaves must therefore be generated open
 (\code{closed = FALSE} in \link{S7_to_JSONSchema}) so they compose.
 
 The leaf's keys and the dispatcher's are disjoint by construction: \code{base}
-subtracts every base property, the discriminator included, from each leaf,
-so a setting can never land on a key the dispatcher declares.
+subtracts every base property, the discriminator included, from each
+leaf.
 
-\code{base} closes the loop with \link{S7_to_JSONSchema}'s \code{base} argument, which
-\emph{subtracts} the family base's properties from every leaf: the dispatcher
+\code{base} pairs with \link{S7_to_JSONSchema}'s \code{base} argument, which subtracts
+the family base's properties from every leaf: the dispatcher
 adds them back at the top level, from the same \code{PropertySpec}, so the shared
 fields are declared once. Base properties carrying no spec are class
 machinery (a computed settings list, run state) and are skipped, as is the

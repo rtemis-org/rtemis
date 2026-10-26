@@ -27,8 +27,8 @@ data. \code{draw_linad()} draws a LINAD tree.
 By convention, the last column of the data is the outcome variable, and all other columns are
 predictors. Convenience function \link{set_outcome} can be used to move a specified column to the
 end of the data.
-Regression and Classification is performed using \code{train()}.
-This function allows you to preprocess, train, tune, and test models on multiple resamples.
+Regression and Classification is performed using \code{train()}, which preprocesses, trains,
+tunes, and tests models on multiple resamples.
 Use \link{available_supervised} to get a list of available algorithms
 }
 
@@ -64,8 +64,8 @@ For example, Character: \{"future", "mirai", "none"\}.
 
 \pkg{rtemis} internally uses methods for efficient handling of tabular data, with support for
 \code{data.frame}, \code{data.table}, and \code{tibble}. If a function is documented as accepting
-"tabular data", it should work with any of these data structures. If a function is documented
-as accepting only one of these, then it should only be used with that structure.
+"tabular data", it accepts any of these data structures. A function documented as accepting
+only one of these accepts only that structure.
 For example, some optimized \code{data.table} operations that perform in-place modifications only
 work with \code{data.table} objects.
 }

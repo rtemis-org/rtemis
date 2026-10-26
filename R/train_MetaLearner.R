@@ -253,7 +253,7 @@ meta_predict <- function(
 #'
 #' `validate_hyperparameters()` restricts the resampler to the partitioning kinds
 #' before training starts. This re-checks the resamples themselves, because that
-#' check reads the config while this reads what `resample()` actually produced:
+#' check reads the config while this reads what `resample()` produced:
 #' a level-one matrix with an unfilled cell is a silent NA in whatever is fitted
 #' on it.
 #'

@@ -366,7 +366,7 @@ sets_from_scores <- function(scores, q, classes) {
 #' Resolve the requested configuration
 #'
 #' NULL means the caller expressed no preference and gets the construction the
-#' object supports, which is the only one it could have meant.
+#' object supports.
 #'
 #' @param config Optional `ConformalConfig` object.
 #' @param default `ConformalConfig` object: What NULL resolves to.
@@ -482,8 +482,8 @@ conformal_calibration_predictions <- function(
 #' Refuse a stored test split that already calibrated something else
 #'
 #' `calibrate()` takes the probabilities to fit the calibration map on as an
-#' argument, and `@predicted_prob_test` is a natural thing to hand it. Where it
-#' was handed exactly that, the test split fitted the probability calibrator and
+#' argument, and `@predicted_prob_test` is a common choice. Where it was handed
+#' exactly that, the test split fitted the probability calibrator and
 #' is not exchangeable with a fresh case, so conformalizing on it would return
 #' an interval whose guarantee does not hold.
 #'
@@ -525,9 +525,8 @@ check_conformal_stored_split <- function(x) {
 #' Conformal prediction region for a `Supervised`
 #'
 #' Split conformal, or CQR where the backend can answer a quantile query.
-#' Computed on demand, for the reason `se()` gives: a
-#' quantity that depends on `newdata` and on a calibration set, and that most
-#' users never ask for, is computed when asked.
+#' Computed on demand: the quantity depends on `newdata` and on a calibration
+#' set.
 #'
 #' @param x `Supervised` object.
 #' @param newdata tabular data: Cases to bound, predictors only.
@@ -774,8 +773,8 @@ supervised_quantiles <- function(x, newdata, quantiles) {
   check_inherits(newdata, "data.frame")
   features <- supervised_features(x, newdata, verbosity = 0L)
   # A missing method means this algorithm cannot answer a quantile query from
-  # the model it fitted. S7's dispatch error names a backend class the user never chose, so
-  # it is translated into the algorithm they did.
+  # the model it fitted. S7's dispatch error names the backend class, so the
+  # message names the algorithm instead.
   quantile_matrix <- tryCatch(
     quantile_super(
       model = x@model,
@@ -896,8 +895,8 @@ conformal_fold_structure <- function(x) {
 #' for either where the folds are leave-one-out.
 #'
 #' No data is spent on calibration: every case is out-of-fold exactly once, so
-#' every case both trains and calibrates. The price is the guarantee, which is
-#' `1 - 2 * alpha` in the worst case rather than `1 - alpha`.
+#' every case both trains and calibrates. The guarantee is `1 - 2 * alpha` in
+#' the worst case rather than `1 - alpha`.
 #'
 #' @param x `SupervisedRes` object.
 #' @param newdata tabular data: Cases to bound, predictors only.
@@ -1181,13 +1180,12 @@ cross_conformal_set <- function(x, newdata, alpha, score, classes, seed) {
 #' @details
 #' **Coverage on the calibration data is not a check.** The threshold is chosen
 #' as the `1 - alpha` empirical quantile of the calibration scores, so coverage
-#' measured back on those same cases is `1 - alpha` by construction. Score
-#' against outcomes nothing in the pipeline has seen, or the number means
-#' nothing.
+#' measured back on those same cases is `1 - alpha` by construction. Coverage
+#' is scored against outcomes nothing in the pipeline has seen.
 #'
 #' **Read coverage and size together.** A model with no signal attains valid
-#' coverage by returning intervals wide enough to be useless, so coverage alone
-#' cannot separate a good model from a wide one. Width -- or set size, and the
+#' coverage by returning uninformatively wide intervals, so coverage alone does
+#' not distinguish an accurate model from a wide one. Width -- or set size, and the
 #' rate of singleton and empty sets -- is the part that carries information
 #' about the model.
 #'

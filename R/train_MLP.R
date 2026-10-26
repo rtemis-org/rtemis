@@ -16,8 +16,7 @@
 # %% mlp_ramp ----
 #' Interpolate a layer width linearly over `n` layers
 #'
-#' Linear, not geometric: the obvious guess (halving each layer) does not match
-#' the reference vocabulary this implements.
+#' Linear, not geometric, as in the reference vocabulary this implements.
 #'
 #' @param from,to Numeric: Widths at the two ends, both inclusive.
 #' @param n Integer: Number of widths to produce.
@@ -232,8 +231,7 @@ torch_optimizer_defaults <- function(optimizer) {
 # %% mlp_embedding_dim ----
 #' Size an embedding from its feature's cardinality
 #'
-#' fastai's rule, which is the one tabular practice converged on: wide enough
-#' for a high-cardinality feature, small for a binary one.
+#' fastai's rule: wide for a high-cardinality feature, small for a binary one.
 #'
 #' @param cardinality Integer vector: Categories per feature, including the
 #' out-of-vocabulary slot.
@@ -574,12 +572,11 @@ mlp_softmax <- function(x) {
 #' The preprocessor an MLP fit needs
 #'
 #' All data transformation for this algorithm is expressed here, as
-#' `setup_Preprocessor()` options, and nowhere else -- the transformer that
-#' follows needs the same categorical encoding, and a one-off written in this
-#' file would be written twice and drift.
+#' `setup_Preprocessor()` options, so the transformer that follows uses the same
+#' categorical encoding.
 #'
 #' Centering and scaling is not a user switch: unlike the tree models, an
-#' unscaled network fails quietly. Scale and center skip the integer category
+#' unscaled network trains poorly without raising an error. Scale and center skip the integer category
 #' codes, so the embedding indices survive the same call.
 #'
 #' @param embeddings Logical: If TRUE, integer-code the factors for embedding
@@ -785,8 +782,8 @@ method(train_, MLPHyperparameters) <- function(
   batch_size <- hyperparameters[["batch_size"]]
   drop_last <- hyperparameters[["drop_last"]]
   # Batch normalization needs more than one case per batch to compute a
-  # variance, so a trailing batch of one aborts the fit partway through. The
-  # only fix at that point is to drop it.
+  # variance, so a trailing batch of one would abort the fit partway through;
+  # it is dropped.
   if (
     identical(hyperparameters[["norm"]], "batch_norm") &&
       !drop_last &&
@@ -886,9 +883,9 @@ method(train_, MLPHyperparameters) <- function(
     history = fitted[["history"]]
   )
   check_inherits(model, MLPModel)
-  # The widths are resolved here, from the encoded input width, so `train()`
-  # would otherwise report NULL for an architecture the fit demonstrably used.
-  # They go into `hidden_units` itself: the run record compares the input config
+  # The widths are resolved here, from the encoded input width, and returned so
+  # `train()` reports the architecture the fit used. They go into
+  # `hidden_units` itself: the run record compares the input config
   # against this one field by field, so a NULL that became a vector reads as
   # `origin: "derived"` with no second property to carry it. The `shape_*`
   # settings stay beside it and say where the widths came from.
@@ -1008,8 +1005,8 @@ method(varimp_super, MLPModel) <- function(model) {
 #' before training starts, and once in `train_()` for real. Resolution is
 #' deterministic and free of side effects, so the two agree.
 #'
-#' NULL when libtorch is absent -- `train_()` is about to abort on the missing
-#' dependency, and a message has no business raising a different error first.
+#' NULL when libtorch is absent: `train_()` then aborts on the missing
+#' dependency, and the resources message raises no different error first.
 #'
 #' @param x `MLPHyperparameters` object.
 #' @param requested Optional `DeviceConfig` object.

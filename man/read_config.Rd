@@ -37,7 +37,7 @@ key at every level of the document, and each \verb{setup_*} then constructs an S
 object whose properties enforce their declared types, bounds, enums and
 arities. Those properties are the same \code{PropertySpec}s the published JSON
 Schemas are generated from, so reading a config in R applies the published
-contract by construction -- there is nothing an external validator could add.
+contract by construction.
 }
 \examples{
 # Create a SuperConfig object

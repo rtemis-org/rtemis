@@ -13,7 +13,7 @@
 #' The bound is `1 / (2 * n)`: a calibration set of `n` cases cannot resolve a
 #' probability finer than one case in `n`, so half a case is the smallest
 #' defensible distance from the boundary. It shrinks as the calibration set
-#' grows, so the bound never dominates a genuinely confident block.
+#' grows, so the bound never dominates a confident block.
 #'
 #' Only the fitted values move, and they move by less than the spacing between
 #' adjacent block means, so the fit stays non-decreasing and the ordering --
@@ -37,10 +37,9 @@ isotonic_bound_probabilities <- function(yf, n_cases) {
 #' Train an Isotonic model
 #'
 #' @details
-#' This is primarily used for calibration of classification models.
-#' Binary classification will not work if x and y are not monotonic, i.e. higher values in `x` must
-#' correspond to `1`, i.e. positive class in y.
-#' outcome `1`.
+#' Used primarily for calibration of classification models. Binary
+#' classification requires a non-decreasing relationship: higher values of `x`
+#' correspond to the positive class, coded `1`.
 #'
 #' @param hyperparameters `IsotonicHyperparameters` object: make using [setup_Isotonic].
 #' @param x tabular data: Training set. Only a single predictor is allowed.

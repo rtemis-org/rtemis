@@ -42,7 +42,7 @@ fit_tuned <- function(backend, n_workers, seed = 2026L, ...) {
   )
 }
 
-# The validation metrics per hyperparameter combination: what tuning actually decides on.
+# The validation metrics per hyperparameter combination: what tuning decides on.
 tuning_metrics <- function(mod) {
   as.numeric(unlist(mod@tuner@tuning_results[["validation"]]))
 }

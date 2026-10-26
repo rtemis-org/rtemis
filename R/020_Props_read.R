@@ -6,7 +6,7 @@
 # `spec_to_schema()` / `S7_to_JSONSchema()` in `010_Props.R`.
 #
 # What makes this possible is `x-rtemis`, which carries the axes standard JSON
-# Schema cannot express. Two of them are load-bearing here:
+# Schema cannot express. Two of them are used here:
 #
 #   - `tunable` says whether a hyperparameter may be tuned *at all*, which no
 #     document shape can state: a document says what one config does, not what

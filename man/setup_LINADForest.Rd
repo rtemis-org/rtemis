@@ -61,7 +61,7 @@ setup_LINADForest(
 
 \item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward". NULL uses 3.}
 
-\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward". NULL uses "bic".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Criterion a term must improve to be added by forward selection. Applies only when \code{node_model} is "forward". NULL uses "bic".}
 
 \item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet". NULL uses 0.05.}
 
@@ -85,7 +85,7 @@ setup_LINADForest(
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
 
-\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}. NULL uses "none".}
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Information criterion a node's slopes must improve over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}. NULL uses "none".}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump". NULL uses "mean".}
 
@@ -129,11 +129,9 @@ Trees. Each tree is fitted on a bootstrap sample of the cases, restricted to
 and chooses its own number of leaves on the cases its bootstrap left out.
 }
 \details{
-LINADForest is designed to be used \strong{untuned}. Every tree-level
-hyperparameter of \link{setup_LINAD} is available here and tunable, but the
-defaults are the configuration the ensemble was first evaluated with, and
-the one structural choice that usually needs tuning -- how large each tree
-should be -- is made per tree from data.
+Every tree-level hyperparameter of \link{setup_LINAD} is available here and
+tunable. The size of each tree is selected per tree from its out-of-bag
+cases, so the defaults are usable without tuning.
 }
 \section{How the trees differ}{
 
@@ -147,23 +145,19 @@ features, for its splits and its node models alike. A tree's coefficients
 then cover only the features it held.}
 \item{\code{mtry_split}}{Each split search sees a fresh sample of the features
 the tree holds, which decorrelates the trees further. If that sample
-finds no split worth making, the node is searched again over every
-feature, so \code{mtry_split} changes which split is made and never whether a
-node can split at all.}
+finds no split that reduces the loss, the node is searched again over
+every feature, so \code{mtry_split} changes which split is made and never
+whether a node can split.}
 }
 
-Both \verb{mtry_*} default to NULL, meaning every feature, which is the
-configuration the ensemble was first evaluated with.
+Both \verb{mtry_*} default to NULL, meaning every feature.
 }
 
 \section{Choosing each tree's size}{
 
 A LINAD tree picks its number of leaves on held-out data, as gradient
-boosting picks its number of trees. A bootstrap produces held-out data for
-free, so each tree selects its own size on its own out-of-bag cases and no
-validation set has to be supplied or set aside. \code{force_max_leaves = TRUE}
-turns the selection off and grows every tree to \code{max_leaves}, which is what
-the ensemble's first evaluation did.
+boosting picks its number of trees. Each tree selects its size on its own
+out-of-bag cases, so no validation set is required. \code{force_max_leaves = TRUE} turns the selection off and grows every tree to \code{max_leaves}.
 
 The same out-of-bag predictions give the fitted forest an error estimate with
 no resampling, reported by \code{print()}.
@@ -171,10 +165,10 @@ no resampling, reported by \code{print()}.
 
 \section{Defaults that differ from a single tree}{
 
-\code{learning_rate} defaults to 1, where a single tree uses 0.1. A lone LINAD tree shrinks each node
-update because nothing else controls its variance; in a forest the averaging
-does that, so each tree should be a strong learner -- the same reasoning that
-leaves a random forest's trees unpruned.
+\code{learning_rate} defaults to 1, where a single tree uses 0.1. A single LINAD
+tree shrinks each node update to control its variance; in a forest,
+averaging controls variance, so each tree is a strong learner, as a random
+forest's trees are unpruned.
 }
 
 \section{Workers}{

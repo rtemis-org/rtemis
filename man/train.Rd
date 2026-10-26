@@ -43,12 +43,12 @@ train(
 \item{outer_resampling_config}{Optional ResamplerConfig object: Setup using
 one of the \verb{setup_*} resampler functions, e.g. \link{setup_KFold}.
 This defines the outer resampling method, i.e. the splitting into training and test sets for the
-purpose of assessing model performance. If NULL, no outer resampling is performed, in which case
-you might want to use a \code{dat_test} dataset to assess model performance on a single test set.}
+purpose of assessing model performance. If NULL, no outer resampling is performed; \code{dat_test}
+then provides a single test set for assessing model performance.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Setup using
 \link{setup_SerialExecution}, \link{setup_FutureExecution} or \link{setup_MiraiExecution}.
-The function you call selects the backend; each sets the number of workers
+The setup function selects the backend; each sets the number of workers
 per dispatch level, and \link{setup_FutureExecution} additionally sets the future
 plan.}
 
@@ -57,17 +57,15 @@ answer.}
 
 \item{outdir}{Character, optional: String defining the output directory. The
 fitted model is saved there as \verb{train_<algorithm>.rds}, alongside a run
-record, \verb{train_<algorithm>.record.json}, stating what the run actually did:
+record, \verb{train_<algorithm>.record.json}, stating what the run did:
 every value resolved, where each came from, and what produced it. See
 \link{write_record}.}
 
 \item{preflight}{Logical: If TRUE, check the configuration against \code{x} with
 \link{validate_config} before training and stop on any finding of severity
 "error". Findings of severity "warning" are reported and training continues.
-Defaults to FALSE, except for a \code{SuperConfigTabular}, where it defaults to TRUE:
-that type binds its data in memory and is what a server hands a run it
-accepted on a client's behalf, so the check is that type's default. Pass
-FALSE explicitly to skip it.}
+Defaults to FALSE, except for a \code{SuperConfigTabular}, where it defaults to TRUE.
+Pass FALSE explicitly to skip it.}
 
 \item{verbosity}{Integer: Verbosity level.}
 
@@ -92,7 +90,7 @@ There are many different stages at which preprocessing could be applied, when ru
 supervised learning pipeline with nested resampling. Some operations are best done before
 passing data to \code{train()}:
 \itemize{
-\item Duplicate rows should be removed before resampling, so that duplicates don't end up in
+\item Duplicate rows should be removed before resampling, so that duplicates do not end up in
 different resamples, e.g. one in training and one in test.
 \item Constant columns should be removed before resampling. A column may appear constant in a small
 resample, even if it is not constant in the full dataset. Removing it inconsistently will
@@ -119,21 +117,19 @@ corresponds to the positive class}.
 
 \strong{Resampling}
 
-Note that you should not use an outer resampling method with
-replacement if you will also be using an inner resampling (for tuning).
-The duplicated cases from the outer resampling may appear both in the
-training and test sets of the inner resamples, leading to underestimated
+An outer resampling method with replacement combined with inner resampling
+(for tuning) can place duplicated cases from the outer resampling in both
+the training and test sets of the inner resamples, which underestimates
 test error.
 
 \strong{Reproducibility}
 
-If using \emph{\strong{outer resampling}}, you can set a seed when defining \code{outer_resampling_config}, e.g.
+For \emph{\strong{outer resampling}}, set a seed when defining \code{outer_resampling_config}, e.g.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{outer_resampling_config = setup_KFold(n_resamples = 10L, seed = 2026L)
 }\if{html}{\out{</div>}}
 
-If using \emph{\strong{tuning with inner resampling}}, you can set a seed when defining \code{tuner_config},
-e.g.
+For \emph{\strong{tuning with inner resampling}}, set a seed when defining \code{tuner_config}, e.g.
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{tuner_config = setup_GridSearch(
   resampler_config = setup_KFold(n_resamples = 5L, seed = 2027L)

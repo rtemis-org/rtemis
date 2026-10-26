@@ -13,8 +13,8 @@
 #
 # A *set* is the level above a space: several whole configurations searched as
 # one, for the combinations a product cannot express. `gate_tuning_grid()`
-# removes the cells that are *invalid*; a set is for the ones that are valid and
-# simply not the combinations meant -- LINAD's CART point is a conjunction of
+# removes the cells that are *invalid*; a set is for the ones that are valid but
+# not the combinations intended -- LINAD's CART point is a conjunction of
 # four properties that gate nothing, so no product over them can name it.
 #
 # The class represents an enumerated domain. A domain a tuner samples -- a
@@ -80,8 +80,8 @@ HyperparameterCandidates <- new_class(
 #'
 #' @details
 #' Give it the candidates. Several arguments are one candidate each; a single
-#' argument holding several values *is* the candidates, so a grid you computed
-#' can be passed straight in:
+#' argument holding several values *is* the candidates, so a computed grid is
+#' passed directly:
 #'
 #' ```r
 #' setup_LightRF(max_depth = tune_over(3L, 4L, 5L))
@@ -191,8 +191,7 @@ clean_each <- function(x, cleaner, ...) {
 #'   element, `list(c(1, 2, 3))` reaching a nested integer property as
 #'   `list(1:3)` does.
 #'
-#' Both matter because `10` is a double in R: writing `10L` everywhere is not
-#' something to ask of a user, and the property's declared type is integer, so
+#' R reads `10` as a double, and the property's declared type is integer, so
 #' the coercion happens at this boundary.
 #'
 #' @param x Value, `HyperparameterCandidates` object, or list to coerce.
@@ -208,8 +207,7 @@ clean_int <- function(x, ...) {
     x@candidates <- lapply(x@candidates, rtemis.core::clean_int, ...)
     return(x)
   }
-  # A data.frame is a list, and cleaning it column by column is not what any
-  # caller means by it.
+  # A data.frame is a list but is not cleaned column by column.
   if (is.list(x) && !is.data.frame(x)) {
     return(clean_each(x, rtemis.core::clean_int, ...))
   }

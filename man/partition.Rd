@@ -27,17 +27,11 @@ Named list: the partition manifest -- \code{config}, \code{source} (a
 written to).
 }
 \description{
-A held-out split is a decision -- which rows train, which are held out, and
-by what rule -- and a decision the record cannot report is one nothing
-downstream can audit. \code{partition()} makes it a first-class, executed step,
-the same way \code{ingest()} makes reading a file one: the config states the
-rule, this function applies it and returns a manifest naming exactly what
-happened, including a \code{DataFingerprint} of each side.
-
-Not a \code{SuperConfig} property. \code{SuperConfig}'s \code{dat_training_path} and
-\code{dat_test_path} simply name whatever \code{partition()} (or any other step)
-produced -- the same relationship they already have with \code{ingest()}'s
-output.
+Splits \code{dat} by the rule in a \code{PartitionConfig} and returns a manifest of
+the split, including a \code{DataFingerprint} of the source and of each
+partition. With \code{outdir}, writes \code{training.parquet} and \code{test.parquet},
+which a \code{SuperConfig} references through \code{dat_training_path} and
+\code{dat_test_path}.
 }
 \examples{
 partition(iris, setup_RandomPartition(train_p = 0.8, seed = 2026L))

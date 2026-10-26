@@ -316,8 +316,7 @@ cart_coalition_value <- function(tree, i, x, known) {
 # %% explain_super.class_rpart ----
 #' Exact TreeSHAP contributions from a CART tree
 #'
-#' Shapley values by exact enumeration over the features the tree actually
-#' splits on, against the path-dependent value function. A feature the tree
+#' Shapley values by exact enumeration over the features the tree splits on, against the path-dependent value function. A feature the tree
 #' never split on receives exactly zero, so the enumeration runs over that set,
 #' which keeps `2^p` small for a tree of realistic size.
 #'

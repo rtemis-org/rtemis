@@ -92,10 +92,8 @@ cluster <- function(
   # The config's `features` is the record's account of which columns were
   # clustered, so the fit must use exactly those. Unset means every numeric
   # column, resolved here and written back to the config: a clustering backend
-  # reads numbers, and handing it a date column because the caller did not
-  # enumerate a hundred names is a run that fails on data any other interface
-  # clusters without being asked. `train()` resolves its decomposition step the
-  # same way, and `decomp()` now does too, so one rule covers all three.
+  # reads numbers. `train()` resolves its decomposition step and `decomp()` its
+  # features the same way, so one rule covers all three.
   x <- as.data.frame(x)
   if (is.null(config@features)) {
     config@features <- resolve_unsupervised_features(x, "Clustering")
@@ -103,8 +101,7 @@ cluster <- function(
   # Against the frame as supplied, so that `features` is checked against every
   # column the caller has and a per-case setting against every row. Both
   # paths, because a bound that is not about the feature selection -- CMeans'
-  # per-case `weights` -- is wrong just as often when the selection was left
-  # to us.
+  # per-case `weights` -- applies whether or not the selection was supplied.
   check_data_bounds(config, x, has_outcome = FALSE)
   x <- x[, config@features, drop = FALSE]
 

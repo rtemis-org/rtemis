@@ -194,7 +194,7 @@ one value per feature. NULL uses 1 for every feature.}
 leaf: the smooth counterpart of a case count.}
 
 \item{min_gain_to_split}{(Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-buy to be made.}
+produce for the split to be made.}
 
 \item{max_delta_step}{(Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 uncapped.}

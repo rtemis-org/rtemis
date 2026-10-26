@@ -113,7 +113,7 @@ label_metric_df <- function(df) {
 # %% prop_metric ----
 #' A metric cell: a number that may be missing
 #'
-#' Every metric column is nullable. A metric can be genuinely undefined for a
+#' Every metric column is nullable. A metric can be undefined for a
 #' sample -- F1 when precision and recall are both zero, sensitivity for a class
 #' with no cases, AUC when its backend fails -- and is then stored as NA in a
 #' valid object. An *absent* column says the metric was not computed for this
@@ -295,8 +295,8 @@ RegressionMetrics <- schema_class(
   name = "RegressionMetrics",
   parent = Metrics,
   properties = list(
-    # A one-row table. Every metric is nullable: a metric can be genuinely
-    # undefined for a sample (R-squared when the outcome has no variance), and
+    # A one-row table. Every metric is nullable: a metric can be undefined for
+    # a sample (R-squared when the outcome has no variance), and
     # is then stored as NA in a valid object.
     metrics = prop_state(prop_table(
       columns = regression_metric_columns(),
@@ -319,7 +319,7 @@ RegressionMetrics <- schema_class(
     role = "document",
     slug = "regressionmetrics",
     title = "rtemis RegressionMetrics",
-    description = "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being genuinely undefined for some samples.",
+    description = "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being undefined for some samples.",
     order = 7L,
     kind = "report"
   )

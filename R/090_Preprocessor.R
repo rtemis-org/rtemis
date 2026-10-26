@@ -189,8 +189,8 @@ SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
   ),
   # Settable *and* run-written: `preprocess()` uses a supplied value in place
   # of computing one, and stores what it computed when none was given. So it
-  # is config, not state -- `readOnly` would reject a legitimate input. A
-  # record marks it readOnly, where it genuinely was derived.
+  # is config, not state -- `readOnly` would reject a valid input. A record
+  # marks it readOnly, where it was derived.
   scale_centers = prop_map(
     prop_float(0),
     nullable = TRUE,
@@ -338,8 +338,8 @@ AnyPreprocessorConfig <- PreprocessorConfig | SupervisedPreprocessorConfig
 #' `PREPROCESSOR_TRAIN_EXCLUDED`, so code shared with `preprocess()` reads those
 #' four through this. The value returned for an
 #' absent property is the default the shared property list declares, which is
-#' the "off" value for all four -- so a supervised config behaves exactly as one
-#' that left them unset, and there is no second table of off-values to drift.
+#' the "off" value for all four, so a supervised config behaves exactly as one
+#' that left them unset.
 #'
 #' @param config `PreprocessorConfig` or `SupervisedPreprocessorConfig` object.
 #' @param name Character: Property name.
@@ -549,16 +549,14 @@ method(repr, SupervisedPreprocessorConfig) <- function(
 #'   than or equal to this number of unique values to factors. 0 and 1 both
 #'   disable it: a feature with one unique value is a constant, which
 #'   `remove_constants` covers.
-#'   For example, if binary variables are encoded with 1, 2, you could use
-#'   `unique_len2factor = 2` to convert them to factors.
+#'   For example, `unique_len2factor = 2` converts binary variables encoded as
+#'   1, 2 to factors.
 #' @param character2factor Logical: If TRUE, convert all character variables to
 #'   factors.
 #' @param factorNA2missing Logical: If TRUE, make NA values in factors be of
-#'   level `factorNA2missing_level`. In many cases this is the preferred way
-#'   to handle missing data in categorical variables. Note that since this step
-#'   is performed before imputation, you can use this option to handle missing
-#'   data in categorical variables and impute numeric variables in the same
-#'   `preprocess` call.
+#'   level `factorNA2missing_level`. This step runs before imputation, so one
+#'   `preprocess` call can code missing values in categorical variables as a
+#'   level and impute numeric variables.
 #' @param factorNA2missing_level Character: Name of level if
 #'   `factorNA2missing = TRUE`.
 #' @param factor2integer Logical: If TRUE, convert all factors to integers.
@@ -1008,7 +1006,7 @@ Preprocessor <- new_class(
   package = "rtemis",
   properties = list(
     # Either config: `train()` fits from the supervised one and keeps it, so the
-    # fitted object reports the vocabulary the run was actually given.
+    # fitted object reports the vocabulary the run was given.
     config = AnyPreprocessorConfig,
     preprocessed = class_data.frame | class_list,
     values = class_list,

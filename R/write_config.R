@@ -21,8 +21,8 @@
 #'
 #' A config is an **input**: what a run is being asked to do. Fields it omits
 #' fall back to their `setup_*` defaults when read, so a config stays valid as
-#' those defaults improve. That is the opposite of a **record**, which states
-#' what one run actually did, with every value resolved -- see [write_record].
+#' those defaults change. A **record**, by contrast, states what one run did,
+#' with every value resolved -- see [write_record].
 #' The two are separate functions, so a caller names the artifact they want.
 #'
 #' @param x A `SuperConfig`, `DecomposeConfig`, `ClusterConfig`,
@@ -97,7 +97,7 @@ write_config <- new_generic(
 #' Recursively drop zero-length elements from a config payload
 #'
 #' Removes `NULL` and empty-vector (e.g. `character(0)`) elements so the emitted
-#' JSON carries only values that were actually set; everything omitted falls back
+#' JSON carries only values that were set; everything omitted falls back
 #' to its `setup_*` default on read. This also avoids the `[] -> list()`
 #' round-trip mismatch when the JSON reader parses with `simplifyVector = FALSE`.
 #'
@@ -105,8 +105,8 @@ write_config <- new_generic(
 #' @param keep Character: Names of top-level elements to keep even when
 #'   zero-length. A nullable property whose `setup_*` default is non-NULL needs
 #'   its explicit NULL on the wire, since omission reads back as that default.
-#'   Applies to the top level only: it is deliberately not passed down the
-#'   recursion, so a nested config of the same name is compacted as usual.
+#'   Applies to the top level only: it is not passed down the recursion, so a
+#'   nested config of the same name is compacted as usual.
 #'
 #' @return `x` with zero-length elements removed recursively.
 #'
@@ -333,7 +333,7 @@ method(write_config, ClusteringConfig) <- function(
 # %% write_record ----
 #' Write a run record to a JSON file
 #'
-#' A record states what a run actually did: every value resolved, where each one
+#' A record states what a run did: every value resolved, where each one
 #' came from, and what produced it. A separate function from [write_config],
 #' since the two artifacts answer different questions.
 #'
@@ -357,9 +357,8 @@ method(write_config, ClusteringConfig) <- function(
 #' sample's headline row as a flat metric-to-value map, averaged across outer
 #' resamples, with `metrics_sd` beside it for the spread (`null` for a single
 #' fit, which has none). The full metrics -- the confusion matrix, the per-class
-#' rows -- are in each fold's own `metrics`. The flat block exists so that "was
-#' this model any good?" is one lookup in one file, with no averaging and no R,
-#' which is what makes a directory of records rankable.
+#' rows -- are in each fold's own `metrics`. The flat block is read in one
+#' lookup, without averaging, so a directory of records can be ranked.
 #'
 #' [train], [decomp] and [cluster] call this automatically when given an
 #' `outdir`. A record is not a config: feeding one to [read_config] is an error,
@@ -447,8 +446,7 @@ session_sidecar_path <- function(file) {
 #'
 #' @details
 #' Returns the `DataRef` the record carries, or NULL when the object has no
-#' session to write -- a pipeline result, or a model from before sessions were
-#' recorded.
+#' session to write, as for a pipeline result.
 #'
 #' The digest is over the file's bytes. Two implementations would need a
 #' canonical logical form to agree on a digest for one table; a sidecar is

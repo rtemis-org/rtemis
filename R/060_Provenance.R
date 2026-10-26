@@ -52,8 +52,7 @@ session_info <- function() {
 
 
 # %% RUN_OUTCOMES ----
-# How a run ended. A canceled or failed run still gets a record: "all runs are
-# observable" does not hold if only the successful ones are written down.
+# How a run ended. A canceled or failed run also gets a record.
 RUN_OUTCOMES <- c("completed", "failed", "canceled")
 
 

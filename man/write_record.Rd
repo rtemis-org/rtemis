@@ -19,7 +19,7 @@ write_record(x, file, overwrite = FALSE, verbosity = 1L)
 \code{x}, invisibly.
 }
 \description{
-A record states what a run actually did: every value resolved, where each one
+A record states what a run did: every value resolved, where each one
 came from, and what produced it. A separate function from \link{write_config},
 since the two artifacts answer different questions.
 }
@@ -45,9 +45,8 @@ A supervised record also states \strong{what the run scored}. \code{metrics} hol
 sample's headline row as a flat metric-to-value map, averaged across outer
 resamples, with \code{metrics_sd} beside it for the spread (\code{null} for a single
 fit, which has none). The full metrics -- the confusion matrix, the per-class
-rows -- are in each fold's own \code{metrics}. The flat block exists so that "was
-this model any good?" is one lookup in one file, with no averaging and no R,
-which is what makes a directory of records rankable.
+rows -- are in each fold's own \code{metrics}. The flat block is read in one
+lookup, without averaging, so a directory of records can be ranked.
 
 \link{train}, \link{decomp} and \link{cluster} call this automatically when given an
 \code{outdir}. A record is not a config: feeding one to \link{read_config} is an error,

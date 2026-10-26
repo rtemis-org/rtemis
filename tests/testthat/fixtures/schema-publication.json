@@ -107,7 +107,7 @@
     "ingest": {
       "base_class": "IngestConfig",
       "title": "rtemis IngestConfig",
-      "description": "Language-independent config for reading a data file and normalizing it to Parquet. A delimited file or a spreadsheet carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. `format` is what the file is, not a preference, so it has no default and a config that disagrees with its file is an error.",
+      "description": "Language-independent config for reading a data file and writing it to Parquet. `format` names the file format and selects the settings that apply to it; a config whose `format` differs from the format of the file is an error. `columns` declares column types, which replace the types the reader assigns.",
       "discriminator_description": "What the file is.",
       "algorithms": [
         {
@@ -159,7 +159,7 @@
     "partition": {
       "base_class": "PartitionConfig",
       "title": "rtemis PartitionConfig",
-      "description": "Language-independent config for splitting a dataset into a training set and a held-out test set. A first-class, auditable operation -- the same reason `ingest` is one -- rather than a field on `SuperConfig`: how a held-out set was produced is a decision the record must be able to report.",
+      "description": "Language-independent config for splitting a dataset into a training set and a held-out test set. `method` names the splitting rule and selects the settings that apply to it.",
       "discriminator_description": "How the dataset is split.",
       "algorithms": [
         {
@@ -496,7 +496,7 @@
     "regressionmetrics": {
       "class": "RegressionMetrics",
       "title": "rtemis RegressionMetrics",
-      "description": "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being genuinely undefined for some samples."
+      "description": "Regression metrics for one sample: a single-row table of mean absolute error, mean squared error, root mean squared error and R-squared. Every cell is nullable, a metric being undefined for some samples."
     },
     "classificationmetrics": {
       "class": "ClassificationMetrics",
@@ -511,7 +511,7 @@
     "clusteringmetrics": {
       "class": "ClusteringMetrics",
       "title": "rtemis ClusteringMetrics",
-      "description": "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column -- null alone cannot distinguish a measure that was computed and came out undefined from one nobody asked for."
+      "description": "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column; null alone does not distinguish a measure that was computed and came out undefined from one not requested."
     },
     "decompositionmetrics": {
       "class": "DecompositionMetrics",

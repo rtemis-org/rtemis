@@ -26,16 +26,11 @@ MAXIMIZED_METRICS <- c(
 #' Train models using a combination of parameter values for model selection
 #'
 #' @details
-#' Note that weights, if defined (and not NULL), should be passed directly to `grid_search`
-#' as they need to be resampled along `x` and `y`, and should not be passed along with
-#' `grid_params`. `ifw` and `ifw_type` should be passed as part of `grid_params`
-#' and will be passed on to the learner.
-#' Includes a algorithm-specific extraction of config that are determined internally,
-#' such as `lambda` for `GLMNET`, `nrounds` for `LightGBM`, etc.
-#'
-#' The current implementation allows running sequentially either directly using lapply + cli
-#' progress, or using a sequential future plan. The former may give better debugging information.
-#' The latter may be helpful to test that the future parallelization setup works correctly.
+#' `weights` are case weights, resampled with the rows of `x`. `ifw` is a
+#' hyperparameter and reaches the learner through `hyperparameters`.
+#' Values a backend determines internally are collected per algorithm, such as
+#' `lambda` for `GLMNET`, `nrounds` for `LightGBM`, and the leaf count for
+#' `LINAD`.
 #'
 #' @param x tabular data: Training set.
 #' @param hyperparameters `Hyperparameters` object created with a learner's `setup_*` function.
@@ -44,7 +39,7 @@ MAXIMIZED_METRICS <- c(
 #' fold so hyperparameters are evaluated on preprocessed data.
 #' @param decomposition_config Optional `DecompositionConfig` object: Setup using a decomposition
 #' `setup_`*` function.
-#' @param weights Vector: Class weights.
+#' @param weights Optional Numeric vector: Case weights.
 #' @param save_mods Logical: Save models in tuning results.
 #' @param n_workers Integer: Number of workers to use for parallel processing.
 #' @param backend Character: Type of parallelization to use. Options are "none", "future",
@@ -182,7 +177,7 @@ tune_GridSearch <- function(
     weights = weights_shared,
     algorithm = algorithm,
     save_mods = save_mods,
-    # Failure policy (specs/observability.md section 7): a grid-cell failure is fatal
+    # Failure policy: a grid-cell failure is fatal
     # only under "stop". "stop_outer" tolerates cells and is fatal for outer folds alone.
     fatal = identical(on_error, "stop"),
     verbosity = verbosity
@@ -242,7 +237,7 @@ tune_GridSearch <- function(
   # Aggregate ----
   # Average test errors.
   # Host-synthesize one grid_cell node per cell under the active "tune" node, with status
-  # and error filled from the returned results. See specs/observability.md section 4.
+  # and error filled from the returned results.
   for (r in grid_run) {
     failed_cell <- isTRUE(r[["failed"]])
     session_add_node(
@@ -344,8 +339,8 @@ tune_GridSearch <- function(
   )
 
   # Algorithm-specific collection ----
-  # N of iterations is the one hyperparameter that may be determined
-  # automatically, we therefore need to extract it and average it
+  # Values a backend determines during each cell's fit are collected and
+  # averaged across resamples.
   ## GLMNET ----
   if (algorithm == "GLMNET") {
     if (is.null(grid_params[["lambda"]])) {
@@ -519,7 +514,7 @@ tune_GridSearch <- function(
   # happens next is algorithm-dependent and none of it is what the user asked for: an
   # algorithm that tolerates NA falls back to its own default (LightGBM reverts to
   # `max_nrounds` with early stopping), and one that does not fails its validator with a
-  # message naming NULL, which points nowhere near the real problem.
+  # message naming NULL, which does not name the cause.
   #
   # A cell failure is one way to get here; a degenerate inner resample is another and does
   # not require any failure at all. `balanced_accuracy` averages per-class recall, so a
@@ -566,12 +561,11 @@ tune_GridSearch <- function(
         ":"
       )
     )
-    # For a set, only what the **winning member** actually searched. The union
-    # grid holds every member's tuned hyperparameters, so reporting it whole
-    # presents one member's candidates as another's: `lambda` searched over
-    # {0.01, 0.1} inside one variant reads as {0.01, 0.1, NULL} once three
-    # variants that do not set it are folded in, and the NULL is not a candidate
-    # anyone offered.
+    # For a set, only what the **winning member** searched. The union grid holds
+    # every member's tuned hyperparameters, so reporting it whole would present
+    # one member's candidates as another's: `lambda` searched over {0.01, 0.1}
+    # inside one variant would read as {0.01, 0.1, NULL} once three variants
+    # that do not set it are folded in.
     shown_columns <- grid_hyperparameter_columns(param_grid)
     shown_grid <- param_grid
     if (!is.null(best_variant)) {
@@ -598,7 +592,7 @@ tune_GridSearch <- function(
   }
 
   # Outro ----
-  # Since this is always called from within `train()`, we don't want to print "Completed..."
+  # Called only from `train()`, so the closing message prints one verbosity level lower.
   outro(start_time, verbosity = verbosity - 1L)
 
   if (verbosity > 0L) {
@@ -735,7 +729,7 @@ make_grid_cell_runner <- function(
 
     # Detach any active observability session so the inner train() is opaque to the host
     # graph; the host host-synthesizes one grid_cell node per cell (uniform across
-    # backends). In daemons the session is already NULL, so this is a harmless no-op.
+    # backends). In daemons the session is already NULL, so this is a no-op.
     saved_session <- live[["session"]]
     live[["session"]] <- NULL
     on.exit(live[["session"]] <- saved_session, add = TRUE)
@@ -754,9 +748,9 @@ make_grid_cell_runner <- function(
         verbosity = verbosity
       )
     }
-    # Failure policy (specs/observability.md section 7): under a tolerant policy a
+    # Failure policy: under a tolerant policy a
     # grid-cell failure is captured and returned as a marker (non-fatal); otherwise it
-    # propagates. Timestamps bracket the actual cell run so the host can record real
+    # propagates. Timestamps bracket the cell run so the host can record real
     # durations on the synthesized grid_cell nodes.
     cell_t_start <- Sys.time()
     mod1 <- if (fatal) {
@@ -928,8 +922,8 @@ print_tune_finding <- function(param_grid, best_param_combo, pad = 22L) {
 #' The counts a run announces, derived without building the grid a second time
 #' or drawing the randomized sample. `train()` reads this to announce a search
 #' it is about to run inside outer resampling folds, where each fold's own
-#' announcement is silenced; `tune_GridSearch()` reads the same values, so the
-#' two can never describe different searches.
+#' announcement is silenced; `tune_GridSearch()` reads the same values, so both
+#' describe the same search.
 #'
 #' @param hyperparameters Hyperparameters or HyperparametersSet object.
 #' @param tuner_config TunerConfig object.

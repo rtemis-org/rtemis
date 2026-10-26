@@ -179,7 +179,7 @@ test_that("tune_over takes candidates as arguments or as one vector", {
   expect_identical(d@candidates, list(3L, 4L, 5L))
 
   # A computed grid goes straight in, with no splicing incantation: this is the
-  # form a user with a log-spaced grid actually writes.
+  # form a user with a log-spaced grid writes.
   lambdas <- 10^seq(-4, 0, length.out = 5)
   d_vec <- setup_LightRF(lambda_l2 = tune_over(lambdas))@lambda_l2
   expect_identical(d_vec@candidates, as.list(lambdas))

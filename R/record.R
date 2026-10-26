@@ -5,24 +5,20 @@
 # Turning a finished run into a record: the values it used, where each one came
 # from, and what produced it.
 #
-# The hard part is `origin`, and what makes it answerable is that a model
-# carries *both* configs -- the input it was given (`@config`) and the resolved
-# one it ran (`@hyperparameters` and friends). Comparing them is observation:
-# a field that changed was changed by the run, and whether it was tuned or
-# derived is decided by the declarations (`tunable`, `tune_on_null`), not by a
-# guess.
+# `origin` is derived from the two configs a model carries: the input it was
+# given (`@config`) and the resolved one it ran (`@hyperparameters` and
+# others). A field that differs between them was changed by the run, and the
+# declarations (`tunable`, `tune_on_null`) decide whether it was tuned or
+# derived.
 #
-# One thing cannot be observed this way, and the `setup_*()` is the only place
-# it is knowable. Its defaults are applied before `train()` ever sees the
-# config, so "the caller typed `nrounds = 500`" and "500 is the default" arrive
-# identical. A setup function that records which of its arguments were supplied
-# -- `supplied_origins()`, attached by `config_origins<-()` -- states the
-# difference outright. One that does not leaves the old inference to run,
-# comparing against the *declared* default: it reads a caller who supplied the
-# default value as `"default"`, and a convenience default that differs from the
-# class's as `"user"` -- which is what made every `ExecutionConfig` field the
-# caller never chose read as theirs. The value is the same either way, so a
-# replay is unaffected; only the attribution is.
+# Whether an unchanged value was supplied or defaulted is known only to the
+# `setup_*()`, which applies its defaults before `train()` sees the config. A
+# setup function that records which of its arguments were supplied
+# (`supplied_origins()`, attached by `config_origins<-()`) states it. For one
+# that does not, the record compares against the declared default: a supplied
+# value equal to the default reads as `"default"`, and a setup default that
+# differs from the class's reads as `"user"`. The value is the same either
+# way; only the attribution differs.
 
 # %% supplied_origins ----
 #' Which of a setup function's arguments the caller supplied
@@ -31,7 +27,7 @@
 #' an argument the caller named, `"default"` for one the function is left to
 #' fill in.
 #'
-#' This is the half of `origin` nothing downstream can observe. Comparing the
+#' This is the part of `origin` that comparison cannot observe. Comparing the
 #' config a run was given against the one it resolved separates `derived` and
 #' `tuned` by observation, but `setup_*()` applies its own defaults before
 #' anything else sees the config, so "the caller asked for `backend = "future"`"
@@ -41,10 +37,10 @@
 #'
 #' Only for a `setup_*()` its caller reaches directly. It reports what *this*
 #' call was told, so wiring it into one that an internal caller fully populates
-#' records that caller's forwarding as the user's choices -- `train()` passes
-#' `outdir = outdir` deliberately, which is why `setup_SuperConfig()` is left to
-#' the comparison. Where an intermediary restates every field, the fix is for
-#' the intermediary to forward only what it was given.
+#' records that caller's forwarding as the user's choices: `train()` passes
+#' `outdir = outdir`, so `setup_SuperConfig()` is left to the comparison. An
+#' intermediary that restates every field must forward only what it was
+#' given.
 #'
 #' @return Named character: one of `VALUE_ORIGINS` per formal.
 #'
@@ -80,8 +76,8 @@ supplied_origins <- function() {
 #' attribute stays out of the schema, the wire shape and the record's fields.
 #'
 #' Absent when the object was built some other way, or rebuilt by something that
-#' did not carry it forward. The record then infers from the declared defaults,
-#' as it always did -- a coarser answer, never a wrong one.
+#' did not carry it forward. The record then infers origins from the declared
+#' defaults.
 #'
 #' @param x S7 config object, or NULL.
 #'
@@ -255,8 +251,8 @@ config_record <- function(input, resolved) {
   # states `seed: 42` and never says whether the caller chose it.
   #
   # `S7_to_JSONSchema()` declares exactly this union in the leaf's record
-  # schema, from the same `family_shared_names()`, so writer and schema cannot
-  # disagree; `test_RecordDocuments.R` validates a real record against it.
+  # schema, from the same `family_shared_names()`; `test_RecordDocuments.R`
+  # validates a real record against it.
   origin_names <- unique(c(flat, family_shared_origin_names(base)))
   origin <- lapply(origin_names, function(nm) {
     prop_def <- props[[nm]]
@@ -376,10 +372,9 @@ family_base <- function(cls) {
 #' A record keeps every field: an unset one is stated as `null`, so nothing in
 #' it falls back to a reader's defaults.
 #'
-#' It also keeps **run state**, which a config drops. `lambda.min` and the
-#' `nrounds` early stopping settled on are precisely what a record exists to
-#' report -- a config omits them because they are re-derived on read, but a
-#' record is the statement of what a run produced. Left out are constants, the
+#' It also keeps **run state**, which a config drops. A record reports
+#' `lambda.min` and the `nrounds` early stopping selected; a config omits them
+#' because they are re-derived on read. Left out are constants, the
 #' algorithm implying them; computed views, which are functions of fields
 #' already present; and `r_only` values, which have no wire form at all. The
 #' last two are exactly what `S7_to_JSONSchema()` omits from the generated
@@ -529,14 +524,13 @@ method(record, SupervisedRes) <- function(x, outcome = "completed") {
 # %% supervised_record ----
 #' Assemble a supervised run record
 #'
-#' The top level is what was *asked for*; `folds` is what *ran*, once per model
-#' fitted. They are separate because a resampled run resolves different values
-#' in each fold -- early stopping picks a different `nrounds` every time -- so a
-#' single resolved value at the top would be a claim the run never made. A
-#' single fit is one fold.
+#' The top level states what was requested; `folds` states what ran, once per
+#' model fitted. A resampled run resolves different values in each fold (early
+#' stopping selects a different `nrounds` in each), so resolved values are
+#' recorded per fold. A single fit is one fold.
 #'
 #' @param x `Supervised` or `SupervisedRes` object.
-#' @param folds List of `Supervised` objects: the models actually fitted.
+#' @param folds List of `Supervised` objects: the models fitted.
 #' @param outcome Character: How the run ended; see `RUN_OUTCOMES`.
 #'
 #' @return Named list conforming to `supervised/r/v1/record.json`.
@@ -580,9 +574,8 @@ supervised_record <- function(x, folds, outcome = "completed") {
         seq_along(folds),
         function(i) fold_record(folds[[i]], i, input)
       ),
-      # The headline scores, so "was this model any good?" is one lookup rather
-      # than an average over `folds`. Each fold's full metrics are there too;
-      # this block is the reason to open the file.
+      # The headline scores, read in one lookup without averaging over `folds`.
+      # Each fold's full metrics are in `folds`.
       metrics = sample_metrics(x, metric_row),
       metrics_sd = sample_metrics(x, metric_sd_row),
       provenance = S7_to_list(provenance_of(x, outcome = outcome)),
@@ -642,8 +635,8 @@ fold_record <- function(model, index, input = model@config) {
     )
   }
   # What this fold scored, in full: the confusion matrix and per-class rows as
-  # well as the headline row. The record already said how every tuning
-  # *candidate* scored; without this it was silent on the model that was kept.
+  # well as the headline row, for the model that was kept, beside the scores
+  # of every tuning candidate.
   out[["metrics"]] <- sample_metrics(model, record_object)
   out
 } # /rtemis::fold_record
@@ -697,9 +690,9 @@ record_object <- function(x) {
 #'
 #' The row a reader compares runs on: a regression sample's four metrics, or a
 #' classification sample's `overall` row. Per-class metrics and the confusion
-#' matrix are deliberately not here -- they are in the fold's full metrics
-#' block, which is the typed contract. This block exists to be read without
-#' computing anything, which is what makes an `outdir` of records rankable.
+#' matrix are in the fold's full metrics block, which is the typed contract.
+#' This block is read without computation, so records can be ranked
+#' directly.
 #'
 #' @param x `Metrics` or `MetricsRes` object, or NULL.
 #'

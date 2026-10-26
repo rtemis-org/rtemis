@@ -503,7 +503,7 @@ setdiffsym <- function(x, y) {
 #' @export
 #' @examples
 #' \dontrun{
-#' # Will create "my_project" directory with
+#' # Creates the "my_project" directory and its subdirectories
 #' init_project_dir("my_project")
 #' }
 init_project_dir <- function(path, output_dir = "Out", verbosity = 1L) {

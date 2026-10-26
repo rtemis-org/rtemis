@@ -166,7 +166,7 @@ test_that("patience bounds growth and the size is still the curve's argmin", {
   stopped <- fit(1L)
   expect_lt(length(stopped@model@steps), length(unbounded@model@steps))
   # Stopping bounds growth; the size is still the argmin of the curve reached,
-  # not simply the size growth halted at.
+  # not the size growth halted at.
   expect_equal(
     stopped@model@n_leaves,
     which.min(stopped@model@leaf_curve)

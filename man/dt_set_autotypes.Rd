@@ -18,9 +18,9 @@ columns}
 data.table, invisibly.
 }
 \description{
-This function inspects a data.table and attempts to identify columns that should be
-numeric but have been read in as character, and fixes their type \emph{\strong{in-place}}.
-This can happen when one or more fields contain non-numeric characters, for example.
+Inspects a data.table, identifies columns that hold numbers but were read as character,
+and converts their type \emph{\strong{in-place}}. Such columns arise, for example, when one or more
+fields contain non-numeric characters.
 }
 \examples{
 library(data.table)

@@ -91,12 +91,12 @@ hp_prop_values <- function(self) {
 #' @param x tabular data: Training data.
 #' @param needed Character: Which dimensions to resolve. Only these are
 #'   computed, so a caller declaring nothing feature-related may pass a bare
-#'   vector -- `features()` requires at least two columns and would abort on
-#'   one. `resample()` relies on this: a resampler bounds only `n_cases`.
+#'   vector; `features()` requires at least two columns. `resample()` passes
+#'   only `n_cases`.
 #' @param has_outcome Logical: If TRUE, `x` follows the supervised convention
 #'   (the last column is the outcome, the rest are features). Pass FALSE for a
-#'   frame that is already features-only, as the decomposition path uses:
-#'   otherwise the last feature is silently treated as an outcome and excluded
+#'   frame that is already features-only, as the decomposition path does;
+#'   with TRUE, the last feature would be treated as an outcome and excluded
 #'   from every dimension.
 #'
 #' @return Named list with one element per requested `DATA_BOUNDS` entry.
@@ -181,14 +181,12 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
       next
     }
     # A domain holds one value per candidate, and the tuner may fit any of
-    # them, so every candidate has to be in bounds -- an out-of-range one
-    # would otherwise surface as a failed grid cell partway through tuning.
+    # them, so every candidate is checked before tuning starts.
     for (value in if (is_candidates(value)) value@candidates else list(value)) {
       if (bound %in% NAME_BOUNDS) {
-        # `unlist()` because a name bound may sit on a container of *vectors* -- a
-        # map from group name to feature names. `setdiff()` on the list would
-        # compare each element's deparsed form against the column names and report
-        # every group as unknown.
+        # `unlist()` because a name bound may sit on a container of vectors, such
+        # as a map from group name to feature names; `setdiff()` on a list
+        # compares each element's deparsed form against the column names.
         unknown <- setdiff(unlist(value, use.names = FALSE), dim_value)
         if (length(unknown) > 0L) {
           rtemis.core::abort(
@@ -207,20 +205,17 @@ check_data_bounds <- function(config, x, has_outcome = TRUE) {
       fields <- get_spec_fields(specs[[nm]])
       is_vector <- !is.null(fields) && fields[["container"]] != "none"
       # A `broadcast` declaration admits a bare scalar in place of the whole
-      # container -- "this value for every element" -- and the published
-      # schema offers exactly that shape (`oneOf: [number, array]`). Reading
-      # its length against the dimension rejects the contract's own answer:
-      # `CMeansConfig@weights` broadcasts and defaults to the scalar 1, so
-      # every CMeans run on more than one case failed here, with a message
-      # telling the caller to supply what the scalar already meant.
+      # container, meaning "this value for every element", as the published
+      # schema does (`oneOf: [number, array]`). A length check against the
+      # dimension applies only to the array form: `CMeansConfig@weights`
+      # broadcasts and defaults to the scalar 1.
       broadcast_scalar <- is_vector &&
         fields[["broadcast"]] &&
         length(value) == 1L
       if (is_vector) {
-        # A broadcast scalar has nothing to check: it stands for a value per
-        # element, and its own magnitude is unrelated to the dimension --
-        # falling through to the scalar branch below would read a case weight
-        # of 500 as "more than the 190 cases".
+        # A broadcast scalar stands for a value per element, and its magnitude
+        # is unrelated to the dimension: the scalar branch below would read a
+        # case weight of 500 as "more than the 190 cases".
         if (!broadcast_scalar && length(value) != dim_value) {
           rtemis.core::abort(
             "`",
@@ -383,8 +378,8 @@ method(validate_hyperparameters, Hyperparameters) <- function(
 # %% abbrev_names ----
 #' Name the first few and count the rest
 #'
-#' For a roster too long to read: the leading names, then how many more there
-#' are. A class declaring its backend's whole parameter surface has scores.
+#' The leading names, then the count of the rest, for a class that declares
+#' many hyperparameters.
 #'
 #' @param x Character: Names.
 #' @param n Integer: How many to name.
@@ -532,13 +527,12 @@ method(print, Hyperparameters) <- function(x, output_type = NULL, ...) {
 
 
 # %% serializable_props.Hyperparameters ----
-# A serialized config is `algorithm` plus the settings as its siblings --
-# exactly what `.list_to_Hyperparameters()` consumes and what the
+# A serialized config is `algorithm` plus the settings as its siblings,
+# which is what `.list_to_Hyperparameters()` consumes and what the
 # hyperparameters schema describes, so `{"algorithm": "Ranger"}` is Ranger with
 # every default. Everything else on the object is either derived from the specs
 # (`tunable_`/`fixed_hyperparameters`) or run state set during training
-# (`tuned`, `resampled`, `n_workers`), so it is reconstructed on read rather
-# than written.
+# (`tuned`, `resampled`, `n_workers`), so it is reconstructed on read.
 method(serializable_props, Hyperparameters) <- function(x) {
   dispatched_props(x, Hyperparameters, "algorithm")
 } # /rtemis::serializable_props.Hyperparameters
@@ -699,7 +693,7 @@ method(needs_tuning, Hyperparameters) <- function(x) {
 
 
 # %% training_device.Hyperparameters ----
-#' Most algorithms run on the CPU by definition and have nothing to report.
+#' Returns NULL: the algorithm runs on the CPU.
 #'
 #' @keywords internal
 #' @noRd
@@ -744,9 +738,9 @@ method(get_hyperparams_need_tuning, Hyperparameters) <- function(x) {
 #' single values is constant across the grid and `check_applies_when()` has
 #' already settled it at construction.
 #'
-#' NA is the marker, distinct from `expand_grid()`'s "null" sentinel: the two
-#' mean different things -- "determine by tuning" against "does not apply here"
-#' -- and NA keeps a numeric column numeric.
+#' NA is the marker, distinct from `expand_grid()`'s "null" sentinel: "null"
+#' means "determine by tuning", NA means "does not apply here", and NA keeps a
+#' numeric column numeric.
 #'
 #' @param grid data.frame: The expanded cross product of the search values.
 #' @param object `Hyperparameters` object the grid was expanded from.
@@ -797,8 +791,8 @@ method(tuning_grid, Hyperparameters) <- function(x) {
     return(NULL)
   }
   # A domain is unwrapped into the candidates themselves: a scalar
-  # hyperparameter's back into a vector, which is the shape `expand.grid()` and
-  # every downstream reader already handle, and a vector-valued one's into a
+  # hyperparameter's back into a vector, the shape `expand.grid()` and the
+  # grid readers take, and a vector-valued one's into a
   # list, so that one grid cell holds one whole value. The declaration decides
   # which form applies.
   specs <- S7_class(x)@properties
@@ -825,12 +819,11 @@ method(tuning_grid, Hyperparameters) <- function(x) {
 # %% grid_row_values ----
 #' One tuning-grid row as hyperparameter values
 #'
-#' A container tunable's candidates are a **list column** -- one grid cell holds
-#' one whole value, such as an entire architecture -- so `as.list()` over the row
-#' leaves that value inside a one-element list. Every other column is atomic and
-#' `as.list()` is already right. Unwrapping in this one function keeps the two
-#' readers of a grid row (the cell that is fitted, and the winning
-#' combination that is reported) reading it the same way.
+#' A container tunable's candidates are a list column, one grid cell holding
+#' one whole value such as an entire architecture, so `as.list()` over the row
+#' leaves that value inside a one-element list; this unwraps it. Every other
+#' column is atomic. Both readers of a grid row, the fitted cell and the
+#' reported winning combination, call this function.
 #'
 #' @param grid data.frame: The tuning grid.
 #' @param index Integer: Row to read.
@@ -972,13 +965,12 @@ setup_GAM <- function(k = 5L, ifw = FALSE) {
 #' @description
 #' Hyperparameters subclass for MARS.
 #'
-#' `degree` and `nprune` are the two parameters worth tuning first: the former
-#' sets how many features may interact in a term, the latter how many terms
-#' survive pruning.
+#' `degree` sets how many features may interact in a term, and `nprune` how
+#' many terms remain after pruning.
 #'
 #' `earth` cross-validates internally when `nfold` is greater than 1, which is
-#' what `pmethod = "cv"` selects the number of terms with. That is separate
-#' from, and can be used instead of, tuning `nprune` through `train()`.
+#' what `pmethod = "cv"` selects the number of terms with. This is separate
+#' from tuning `nprune` through `train()`.
 #'
 #' @author EDG
 #' @keywords internal
@@ -1373,8 +1365,8 @@ setup_CART <- function(
 #'
 #' Two properties are rtemis properties: `regressors` names the features
 #' entering each leaf's model, `partitioning_variables` names those the tree may
-#' split on. `partykit` expresses both through a two-part formula; declaring
-#' them as separate properties lets a config carry them.
+#' split on. `partykit` expresses both through a two-part formula, which rtemis
+#' builds from them.
 #'
 #' The rest are `mob_control()` settings, under their own names.
 #'
@@ -1392,7 +1384,7 @@ GLMTreeHyperparameters <- schema_class(
       nullable = TRUE,
       vector = TRUE,
       data_bound = "feature_names",
-      description = "Features entering the linear model in each leaf. Unset uses every feature; an empty model is not expressible here, since a tree of intercepts is a decision tree and CART fits one."
+      description = "Features entering the linear model in each leaf. Unset uses every feature."
     ),
     partitioning_variables = prop_string(
       NULL,
@@ -1407,7 +1399,7 @@ GLMTreeHyperparameters <- schema_class(
       exclusive_min = 0,
       max = 1,
       tunable = TRUE,
-      description = "Significance level a parameter-instability test must reach before a node is split. The one setting that governs tree size."
+      description = "Significance level a parameter-instability test must reach before a node is split."
     ),
     bonferroni = prop_boolean(
       TRUE,
@@ -1517,17 +1509,15 @@ GLMTreeHyperparameters <- schema_class(
 #' a binary logistic one; rtemis selects between them from the outcome.
 #'
 #' @section How it splits:
-#' Not by loss reduction. A node is split when a **parameter-instability test**
-#' says its model's coefficients are not constant across a candidate
-#' partitioning variable -- a structural change test, at significance level
-#' `alpha`. That is the method's distinguishing feature and the source of both
-#' its strengths and its limits:
+#' A node is split when a parameter-instability test, a structural change
+#' test at significance level `alpha`, rejects constancy of its model's
+#' coefficients across a candidate partitioning variable. Consequences:
 #'
 #' \describe{
 #'   \item{It has a hypothesis-testing foundation}{Splits carry p-values, and
 #'     `alpha` is a significance level with a direct interpretation.}
-#'   \item{It sees a slope change with no shift in the mean}{Which a tree
-#'     splitting on the response cannot: there is nothing in the mean to find.}
+#'   \item{It detects a slope change with no shift in the mean}{A tree that
+#'     splits on the response mean does not.}
 #'   \item{It needs statistical power}{With few cases, many partitioning
 #'     variables, or both, the tests do not reach `alpha` and the tree does not
 #'     split at all -- returning a single global model.}
@@ -1537,25 +1527,23 @@ GLMTreeHyperparameters <- schema_class(
 #' The default `minsize` is **ten times the number of parameters in a leaf's
 #' model**, and that scales with the number of regressors. A split has to leave
 #' `minsize` cases on each side, so with `p` regressors no split is possible
-#' below `n = 20 * (p + 1)` -- 420 cases at 20 regressors, whatever `alpha`
-#' says. A tree that returns one leaf on a wide design has usually hit this,
-#' not the significance level, and raising `alpha` will not move it. Set
-#' `minsize` directly, or narrow `regressors`.
+#' below `n = 20 * (p + 1)`: 420 cases at 20 regressors, for any `alpha`. On a
+#' wide design, a single-leaf tree results from this bound rather than from
+#' `alpha`. Set `minsize` directly, or narrow `regressors`.
 #'
-#' `regressors` and `partitioning_variables` are separable, and the separation
-#' is the point: the model in each leaf need not read the variables the tree
-#' splits on. Both default to every feature.
+#' `regressors` and `partitioning_variables` are set independently: the model
+#' in each leaf may use features other than those the tree splits on. Both
+#' default to every feature.
 #'
 #' @section Interpretability:
-#' Every leaf carries a full model over `regressors` -- there is no selection or
-#' shrinkage, so a leaf holds one coefficient per regressor whether or not it
-#' earned one. Restrict `regressors` to keep that number down.
+#' Every leaf carries a full model over `regressors`, with no selection or
+#' shrinkage: one coefficient per regressor. Restrict `regressors` to reduce
+#' the number of coefficients.
 #'
 #' @section What it does not provide:
-#' No variable-importance measure: `partykit` has one for `cforest` and for
-#' constant-fit trees, and none for a model-based tree. `get_varimp()` therefore
-#' returns NULL, and `get_varimp(explain(mod, newdata))` is the route to a
-#' per-feature measure.
+#' `partykit` provides variable importance for `cforest` and for constant-fit
+#' trees, not for a model-based tree. `get_varimp()` returns NULL;
+#' `get_varimp(explain(mod, newdata))` returns a per-feature measure.
 #'
 #' @param regressors Optional Character vector: Features entering the linear model in each leaf. NULL uses every feature.
 #' @param partitioning_variables Optional Character vector: Features the tree may split on. NULL uses every feature.
@@ -1639,9 +1627,8 @@ setup_GLMTree <- function(
 
 
 # %% LINAD_LEAF_MODELS ----
-# The leaf model is one flat choice of procedure *and* regularization rather
-# than a model/penalty pair, because an `applies_when` gate may not name a
-# property that is itself gated. "constant" fits an intercept only, which is
+# The leaf model is one flat choice of procedure and regularization, because
+# an `applies_when` gate may not name a property that is itself gated. "constant" fits an intercept only, which is
 # what reduces LINAD to the Additive Tree.
 LINAD_LEAF_MODELS <- c("forward", "ridge", "elasticnet", "constant")
 
@@ -1651,10 +1638,10 @@ LINAD_LEAF_MODELS <- c("forward", "ridge", "elasticnet", "constant")
 #'
 #' @description
 #' The hyperparameters that describe **one** LINAD tree, shared by
-#' `LINADHyperparameters` and `LINADForestHyperparameters` so they are declared
-#' once and cannot drift apart. Arguments cover only the defaults that differ
-#' between the two: a forest's trees are strong learners, since the averaging
-#' does the variance control a single tree's `learning_rate` has to do alone.
+#' `LINADHyperparameters` and `LINADForestHyperparameters`, declared once.
+#' Arguments cover the defaults that differ between the two: a forest's trees
+#' are strong learners, since averaging controls variance, which a single tree
+#' controls through `learning_rate`.
 #'
 #' @param learning_rate Numeric: Default for `learning_rate`.
 #' @param max_leaves Integer: Default for `max_leaves`.
@@ -1678,7 +1665,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       min = 1L,
       nullable = TRUE,
       tunable = TRUE,
-      description = "Expansions without validation improvement before growth stops, as gradient boosting stops on rounds. Needs a validation set. Stopping only bounds growth -- the size is still the one that minimizes validation loss over the curve reached. Unset disables patience-based early stopping."
+      description = "Expansions without validation improvement before growth stops, as gradient boosting stops on rounds. Needs a validation set. Stopping bounds growth; the selected size minimizes validation loss over the curve reached. Unset disables patience-based early stopping."
     ),
     force_max_leaves = prop_boolean(
       FALSE,
@@ -1724,7 +1711,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Most terms forward selection may add beside the intercept. A ceiling: the search stops earlier when forward_stop says a term does not pay for itself. Capped at the width of the design. Unset uses 3."
+      description = "Most terms forward selection may add beside the intercept. An upper limit: the search stops earlier when a term fails the forward_stop criterion. Capped at the width of the design. Unset uses 3."
     ),
     forward_stop = prop_string(
       NULL,
@@ -1732,7 +1719,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = "forward"),
-      description = "Cost a term must earn to be added: the Bayesian or Akaike criterion, or none to always add nvmax terms. Shrinkage alone cannot stop the search, since every added term reduces the residual sum of squares. Unset uses bic."
+      description = "Criterion a term must improve to be added: the Bayesian or Akaike criterion, or none to add nvmax terms. Shrinkage alone does not stop the search, since every added term reduces the residual sum of squares. Unset uses bic."
     ),
     lambda = prop_float(
       NULL,
@@ -1742,7 +1729,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       applies_when = list(
         node_model = c("forward", "ridge", "elasticnet")
       ),
-      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike, so a feature that only looks good unpenalized does not win. Unset uses 0.05."
+      description = "L2 penalty on the node models, on a standardized design so one value means the same at every node. Under forward selection it penalizes the fit and the search alike. Unset uses 0.05."
     ),
     alpha = prop_float(
       NULL,
@@ -1817,7 +1804,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(node_model = c("ridge", "elasticnet")),
-      description = "Cost a node's slopes must earn over the constant alone, so that a node carries coefficients only where the data supports them and a plain constant otherwise. The constant is nested in the linear model, so on the node's own cases the slopes always fit better and no comparison is possible without a cost; aic charges 2 per nonzero slope and bic log(n). Forward selection has the same criterion per term in forward_stop, which subsumes this one, so this is the shrinking models' equivalent. Unset uses none."
+      description = "Information criterion a node's slopes must improve over the constant alone; a node whose slopes do not improve it carries the constant only. aic charges 2 per nonzero slope and bic log(n). Applies to the shrinking node models; forward selection applies the same criterion per term through forward_stop. Unset uses none."
     ),
     split_criterion = prop_string(
       NULL,
@@ -1825,7 +1812,7 @@ linad_tree_props <- function(learning_rate = 0.1, max_leaves = 20L) {
       nullable = TRUE,
       tunable = TRUE,
       applies_when = list(split_search = "stump"),
-      description = "What the stump search scores a candidate side by: the level its fit explains, or its level and its slope in the split variable. linear finds a change of slope in the split variable, such as a parabola's vertex, which a level criterion cannot see; it can also chase the slope of the wrong variable where the change belongs to another. Unset uses mean."
+      description = "What the stump search scores a candidate side by: the level its fit explains, or its level and its slope in the split variable. linear detects a change of slope in the split variable, such as a parabola's vertex, which the level criterion does not; where the change belongs to another variable, it can select a split on the wrong one. Unset uses mean."
     ),
     split_search = prop_string(
       "stump",
@@ -1973,16 +1960,16 @@ LINADHyperparameters <- schema_class(
 #' Setup LINAD Hyperparameters
 #'
 #' Setup hyperparameters for LINAD, the Linear Additive Tree. LINAD
-#' **generalizes** the decision tree and the regularized linear model: CART, the
-#' Additive Tree and a penalized linear fit are each a special case of it,
+#' generalizes the decision tree and the regularized linear model: CART, the
+#' Additive Tree, and a penalized linear fit are each a special case of it,
 #' recovered exactly by the hyperparameter combinations given under Details.
 #'
 #' @details
 #' Every node carries a constant, as any decision tree's nodes do. `node_model`
 #' selects the model fitted at each node: `"constant"` for that constant alone,
-#' or a regularized linear model on top of it. That, with `max_leaves` and
-#' `gamma`, makes LINAD a generalization: the familiar algorithms are points in
-#' its hyperparameter space, and everything between them is reachable too.
+#' or a regularized linear model on top of it. With `max_leaves` and `gamma`,
+#' these settings span a hyperparameter space that contains the following
+#' algorithms and the models between them.
 #'
 #' @section What LINAD generalizes:
 #' Each of the following is a special case of LINAD, recovered exactly:
@@ -2028,46 +2015,41 @@ LINADHyperparameters <- schema_class(
 #' set that choice is made on.
 #'
 #' `gamma` lets every case carry weight into both branches, decaying as
-#' `gamma^depth`, so each node's model is pulled toward what the rest of the
-#' data supports. It is the algorithm's main variance-reducing device.
+#' `gamma^depth`, so each node's model is pulled toward the fit to the rest of
+#' the data, which reduces variance.
 #'
 #' `split_search = "exhaustive"` scores each candidate split by the loss after
 #' fitting both child models, rather than taking the best split of the gradient.
-#' It costs more per split and finds structure no stump can see: an interaction
-#' that changes another feature's slope without changing either side's mean
-#' leaves no trace in any one feature's marginal fit.
+#' It costs more per split and detects an interaction that changes another
+#' feature's slope without changing either side's mean, which leaves no trace
+#' in any one feature's marginal fit.
 #'
 #' A node's model is fitted to what its parent left, so its slopes are the
 #' *change* to the parent's coefficients and `lambda` and `alpha` penalize that
 #' change. At `alpha = 1` the change is a lasso, so a feature whose coefficient
-#' does not need to move gets exactly zero and inherits its parent's value: the
-#' tree decides per feature, per node, whether an effect keeps adapting. Ridge
+#' does not need to move gets exactly zero and inherits its parent's value, so
+#' each feature's effect adapts or stays fixed per node. Ridge
 #' shrinks every change but zeroes none, so every coefficient moves at every
 #' node.
 #'
-#' `node_test` lets the tree decide, node by node, whether a linear model is
-#' warranted at all: the slopes are kept only where they reduce the node's
-#' residual sum of squares by more than they cost, and the node takes a plain
-#' constant otherwise. A tree whose flat regions carry constants and whose
-#' structured regions carry coefficients is both smaller to read and a statement
-#' about where the response is locally linear. It buys that sparsity at a price
-#' in accuracy, so it is off by default.
+#' `node_test` selects, node by node, between a linear model and a constant:
+#' the slopes are kept only where they improve the node's information
+#' criterion, and the node carries a constant otherwise. The resulting tree
+#' carries coefficients only in regions where the response is locally linear.
+#' The test can reduce accuracy; the default is `"none"`.
 #'
-#' It applies to the shrinking models only. Forward selection charges the same
-#' cost per term through `forward_stop`, and a set of terms that each paid for
-#' itself always pays for itself jointly, so a node-level test could never
-#' overturn it. One cost rule per node model, at the granularity that model
-#' admits.
+#' It applies to the shrinking models only. Forward selection applies the same
+#' criterion per term through `forward_stop`, and a set of terms that each
+#' passes it also passes it jointly.
 #'
-#' `split_criterion` sets what the stump scores a side by, and closes part of
-#' that gap cheaply. `"mean"` scores the level its fit explains, which is the CART
-#' criterion and is blind to curvature -- a parabola's two halves have the same
-#' mean by construction, so the correct split at the vertex scores near last.
-#' `"linear"` adds the slope in the split variable, at one further pass per
-#' feature per node, and on such a problem recovers the exhaustive search's fit.
-#' It cannot recover the cross-variable case above, and where the change belongs
-#' to another feature it fits the wrong one more confidently, so it is offered
-#' as a tunable rather than the default.
+#' `split_criterion` sets what the stump scores a side by. `"mean"` scores the
+#' level its fit explains, the CART criterion, which does not detect curvature:
+#' a parabola's two halves have the same mean, so the split at the vertex
+#' scores near last. `"linear"` adds the slope in the split variable, at one
+#' further pass per feature per node, and on such a problem recovers the
+#' exhaustive search's fit. It does not detect the cross-variable case above,
+#' and where the change belongs to another feature it can select a split on
+#' the wrong one. The default is `"mean"`.
 #'
 #' `split_binning` discretizes numeric features before either search, so a
 #' candidate split falls on a bin boundary rather than between any two distinct
@@ -2079,8 +2061,8 @@ LINADHyperparameters <- schema_class(
 #' A feature's behavior has two independent axes: whether it may **define a
 #' partition**, and whether its modeled **effect** is absent, shared by every
 #' subgroup, or free to change along a path. Three name-based selectors set
-#' them, and on each of the three **NULL imposes no constraint** -- which means
-#' "all" for the first two and "nothing pinned" for the third:
+#' them, and on each of the three NULL imposes no constraint, which means "all"
+#' for the first two and "nothing pinned" for the third:
 #'
 #' \describe{
 #'   \item{`split_features`}{Features the tree may split on.}
@@ -2096,61 +2078,54 @@ LINADHyperparameters <- schema_class(
 #' encoded columns together, never one of them.
 #'
 #' Declaring effect scope turns LINAD into a varying-coefficient model with a
-#' hierarchical form -- a global baseline plus the node deviations accumulated
-#' down the path. `global` is a hard constraint on the coefficient: it holds
-#' exactly, at any `gamma`. `gamma` is the soft, data-driven version of the same
-#' idea, pulling every node's fit toward what the rest of the data supports
-#' until, at `gamma = 1`, every coefficient is effectively global. The two
-#' compose without interacting: `gamma` decides how much a node's *adaptive*
-#' coefficients may move, and `global_features` decides which coefficients are
-#' allowed to move at all.
+#' hierarchical form: a global baseline plus the node deviations accumulated
+#' down the path. `global` is a hard constraint on the coefficient and holds
+#' exactly at any `gamma`. `gamma` is a soft constraint, pulling every node's
+#' fit toward the fit to the rest of the data until, at `gamma = 1`, every
+#' coefficient is effectively global. The two are independent: `gamma` sets how
+#' far a node's adaptive coefficients may move, and `global_features` sets
+#' which coefficients may move.
 #'
 #' Because a global coefficient is estimated at the root, `root_learning_rate`
 #' shrinks it: at 0 the root fits no slopes and a global feature carries no
 #' effect anywhere.
 #'
-#' The constrained family keeps useful reductions. No splits (`max_leaves = 1`)
+#' The constrained family has these reductions. No splits (`max_leaves = 1`)
 #' is a penalized linear model; `node_model = "constant"` is a tree of
 #' constants; making every linear feature global gives a tree with shared
 #' coefficients and node-specific constants; and leaving all three NULL
 #' reproduces unconstrained LINAD exactly.
 #'
-#' Restricting the split set is also the largest single speed-up available on
-#' wide data, since the search cost is linear in the number of candidate
-#' features.
+#' The split search cost is linear in the number of candidate features, so
+#' restricting the split set reduces training time on wide data.
 #'
 #' @section Learning rate and the root model:
-#' `learning_rate` shrinks the update made at each **node**. It does not shrink
+#' `learning_rate` shrinks the update made at each node. It does not shrink
 #' the root, which `root_learning_rate` governs and which defaults to 1: the
-#' root model is the initialization `F_0`, not a boosting step, and shrinking an
-#' initialization is not meaningful.
+#' root model is the initialization `F_0`, not a boosting step.
 #'
-#' The consequence is worth stating, because it surprises: **however small
-#' `learning_rate` is, the fit never falls below a single global linear model.**
-#' On data whose signal is largely linear, that model is already good, so
-#' shrinking the tree's correction moves the metrics very little and two very
-#' different small learning rates look alike. On a signal the root cannot
-#' represent -- a step with no linear component -- the same sweep moves test
+#' Consequently, for any `learning_rate`, the fit includes the full global
+#' linear model at the root. On data whose signal is largely linear, shrinking
+#' the tree's correction changes the metrics little, and different small
+#' learning rates give similar fits. On a signal the root cannot represent,
+#' such as a step with no linear component, the same sweep moves test
 #' R-squared from 0.58 to 0.97.
 #'
 #' To shrink everything, including the root, set `root_learning_rate` to the
-#' same value. That recovers the familiar picture in which a small rate leaves
-#' the model badly under-fitted: at `1e-6` the fit reduces to the constant that
-#' alone minimizes the loss -- the weighted mean of the outcome, or half its log
-#' odds for a classification -- which scores an R-squared of 0 rather than
-#' anything worse. `root_learning_rate` interpolates between that constant and
+#' same value. A small rate then under-fits: at `1e-6` the fit reduces to the
+#' constant that minimizes the loss (the weighted mean of the outcome, or half
+#' its log odds for a classification), which scores an R-squared of 0. `root_learning_rate` interpolates between that constant and
 #' the full linear model, never towards zero.
 #'
-#' The `line_search` step does **not** counteract this. It is scale-free -- for
-#' squared error it is the exact minimizer along the update direction, which is
-#' near 1 whatever the residual's size -- so the applied step stays proportional
-#' to `learning_rate`. Measured node updates scale linearly with it, by a factor
+#' The `line_search` step does not counteract this. It is scale-free (for
+#' squared error it is the exact minimizer along the update direction, near 1
+#' for any residual size), so the applied step stays proportional to
+#' `learning_rate`. Measured node updates scale linearly with it, by a factor
 #' of 50 across a 50-fold change in the rate.
 #'
 #' `line_search` and `constant_rule` each select among
 #' alternative update rules -- the scope of the Newton step, which frontier node
-#' is split next, and how a node's constant is computed. There is no settled
-#' best choice among them, so each is tunable.
+#' is split next, and how a node's constant is computed. Each is tunable.
 #'
 #' @param max_leaves (Tunable) Integer [1, Inf): Largest number of terminal nodes to grow.
 #' @param patience (Tunable) Optional Integer [1, Inf): Expansions without validation improvement before growth stops. Requires a validation set. NULL disables patience-based early stopping.
@@ -2161,7 +2136,7 @@ LINADHyperparameters <- schema_class(
 #' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` is not "constant". NULL uses 10.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node. "constant" is the intercept-only model every decision tree node carries; the others add a regularized linear model on top of it.
 #' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward". NULL uses 3.
-#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Criterion a term must improve to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
 #' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when `node_model` is "forward", "ridge" or "elasticnet". NULL uses 0.05.
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet". NULL uses 1.
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
@@ -2175,7 +2150,7 @@ LINADHyperparameters <- schema_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits. Applies to both split searches.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
-#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Information criterion a node's slopes must improve over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump". NULL uses "mean".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature; `split_bin_type` decides their spacing. Applies only when `split_search` is "exhaustive". NULL uses 20.
 #' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may.
@@ -2333,8 +2308,8 @@ LINADForestHyperparameters <- schema_class(
         description = "Features available to a whole tree, splits and node models alike. Unset gives every tree every feature."
       )
     ),
-    # A forest's trees are strong learners: the averaging does the variance
-    # control that a single tree's learning rate has to do alone.
+    # A forest's trees are strong learners: averaging controls variance, which
+    # a single tree controls through its learning rate.
     linad_tree_props(learning_rate = 1, max_leaves = 20L)
   ),
   validator = function(self) check_applies_when(self),
@@ -2375,11 +2350,9 @@ LINADForestHyperparameters <- schema_class(
 #' and chooses its own number of leaves on the cases its bootstrap left out.
 #'
 #' @details
-#' LINADForest is designed to be used **untuned**. Every tree-level
-#' hyperparameter of [setup_LINAD] is available here and tunable, but the
-#' defaults are the configuration the ensemble was first evaluated with, and
-#' the one structural choice that usually needs tuning -- how large each tree
-#' should be -- is made per tree from data.
+#' Every tree-level hyperparameter of [setup_LINAD] is available here and
+#' tunable. The size of each tree is selected per tree from its out-of-bag
+#' cases, so the defaults are usable without tuning.
 #'
 #' @section How the trees differ:
 #' Three sources of variation, each acting at a different level:
@@ -2392,30 +2365,27 @@ LINADForestHyperparameters <- schema_class(
 #'     then cover only the features it held.}
 #'   \item{`mtry_split`}{Each split search sees a fresh sample of the features
 #'     the tree holds, which decorrelates the trees further. If that sample
-#'     finds no split worth making, the node is searched again over every
-#'     feature, so `mtry_split` changes which split is made and never whether a
-#'     node can split at all.}
+#'     finds no split that reduces the loss, the node is searched again over
+#'     every feature, so `mtry_split` changes which split is made and never
+#'     whether a node can split.}
 #' }
 #'
-#' Both `mtry_*` default to NULL, meaning every feature, which is the
-#' configuration the ensemble was first evaluated with.
+#' Both `mtry_*` default to NULL, meaning every feature.
 #'
 #' @section Choosing each tree's size:
 #' A LINAD tree picks its number of leaves on held-out data, as gradient
-#' boosting picks its number of trees. A bootstrap produces held-out data for
-#' free, so each tree selects its own size on its own out-of-bag cases and no
-#' validation set has to be supplied or set aside. `force_max_leaves = TRUE`
-#' turns the selection off and grows every tree to `max_leaves`, which is what
-#' the ensemble's first evaluation did.
+#' boosting picks its number of trees. Each tree selects its size on its own
+#' out-of-bag cases, so no validation set is required. `force_max_leaves =
+#' TRUE` turns the selection off and grows every tree to `max_leaves`.
 #'
 #' The same out-of-bag predictions give the fitted forest an error estimate with
 #' no resampling, reported by `print()`.
 #'
 #' @section Defaults that differ from a single tree:
-#' `learning_rate` defaults to 1, where a single tree uses 0.1. A lone LINAD tree shrinks each node
-#' update because nothing else controls its variance; in a forest the averaging
-#' does that, so each tree should be a strong learner -- the same reasoning that
-#' leaves a random forest's trees unpruned.
+#' `learning_rate` defaults to 1, where a single tree uses 0.1. A single LINAD
+#' tree shrinks each node update to control its variance; in a forest,
+#' averaging controls variance, so each tree is a strong learner, as a random
+#' forest's trees are unpruned.
 #'
 #' @section Workers:
 #' LINADForest parallelizes across trees, by process rather than by thread.
@@ -2436,7 +2406,7 @@ LINADForestHyperparameters <- schema_class(
 #' @param min_cases_node_model (Tunable) Optional Integer [1, Inf): Fewest cases needed to fit a linear model at a node. Applies only when `node_model` fits one. NULL uses 10.
 #' @param node_model Character \{"forward", "ridge", "elasticnet", "constant"\}: Model fitted at each node.
 #' @param nvmax (Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when `node_model` is "forward". NULL uses 3.
-#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
+#' @param forward_stop (Tunable) Optional Character \{"bic", "aic", "none"\}: Criterion a term must improve to be added by forward selection. Applies only when `node_model` is "forward". NULL uses "bic".
 #' @param lambda (Tunable) Optional Numeric [0, Inf): L2 penalty on the node models. Applies only when `node_model` is "forward", "ridge" or "elasticnet". NULL uses 0.05.
 #' @param alpha (Tunable) Optional Numeric \[0, 1\]: Elastic-net mixing, 0 ridge to 1 lasso. Applies only when `node_model` is "elasticnet". NULL uses 1.
 #' @param learning_rate (Tunable) Numeric (0, 1\]: Shrinkage applied to every functional update.
@@ -2450,7 +2420,7 @@ LINADForestHyperparameters <- schema_class(
 #' @param split_search Character \{"stump", "exhaustive"\}: How a split is chosen.
 #' @param split_binning (Tunable) Optional Integer [2, Inf): Discretize each numeric feature into this many bins and consider only bin boundaries as splits.
 #' @param split_bin_type (Tunable) Character \{"frequency", "width"\}: How bin edges are placed.
-#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
+#' @param node_test (Tunable) Optional Character \{"none", "aic", "bic"\}: Information criterion a node's slopes must improve over the constant alone. Applies only when `node_model` is "ridge" or "elasticnet"; forward selection uses `forward_stop`. NULL uses "none".
 #' @param split_criterion (Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when `split_search` is "stump". NULL uses "mean".
 #' @param n_cuts (Tunable) Optional Integer [2, Inf): Cut points tried per feature. Applies only when `split_search` is "exhaustive". NULL uses 20.
 #' @param split_features Optional Character vector: Features that may define a split. NULL imposes no constraint, so every feature may. `mtry_split` samples within this set.
@@ -2576,7 +2546,7 @@ setup_LINADForest <- function(
 #' @description
 #' Hyperparameters subclass for GLMNET. `lambda.min` and `lambda.1se` are
 #' runtime state written by the Tuner (from cv.glmnet), not settable
-#' hyperparameters -- exclude them from schema generation.
+#' hyperparameters.
 #'
 #' @author EDG
 #' @keywords internal
@@ -2728,9 +2698,7 @@ setup_GLMNET <- function(
 #' Hyperparameters subclass for the Highly Adaptive Lasso.
 #'
 #' `lambda` is not a hyperparameter here: `hal9001` selects it by
-#' cross-validation inside the fit, so `cv_select` is a constant. Exposing it
-#' as a search dimension would nest that cross-validation inside rtemis' own
-#' resampling for no gain.
+#' cross-validation inside the fit, so `cv_select` is a constant.
 #'
 #' `num_knots` is paired with `max_degree` in a way no property declaration
 #' expresses, so the validator checks it. `reduce_basis` declares its dependence
@@ -2855,10 +2823,11 @@ HALHyperparameters <- schema_class(
 #'
 #' Scaling: the basis has one function per knot per feature subset, so its size
 #' grows as `C(n_features, max_degree)` and, through the knots, with the number
-#' of cases -- making the lasso that follows quadratic in the number of cases.
-#' Training projects the basis size up front, reports it at `verbosity >= 1`,
-#' warns past a million, and aborts past `max_basis`. `max_degree` is the
-#' strongest lever on that count, `num_knots` the next.
+#' of cases, making the lasso that follows quadratic in the number of cases.
+#' Training projects the basis size before fitting, reports it at
+#' `verbosity >= 1`, warns above one million, and aborts above `max_basis`.
+#' `max_degree` has the largest effect on that count, followed by
+#' `num_knots`.
 #'
 #' `get_varimp()` reports two measures, both aggregated over the basis
 #' functions that involve each feature:
@@ -2932,12 +2901,10 @@ setup_HAL <- function(
 #' @description
 #' Hyperparameters subclass for the shape-constrained Highly Adaptive Lasso.
 #'
-#' This class is separate from `HALHyperparameters` because the three values
-#' that distinguish it are invariants: the interaction degree is 1, the fit is
-#' constrained monotonic non-decreasing in every feature, and no basis-size
-#' guardrail is needed at degree 1. None of the three is representable as a
-#' property, so no combination of this class's properties can produce a
-#' non-monotonic or higher-degree fit.
+#' Three invariants distinguish this class from `HALHyperparameters`: the
+#' interaction degree is 1, the fit is monotonic non-decreasing in every
+#' feature, and there is no basis-size limit. None of the three is a property,
+#' so every configuration of this class produces a monotonic, degree-1 fit.
 #'
 #' `lambda` is not a hyperparameter here: `hal9001` selects it by
 #' cross-validation inside the fit, so `cv_select` is a constant.
@@ -3038,22 +3005,19 @@ MonotonicHALHyperparameters <- schema_class(
 #' classification is not supported.
 #'
 #' The intended use is probability calibration, where the single feature is a
-#' classifier's score. Monotonicity is what makes that safe: a calibration map
-#' that reorders scores changes the ranking and so changes AUC, and a
-#' non-decreasing map cannot. Pass it to [calibrate] to use it instead of the
+#' classifier's score. A non-decreasing calibration map preserves the ranking
+#' of scores, and so AUC. Pass it to [calibrate] to use it instead of the
 #' default calibrator, [setup_Isotonic].
 #'
 #' Relative to `Isotonic`, which is the other monotonic calibrator, this fits on
-#' the logit scale, so it does not saturate at 0 and 1 the way the boundary
-#' bins of isotonic regression do -- it can still round to an endpoint in
-#' double precision
-#' when the input scores are themselves extreme. At `smoothness_orders = 1` it
+#' the logit scale, so it does not saturate at 0 and 1 as the boundary bins of
+#' isotonic regression do; it can round to an endpoint in double precision
+#' when the input scores are extreme. At `smoothness_orders = 1` it
 #' is strictly increasing rather than a step function, so it introduces no ties
 #' and leaves AUC unchanged.
 #'
-#' `smoothness_orders` is the one substantive choice. 0 fits indicator basis
-#' functions and recovers a step function; 1 fits piecewise linear splines and
-#' yields a continuous map.
+#' `smoothness_orders` 0 fits indicator basis functions and yields a step
+#' function; 1 fits piecewise linear splines and yields a continuous map.
 #'
 #' `penalized = FALSE` removes the lasso penalty, giving the non-parametric
 #' maximum likelihood estimate over the monotonic class. Combined with
@@ -3062,12 +3026,12 @@ MonotonicHALHyperparameters <- schema_class(
 #'
 #' `lambda` is selected by cross-validation inside the fit and is not a search
 #' dimension. `seed` fixes that cross-validation's fold assignment; `nfolds`
-#' and `use_min` control it. Calibration sets are often small, so `nfolds` is
-#' an upper bound: training backs off to as many folds as the data supports at
-#' three cases each, and says so at `verbosity >= 1`.
+#' and `use_min` control it. `nfolds` is an upper bound: training uses at most
+#' as many folds as the data supports at three cases each, and reports the
+#' number at `verbosity >= 1`.
 #'
 #' `get_varimp()` reports the same two measures as `setup_HAL`, `importance`
-#' and `max_coefficient`. Both are of limited use at a single feature.
+#' and `max_coefficient`.
 #'
 #' @param smoothness_orders (Tunable) Integer \[0, 1\]: Smoothness of the basis functions: 0 fits zero-order indicators and yields a step function, 1 fits piecewise linear splines and yields a continuous one.
 #' @param reduce_basis (Tunable) Optional Numeric (0, 1]: Minimum proportion of cases a basis function must be non-zero in to be kept. Applies only when `smoothness_orders` is 0; a search that also covers higher orders drops it from those grid cells.
@@ -3123,8 +3087,8 @@ setup_MonotonicHAL <- function(
 #' algorithms `lightgbm::lgb.train()` backs.
 #'
 #' @details
-#' One backend behind four wrappers, so a property meaningful to any LightGBM
-#' fit is declared once and spliced into each class that can use it. The
+#' One backend behind four wrappers: a property that applies to any LightGBM
+#' fit is declared once and spliced into each class that uses it. The
 #' properties come from a factory because S7 constructs an inherited property
 #' with the *parent's* default whatever a subclass redeclares; a factory lets
 #' each class declare its own default.
@@ -3137,7 +3101,7 @@ setup_MonotonicHAL <- function(
 #' since LightGBM reads a NULL as an empty value and range-checks it
 #' (`alpha = NULL` aborts with `Check failed: (alpha) > (0.0)`).
 #'
-#' The parameters tied to an objective a user must *choose* are gated on
+#' The parameters tied to an objective a user must choose are gated on
 #' `objective` with `applies_when`, so setting one without naming the objective
 #' it belongs to is an error. The three that apply to the objectives rtemis
 #' resolves on its own -- `sigmoid`, `boost_from_average`, `reg_sqrt` -- are
@@ -3259,7 +3223,7 @@ lightgbm_regularization_props <- function(
       0,
       min = 0,
       tunable = TRUE,
-      description = "Minimum loss reduction a split must buy to be made."
+      description = "Minimum loss reduction a split must produce for the split to be made."
     ),
     max_delta_step = prop_float(
       0,
@@ -3281,8 +3245,8 @@ lightgbm_regularization_props <- function(
       6L,
       description = "Random seed for the thresholds `extra_trees` draws."
     ),
-    # Gated, so nullable: a gate says the property does not apply, and NULL is
-    # how that is said. The always-in-effect members above carry real defaults.
+    # Gated, so nullable: NULL expresses that the property does not apply. The
+    # members above are always in effect and carry LightGBM's defaults.
     linear_lambda = prop_float(
       NULL,
       min = 0,
@@ -3577,12 +3541,12 @@ lightgbm_feature_sampling_props <- function() {
 #' must be cheap to evaluate is fitted to that cost directly.
 #'
 #' @details
-#' Works in every boosting mode and in a single tree -- both mechanisms live in
-#' split finding, which each of them runs. **The penalty scale is not comparable
-#' across modes.** Under `gbdt` the trees after the first fit shrunken residuals,
-#' so split gains are small and a fixed penalty bites early; under `rf` every
-#' tree fits the full-scale outcome and the same penalty does much less. A value
-#' tuned on one does not transfer to the other.
+#' Applies in every boosting mode and in a single tree, since both mechanisms
+#' act in split finding. The penalty scale is not comparable across modes:
+#' under `gbdt` the trees after the first fit shrunken residuals, so split
+#' gains are small and a fixed penalty has a large effect; under `rf` every
+#' tree fits the full-scale outcome and the same penalty has a smaller effect.
+#' A value tuned in one mode does not transfer to the other.
 #'
 #' @return Named list of S7 properties.
 #'
@@ -3742,9 +3706,8 @@ lightgbm_constraint_props <- function() {
 #' Which algorithm LightGBM runs, and how it subsamples cases.
 #'
 #' @details
-#' `boosting` selects gradient boosting, a random forest, or DART. GOSS was a
-#' `boosting` value before LightGBM 4.0 and is now `data_sample_strategy`; only
-#' the current spelling is declared, so one decision has one switch.
+#' `boosting` selects gradient boosting, a random forest, or DART.
+#' `data_sample_strategy` selects bagging or GOSS.
 #'
 #' Not for LightCART, which fits one tree, nor for LightRF, which pins
 #' `boosting` to `"rf"` -- that constant is what makes it a random forest.
@@ -4094,7 +4057,7 @@ LightCARTHyperparameters <- schema_class(
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
 #' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-#' buy to be made.
+#' produce for the split to be made.
 #' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 #' uncapped.
 #' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
@@ -4416,10 +4379,9 @@ LightRFHyperparameters <- schema_class(
 #' Setup hyperparameters for LightRF training.
 #'
 #' Get more information from [lightgbm::lgb.train].
-#' Note that `boosting`, `learning_rate`, `bagging_freq` and
-#' `early_stopping_rounds` are *constants* here: they cannot be set, because
-#' they are what makes `lightgbm` train a random forest. All of them are
-#' settable when training gradient boosting with LightGBM.
+#' `boosting`, `learning_rate`, `bagging_freq`, and `early_stopping_rounds`
+#' are constants here: their values make `lightgbm` train a random forest.
+#' All of them are settable in [setup_LightGBM].
 #'
 #' @param nrounds (Tunable) Integer [1, Inf): Number of boosting rounds.
 #' @param num_leaves (Tunable) Integer [1, Inf): Maximum number of leaves in one tree.
@@ -4485,7 +4447,7 @@ LightRFHyperparameters <- schema_class(
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
 #' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-#' buy to be made.
+#' produce for the split to be made.
 #' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 #' uncapped.
 #' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
@@ -4688,7 +4650,7 @@ setup_LightRF <- function(
 #' @description
 #' Hyperparameters subclass for LightGBM. `nrounds` is derived (from
 #' `force_nrounds`, or by early-stopping during tuning) and `best_iter` is
-#' runtime state written by the Tuner -- exclude both from schema generation.
+#' runtime state written by the Tuner.
 #'
 #' @author EDG
 #' @keywords internal
@@ -4948,7 +4910,7 @@ method(update, LightGBMHyperparameters) <- function(
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
 #' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-#' buy to be made.
+#' produce for the split to be made.
 #' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 #' uncapped.
 #' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
@@ -5506,7 +5468,7 @@ LightRuleFitHyperparameters <- schema_class(
 #' @param min_sum_hessian_in_leaf (Tunable) Numeric [0, Inf): Minimum sum of hessians in a
 #' leaf: the smooth counterpart of a case count.
 #' @param min_gain_to_split (Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-#' buy to be made.
+#' produce for the split to be made.
 #' @param max_delta_step (Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 #' uncapped.
 #' @param path_smooth (Tunable) Numeric [0, Inf): Smooth each leaf towards its parent, more
@@ -5778,7 +5740,7 @@ IsotonicHyperparameters <- schema_class(
 #'
 #' Setup hyperparameters for Isotonic Regression.
 #'
-#' There are not hyperparameters for this algorithm at this moment.
+#' Isotonic regression has no hyperparameters.
 #'
 #' @param ifw (Tunable) Logical: If TRUE, use Inverse Frequency Weighting in classification.
 #'
@@ -5943,9 +5905,8 @@ setup_RadialSVM <- function(
 # %% MLP_SHAPES ----
 # Profiles the hidden-layer widths can be generated in. The vocabulary is
 # Talos's (<https://mikkokotila.github.io/slate/#shapes>), by way of
-# AutoPyTorch's `get_shaped_neuron_counts()`. One rename: the literature's
-# "brick" is `constant` here, which is what the tabular deep-learning benchmarks
-# call the same thing and is self-describing beside the other six.
+# AutoPyTorch's `get_shaped_neuron_counts()`, with Talos's "brick" named
+# `constant`, the name the tabular deep-learning benchmarks use.
 MLP_SHAPES <- c(
   "funnel",
   "constant",
@@ -6139,10 +6100,9 @@ MLPHyperparameters <- schema_class(
 #' AutoPyTorch. `shape_max_units` defaults to four times the encoded input
 #' width, clamped to \[64, 512\] and never below that width.
 #'
-#' The tabular deep-learning benchmarks tune and publish *constant*-width MLPs,
-#' so `shape = "constant"` is what to compare against even though `funnel` is
-#' the better default before tuning on the small-n, wide-p data rtemis is usually
-#' pointed at.
+#' The published tabular deep-learning benchmarks tune constant-width MLPs;
+#' `shape = "constant"` reproduces that architecture. The default is
+#' `funnel`.
 #'
 #' **Tuning.** `hidden_units` is tunable like any other hyperparameter, with one
 #' architecture per candidate:
@@ -6176,8 +6136,8 @@ MLPHyperparameters <- schema_class(
 #' `l1_penalty` has no torch equivalent and is accumulated over the linear
 #' weights and added to the loss.
 #'
-#' **Batch normalization and dropout interact badly** when combined; both are
-#' off by default.
+#' **Batch normalization and dropout** can degrade training when combined; both
+#' are off by default.
 #'
 #' **The scheduler takes no settings of its own** -- each configures itself from
 #' the run's budget: `step` decays by 0.1 every `max_epochs / 3` epochs,
@@ -6273,13 +6233,10 @@ setup_MLP <- function(
   patience <- clean_posint(patience)
   seed <- clean_int(seed)
   num_workers <- clean_int(num_workers)
-  # The two architecture paths are alternatives, and silently overriding one
-  # with the other is what makes a two-path API confusing. Checked here rather
-  # than in the class validator because training writes the widths it resolved
-  # back into `hidden_units` -- so a fitted object legitimately holds both, and
-  # a class-level rule would reject the result of a valid run. Every path that
-  # builds these from user input arrives here, `.list_to_Hyperparameters()`
-  # included.
+  # The two architecture paths are mutually exclusive. Checked here, not in
+  # the class validator: training writes the resolved widths back into
+  # `hidden_units`, so a fitted object holds both. Every path that builds these
+  # from user input arrives here, `.list_to_Hyperparameters()` included.
   shape_given <- c(
     shape = !is.null(shape),
     shape_layers = !is.null(shape_layers),
@@ -6999,7 +6956,7 @@ RangerHyperparameters <- schema_class(
 #' @param quantreg Logical: If TRUE, prepare quantile prediction (quantile regression forests). Regression only; set `keep_inbag = TRUE` for out-of-bag quantile prediction.
 #' @param time_interest Optional Numeric vector: Time points of interest for survival prediction. Survival only. NULL uses the observed event times.
 #' @param oob_error Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.
-#' @param save_memory Logical: If TRUE, use the memory-saving (slower) splitting mode. Use only if you encounter memory problems.
+#' @param save_memory Logical: If TRUE, use the memory-saving (slower) splitting mode.
 #' @param verbose Logical: If TRUE, show computation status and estimated runtime.
 #' @param node_stats Logical: If TRUE, save additional node statistics (terminal nodes only).
 #' @param seed Optional Integer: Random seed. If NULL, the seed is generated from R. Set to 0 to ignore the R seed.
@@ -7667,13 +7624,12 @@ NNLSHyperparameters <- schema_class(
 #'
 #' Setup hyperparameters for non-negative least squares.
 #'
-#' NNLS fits `y ~ Xb` subject to `b >= 0`, with no intercept. It exists as the
+#' NNLS fits `y ~ Xb` subject to `b >= 0`, with no intercept. It is the
 #' default meta learner of the stacked meta learners ([setup_SuperLearner],
 #' [setup_ModalityStacking]), where the predictors are the base learners'
 #' cross-validated predictions and a non-negative, sum-to-one coefficient vector
-#' is the ensemble weighting. It is a poor general-purpose learner: with no
-#' intercept and a sign constraint it can only fit outcomes that the predictors
-#' already span.
+#' is the ensemble weighting. With no intercept and a sign constraint, it fits
+#' only outcomes in the cone the predictors span.
 #'
 #' With `normalize = TRUE` the coefficients are scaled to sum to 1, so the fit is
 #' a convex combination of the predictors. For classification the outcome is
@@ -7729,8 +7685,8 @@ setup_NNLS <- function(normalize = TRUE, ifw = FALSE) {
   }
   fn <- paste0("setup_", algorithm)
   if (!exists(fn, mode = "function")) {
-    # The published enum lists canonical names only, so a case mismatch is the
-    # likely error and is worth naming.
+    # The published enum lists canonical names only; the message names a case
+    # mismatch.
     canonical <- supervised_algorithms[["name"]][
       tolower(algorithm) == tolower(supervised_algorithms[["name"]])
     ]

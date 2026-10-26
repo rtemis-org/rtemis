@@ -2,29 +2,22 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# How a held-out set is produced, as its own auditable step -- not a field on
-# `SuperConfig`. A split is a decision (which rows train, which are held out,
-# and by what rule), and a decision the record cannot report is a decision
-# nothing downstream can audit. Mirrors `IngestConfig`'s shape exactly: an
-# abstract base holding the discriminator, one leaf per method, each a
-# `setup_*()` away, and a free function (`partition()`, alongside `ingest()`)
-# that executes the config against real data and returns a manifest.
+# Settings for splitting a dataset into a training set and a held-out test
+# set, and `partition()`, which executes them and returns a manifest.
 #
-# Deliberately not a `SuperConfig` property. `SuperConfig` has always only
-# *referenced* data; a split field would be the first data-manipulation
-# operation in it, and once one exists there is no principled place to stop
-# before a filter, then a join, then a derived column. `partition()` produces
-# ordinary Parquet files (or, called directly on in-memory data, ordinary
-# frames); a `SuperConfig` names the result the way it already names any
-# other input.
+# `PartitionConfig` has the shape of `IngestConfig`: an abstract base holding
+# the discriminator, one leaf per method, each with a `setup_*()` constructor.
+# `partition()` writes ordinary Parquet files, or returns data frames when
+# called without `outdir`; a `SuperConfig` references them by path, as it
+# references any other input.
 
 # %% PartitionConfig ----
 #' PartitionConfig Class
 #'
 #' @description
 #' Abstract base for the partition family: how a dataset is divided into a
-#' training set and a held-out test set. `method` is the discriminator and the
-#' leaf holds what that method actually needs.
+#' training set and a held-out test set. `method` is the discriminator, and
+#' each leaf holds the settings of one method.
 #'
 #' @author EDG
 #' @noRd
@@ -39,7 +32,7 @@ PartitionConfig <- schema_class(
     role = "family",
     slug = "partition",
     title = "rtemis PartitionConfig",
-    description = "Language-independent config for splitting a dataset into a training set and a held-out test set. A first-class, auditable operation -- the same reason `ingest` is one -- rather than a field on `SuperConfig`: how a held-out set was produced is a decision the record must be able to report.",
+    description = "Language-independent config for splitting a dataset into a training set and a held-out test set. `method` names the splitting rule and selects the settings that apply to it.",
     discriminator = "method",
     discriminator_description = "How the dataset is split.",
     order = 4L
@@ -51,8 +44,8 @@ PartitionConfig <- schema_class(
 #' RandomPartitionConfig Class
 #'
 #' @description
-#' A uniformly random split -- the right default when nothing about row order
-#' or grouping is meaningful.
+#' A uniformly random split. Row order and grouping play no part in the
+#' assignment.
 #'
 #' @author EDG
 #' @noRd
@@ -87,9 +80,8 @@ RandomPartitionConfig <- schema_class(
 #' TimePartitionConfig Class
 #'
 #' @description
-#' A split by time order: the earliest-ordered cases train, the
-#' latest-ordered are held out. The natural split for data where a model
-#' trained on the future to predict the past would overstate what it can do.
+#' A split by time order: the earliest-ordered cases form the training set,
+#' and the latest-ordered cases form the test set.
 #'
 #' @author EDG
 #' @noRd
@@ -99,10 +91,9 @@ TimePartitionConfig <- schema_class(
   package = "rtemis",
   properties = list(
     method = prop_algorithm("time"),
-    # No default: a time split needs a column to order by. A config schema
-    # requires only the discriminator, so this is nullable and
-    # `setup_TimePartition()` aborts on a NULL, as `setup_Custom()` does for
-    # `resamples`.
+    # Required by `setup_TimePartition()`, which aborts on NULL, as
+    # `setup_Custom()` does for `resamples`. Nullable in the schema, which
+    # requires only the discriminator.
     column = prop_string(
       NULL,
       nullable = TRUE,
@@ -177,10 +168,8 @@ GroupPartitionConfig <- schema_class(
 #' PredefinedPartitionConfig Class
 #'
 #' @description
-#' A split already recorded in the data itself -- a column naming, per case,
-#' which side it belongs to. The right method when the partition was decided
-#' outside rtemis (a prior study, a regulatory submission) and must be
-#' reproduced exactly.
+#' A split recorded in the data: a column names, for each case, the partition
+#' it belongs to. Reproduces a partition defined outside rtemis exactly.
 #'
 #' @author EDG
 #' @noRd
@@ -213,9 +202,8 @@ PredefinedPartitionConfig <- schema_class(
 ) # /rtemis::PredefinedPartitionConfig
 
 
-# The leaf per method. Stated once, the way `INGEST_CLASSES`/`INGEST_SETUP`
-# are: a method added here reaches `partition()` and `.list_to_PartitionConfig()`
-# both.
+# The leaf class and constructor of each method, read by `partition()` and
+# `.list_to_PartitionConfig()`.
 PARTITION_CLASSES <- list(
   random = RandomPartitionConfig,
   time = TimePartitionConfig,
@@ -235,8 +223,8 @@ PARTITION_SETUP <- c(
 #' Set up a `RandomPartitionConfig`
 #'
 #' @description
-#' A uniformly random split -- the right default when nothing about row order
-#' or grouping is meaningful.
+#' A uniformly random split. Row order and grouping play no part in the
+#' assignment.
 #'
 #' @param train_p Numeric (0, 1): Training set fraction.
 #' @param seed Optional Integer [0, Inf): Random seed.
@@ -400,7 +388,8 @@ setup_PredefinedPartition <- function(
     cum_n <- cumsum(group_sizes[shuffled])
     n_train <- config@train_p * n
     # The first groups, in shuffled order, whose cumulative size reaches the
-    # target fraction -- at least one group trains even if it alone exceeds it.
+    # target fraction. At least one group is assigned to training, even when
+    # its size alone exceeds the target.
     train_groups <- shuffled[seq_len(max(1L, sum(cum_n <= n_train)))]
     is_train <- groups %in% train_groups
     return(list(
@@ -468,17 +457,11 @@ setup_PredefinedPartition <- function(
 #' Split a dataset into training and held-out test partitions
 #'
 #' @description
-#' A held-out split is a decision -- which rows train, which are held out, and
-#' by what rule -- and a decision the record cannot report is one nothing
-#' downstream can audit. `partition()` makes it a first-class, executed step,
-#' the same way `ingest()` makes reading a file one: the config states the
-#' rule, this function applies it and returns a manifest naming exactly what
-#' happened, including a `DataFingerprint` of each side.
-#'
-#' Not a `SuperConfig` property. `SuperConfig`'s `dat_training_path` and
-#' `dat_test_path` simply name whatever `partition()` (or any other step)
-#' produced -- the same relationship they already have with `ingest()`'s
-#' output.
+#' Splits `dat` by the rule in a `PartitionConfig` and returns a manifest of
+#' the split, including a `DataFingerprint` of the source and of each
+#' partition. With `outdir`, writes `training.parquet` and `test.parquet`,
+#' which a `SuperConfig` references through `dat_training_path` and
+#' `dat_test_path`.
 #'
 #' @param dat data.frame or data.table: The dataset to split.
 #' @param config `PartitionConfig`: The split rule.
@@ -565,11 +548,7 @@ partition <- function(
     verbosity = verbosity
   )
 
-  # Not yet a published record, the same reason `ingest()`'s manifest is not:
-  # what a partition *node* records, and whether it is its own record or a
-  # block in the run's, is a question for whichever architecture ends up
-  # orchestrating multi-step pipelines. Returned as a manifest so that
-  # information exists to shape it from.
+  # Returned as a manifest; a partition node has no published record schema.
   list(
     config = S7_to_list(config),
     source = S7_to_list(data_fingerprint(dat)),
@@ -592,9 +571,9 @@ partition <- function(
 # %% .list_to_PartitionConfig ----
 #' Rebuild a `PartitionConfig` from a parsed config document
 #'
-#' `method` picks the constructor, and every other key is one of its
-#' arguments -- so a key belonging to a different method fails there as an
-#' unused argument, naming it.
+#' `method` selects the constructor, and every other key is passed as one of
+#' its arguments. A key of another method is an unused-argument error that
+#' names the key.
 #'
 #' @param x Named list: The parsed document.
 #'

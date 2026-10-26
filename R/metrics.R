@@ -180,10 +180,9 @@ auc <- function(
     return(NaN)
   }
   # Resolve backend ----
-  # AUC is one optional metric computed via an optional (Suggests) backend.
-  # If the requested backend cannot be loaded (e.g. lightAUC's compiled stack
-  # fails to load after an upstream RcppParallel ABI bump), fall back rather
-  # than abort: an unavailable metric backend must not crash model training.
+  # AUC is one optional metric computed via an optional (Suggests) backend. If
+  # lightAUC cannot be loaded, ROCR is used; if neither can, AUC is NaN. An
+  # unavailable metric backend does not stop model training.
   if (method == "lightAUC" && !auc_backend_available("lightAUC")) {
     if (verbosity > 0L) {
       msg("lightAUC unavailable; falling back to ROCR for AUC.")
@@ -326,8 +325,8 @@ labels2int <- function(x, binclasspos = 2L) {
 #' Classification Metrics
 #'
 #' @details
-#' Note that auc_method = "pROC" is the only one that will output an AUC even if
-#' one or more predicted probabilities are NA.
+#' `auc_method = "pROC"` is the only method that outputs an AUC when one or more
+#' predicted probabilities are NA.
 #'
 #' @param true_labels Factor: True labels.
 #' @param predicted_labels Factor: predicted values.

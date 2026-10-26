@@ -117,7 +117,7 @@ test_that("the format is derived from the file, and a config that disagrees is r
       config = setup_DelimitedIngest(),
       verbosity = 0L
     ),
-    "would not apply",
+    "is a 'parquet' file",
     class = "rtemis_value_error"
   )
   # With no config, the format comes from the file and it just works.
@@ -184,4 +184,47 @@ test_that("declared types survive the document", {
   f <- tempfile(fileext = ".json")
   write_config(cfg, f, overwrite = TRUE, verbosity = 0L)
   expect_identical(read_config(f)@columns, cfg@columns)
+})
+
+
+test_that("ingest() reads a URL and records it in the manifest", {
+  testthat::local_mocked_bindings(
+    download_file = function(url, destfile, quiet) {
+      writeLines(.labels, destfile)
+      0L
+    }
+  )
+  url <- "https://example.org/data/labels.csv"
+  out <- tempfile(fileext = ".parquet")
+  m <- ingest(url, out, verbosity = 0L)
+  expect_identical(m[["input"]], url)
+  expect_match(m[["retrieved_at"]], "^\\d{4}-\\d{2}-\\d{2}T.*Z$")
+  expect_identical(m[["format"]], "delimited")
+  expect_identical(.dtypes(out), c("number", "categorical", "categorical"))
+})
+
+
+test_that("ingest() records a local file's SHA-256 and no retrieval", {
+  src <- .csv(.labels)
+  m <- ingest(src, tempfile(fileext = ".parquet"), verbosity = 0L)
+  expect_true(all(c("input_resolved", "retrieved_at") %in% names(m)))
+  expect_null(m[["input_resolved"]])
+  expect_null(m[["retrieved_at"]])
+  expect_identical(
+    m[["input_sha256"]],
+    as.vector(as.character(openssl::sha256(file(src, raw = TRUE))))
+  )
+})
+
+
+test_that("ingest() refuses a URL whose extension names no format", {
+  expect_error(
+    ingest(
+      "https://example.org/data/labels.json",
+      tempfile(fileext = ".parquet"),
+      verbosity = 0L
+    ),
+    "Cannot ingest 'labels.json'",
+    class = "rtemis_input_error"
+  )
 })

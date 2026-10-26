@@ -7,7 +7,8 @@
 ingest(path, outfile, config = NULL, overwrite = FALSE, verbosity = 1L)
 }
 \arguments{
-\item{path}{Character: Path to the input file.}
+\item{path}{Character: Path to the input file, an \verb{http://} or \verb{https://}
+URL, or an \verb{hf://datasets/} path.}
 
 \item{outfile}{Character: Path to write the Parquet file to.}
 
@@ -19,28 +20,37 @@ defaults for the file's own format.}
 \item{verbosity}{Integer: Verbosity level.}
 }
 \value{
-Named list: the ingest manifest.
+Named list: the ingest manifest, with \code{input}, \code{input_resolved}
+(\verb{hf://datasets/<repo>@<commit>/<file>} for an \verb{hf://} input, otherwise
+NULL), \code{input_sha256} (SHA-256 of the input file's bytes), \code{retrieved_at}
+(ISO 8601 UTC time the download started, or NULL for a local file), \code{output},
+\code{format}, \code{config}, \code{engine}, \code{rtemis_version}, \code{data_input}, \code{n_rows}, and
+\code{n_cols}.
 }
 \description{
-The first step of any pipeline. A delimited file or a spreadsheet carries no
-usable type information; Parquet does. Ingesting once means nothing
-downstream infers a type a second time, and the decisions that were made are
-in the config.
+Reads a data file with the settings of an \code{IngestConfig}, converts the
+columns it declares types for, writes the result to a Parquet file, and
+returns a manifest of the operation.
 
-The config's \code{format} is checked against the file, and a mismatch is an
-error: a config written for a delimited file sets options a Parquet reader
-would ignore.
+The file extension names the format. A \code{config} whose \code{format} differs from
+it is an error.
 
-Returns a manifest describing what happened: the file in, the file out, a
-\code{DataFingerprint} of the data, the config, and which engine ran it. The
-engine is named from the start because it is unrecoverable later -- once a
-second implementation exists, nothing else could say which produced a given
-Parquet.
+\code{path} may be an \verb{http://} or \verb{https://} URL or an \verb{hf://datasets/} path, as
+\code{read()} accepts them, downloaded to a temporary file. The manifest records
+the path as given in \code{input}, the time the download started in
+\code{retrieved_at}, and, for an \verb{hf://} path, the path pinned to the resolved
+commit and file in \code{input_resolved}.
+
+The manifest also records the input and output files, the SHA-256 of the
+input, a \code{DataFingerprint} of the data, the config, and the engine that
+produced the Parquet file.
 }
 \examples{
 \dontrun{
 ingest("data.csv", "data.parquet")
 ingest("data.csv", "data.parquet", setup_DelimitedIngest(sep = ";"))
+ingest("https://example.org/data/iris.csv", "iris.parquet")
+ingest("hf://datasets/rtemis/tcga-pancan-hiseq", "tcga.parquet")
 }
 }
 \author{

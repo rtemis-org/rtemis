@@ -17,8 +17,8 @@ dt_inspect_types(x, cols = NULL, verbosity = 1L)
 Character vector.
 }
 \description{
-Will attempt to identify columns that should be numeric but are either character or
-factor by running \link{inspect_type} on each column.
+Identifies columns that may be numeric but are stored as character or factor, by running
+\link{inspect_type} on each column.
 }
 \examples{
 library(data.table)

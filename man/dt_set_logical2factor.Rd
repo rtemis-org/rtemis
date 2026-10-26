@@ -41,7 +41,7 @@ z <- data.table(
   beta = c(TRUE, FALSE, TRUE, NA, TRUE),
   gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
 )
-# You can usee fillNA to fill NA values with a constant
+# `fillNA` fills NA values with a constant
 dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"), fillNA = "No")
 z
 w <- data.table(mango = 1:5, banana = c(FALSE, FALSE, TRUE, TRUE, FALSE))

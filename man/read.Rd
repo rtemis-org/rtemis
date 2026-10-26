@@ -26,10 +26,12 @@ read(
 )
 }
 \arguments{
-\item{filename}{Character: filename or full path if \code{datadir = NULL}.}
+\item{filename}{Character: filename, full path if \code{datadir = NULL}, an
+\verb{http://} or \verb{https://} URL, or an \verb{hf://datasets/} path.}
 
 \item{datadir}{Character: Optional path to directory where \code{filename}
-is located. If not specified, \code{filename} must be the full path.}
+is located. If not specified, \code{filename} must be the full path. Must be
+\code{NULL} when \code{filename} is a URL or an \verb{hf://} path.}
 
 \item{remove_duplicates}{Logical: If TRUE, keep unique rows only.}
 
@@ -81,7 +83,7 @@ characters to factors
 \details{
 \code{read} is a convenience function to read:
 \itemize{
-\item \strong{Delimited} files using \code{data.table:fread()}, \code{arrow:read_delim_arrow()},
+\item \strong{Delimited} files using \code{data.table::fread()}, \code{arrow::read_delim_arrow()},
 \code{vroom::vroom()}, or \code{duckdb::duckdb_read_csv()}
 \item \strong{ARFF} files using \code{farff::readARFF()}
 \item \strong{Parquet} files using \code{nanoparquet::read_parquet} or \code{arrow::read_parquet()}
@@ -90,12 +92,36 @@ characters to factors
 \item \strong{FASTA} files using \code{seqinr::read.fasta()}
 \item \strong{RDS} files using \code{readRDS()}
 }
+
+An \verb{http://} or \verb{https://} URL is downloaded with \code{\link[utils:download.file]{utils::download.file()}}
+to a temporary file named after the last segment of the URL path, read like
+a local file, and deleted. The file extension in the URL path selects the
+reader, as it does for a local file. The download is bounded by
+\code{getOption("timeout")}, in seconds. A URL with user credentials
+(\code{user:password@host}) and any scheme other than \code{http}, \code{https}, and \code{hf}
+is rejected.
+
+An \verb{hf://datasets/<owner>/<name>[@<revision>][/<file>]} path reads a file
+from a public dataset repository on the Hugging Face Hub, in the path form of
+\code{huggingface_hub}'s \code{HfFileSystem}. The revision is a branch, tag, or commit,
+\code{main} when none is given; a revision containing \code{/} is written URL-encoded,
+as \verb{refs\%2Fconvert\%2Fparquet}. A path that names the repository only reads
+the repository's one data file (\code{.parquet}, \code{.csv}, \code{.tsv}, \code{.csv.gz},
+\code{.tsv.gz}, \code{.rds}, \code{.xlsx}, \code{.dta}, \code{.arff}, or \code{.fasta}) and is an error when the repository holds more
+than one. The revision is resolved to a commit through the Hub API, the file
+is downloaded at that commit, and its size and hash are checked against the
+Hub's listing. The \code{HF_ENDPOINT} environment variable sets the Hub endpoint.
+Reading \verb{hf://} paths requires the \code{jsonlite} package.
 }
 \examples{
 \dontrun{
 # Replace with your own data directory and filename
 datadir <- "/Data"
 dat <- read("iris.csv", datadir)
+# Read from a URL
+dat <- read("https://example.org/data/iris.csv")
+# Read from a Hugging Face dataset
+dat <- read("hf://datasets/rtemis/tcga-pancan-hiseq")
 }
 }
 \author{

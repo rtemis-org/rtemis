@@ -20,8 +20,8 @@ so nothing has to be inferred from how many elements it happens to have.
 }
 \details{
 Give it the candidates. Several arguments are one candidate each; a single
-argument holding several values \emph{is} the candidates, so a grid you computed
-can be passed straight in:
+argument holding several values \emph{is} the candidates, so a computed grid is
+passed directly:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{setup_LightRF(max_depth = tune_over(3L, 4L, 5L))
 setup_LightRF(lambda_l2 = tune_over(10^seq(-4, 0, length.out = 5)))

@@ -43,14 +43,14 @@ The unprefixed metrics describe the fitted data, so \code{x} must be that data:
 they are computed against the components \code{decom} already holds. A different
 number of cases is an error, and \code{x} failing to match
 \code{decom@data_fingerprint} is reported without raising, since scoring a fit
-against an altered copy of its training data is a legitimate thing to do.
+against an altered copy of its training data is a valid analysis.
 
 \code{decomp()} already stores this on its result for the data it was fitted on,
-so calling this without \code{new_data} recomputes what \code{decom@metrics} holds. The
-reason to call it is \code{new_data}: \code{reconstruction_gap} is the difference
-between out-of-sample and in-sample relative reconstruction error, and it is
-the signal that a decomposition has fitted its training cases rather than
-their structure.
+so calling this without \code{new_data} recomputes what \code{decom@metrics} holds.
+With \code{new_data} it computes \code{reconstruction_gap}, the difference between
+out-of-sample and in-sample relative reconstruction error, which indicates a
+decomposition that has fitted its training cases rather than their
+structure.
 
 Reconstruction is measured in the units of the data as it was passed to
 \code{decomp()}, so the numbers are comparable across algorithms and across

@@ -5,7 +5,7 @@
 # Torch plumbing shared by the torch-backed algorithms. Nothing here knows which
 # module it is training: the algorithm builds the module and hands it in, and the
 # loop requires only that calling it on a batch's input tensors returns something
-# the loss accepts. `train_MLP.R` is the first consumer.
+# the loss accepts. `train_MLP.R` and `decomp_Autoencoder.R` use it.
 #
 # Numbered because the vocabulary constants
 # below are read at class-definition time by `070_Hyperparameters.R`, which is
@@ -29,7 +29,7 @@
 # dropout or its own random normal draws: module noise is drawn with
 # `torch_seeded_randn()`, and a seeded fit stops being reproducible the moment
 # a dropout rate is non-zero. Asking for it by name is supported, and
-# `check_mps_reproducible()` reports the second caveat when it bites.
+# `check_mps_reproducible()` reports the second caveat when it applies.
 TORCH_DEVICES <- c("cpu", "cuda", "mps")
 TORCH_DEVICE_PREFERENCE <- c("cuda", "cpu", "mps")
 

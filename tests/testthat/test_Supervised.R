@@ -401,9 +401,8 @@ test_that("train() GLMNET Multiclass Classification succeeds", {
 })
 
 ## {GLMNET}[train]<Classification> explicit family ----
-# The family used to be bound in a local that only the is-NULL branch wrote, so
-# setting it -- the one way to be certain of it -- left `family` NULL and glmnet
-# refused the fit with "Invalid family argument".
+# An explicitly set family reaches glmnet; a NULL `family` would make glmnet
+# refuse the fit with "Invalid family argument".
 test_that("train() GLMNET honors an explicitly set family", {
   mod_c <- train(
     x = datc2_train,
@@ -4618,7 +4617,7 @@ test_that("resolved values survive for every algorithm that resolves one", {
   )
   expect_identical(mod@hyperparameters[["objective"]], "multiclass")
   # `nrounds` is resolved from `max_nrounds` / early stopping, so a fitted
-  # model must report the count it actually ran.
+  # model must report the count it ran.
   expect_false(is.null(mod@hyperparameters[["nrounds"]]))
 
   dat <- data.frame(a = rnorm(40L), b = rnorm(40L), y = rnorm(40L))
@@ -4786,7 +4785,7 @@ test_that("a tuned run records the grid and the winner per fold", {
   ))
   # `best` reaches the record from the tuner's results and `@hyperparameters`
   # from what `train()` adopted, so agreeing proves the record names the value
-  # the kept model was actually trained with.
+  # the kept model was trained with.
   expect_identical(
     tuning[["best"]][["maxdepth"]],
     mod@hyperparameters[["maxdepth"]]
@@ -5106,7 +5105,7 @@ test_that("train() SuperLearner Classification succeeds", {
 
 test_that("SuperLearner predicts the probability of the second level", {
   # A flipped column is still a valid probability, so nothing but this catches
-  # it -- the metrics would simply be bad.
+  # it -- the metrics would be bad.
   predicted <- predict(mod_c_sl, datc2_test[, -NCOL(datc2_test)])
   outcome <- datc2_test[["Species"]]
   positive <- levels(outcome)[[2L]]

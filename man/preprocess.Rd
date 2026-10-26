@@ -49,8 +49,7 @@ preprocessing parameter must be specified: \code{preprocess(x)} is an error.
 
 The preprocessed data comes back in the structure it was given -- data.frame,
 data.table or tibble -- and the object passed in is never modified. It carries
-no row names: a case identifier that matters belongs in a column, where it can
-be selected, joined, validated and serialized.
+no row names; case identifiers are carried in columns.
 }
 \examples{
 # Setup a `Preprocessor`: this outputs a `PreprocessorConfig` object.

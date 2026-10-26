@@ -115,14 +115,11 @@ hierarchy, each node's value on its label, and each node's linear
 coefficients in a table on hover.
 }
 \details{
-The coefficient tables are the point. A LINAD leaf's coefficients are the
-accumulated sum along its path, so the same feature can carry a different
-slope in each region of the data -- and sometimes a different \strong{sign}. That
-is the model's central interpretive claim, and it is only visible by
-comparing the table at one node against the table at another. The color
-scale is therefore
-diverging and centered on zero, and computed once across every table, so a
-sign change reads as a color flip.
+A LINAD leaf's coefficients are the accumulated sum along its path, so the
+same feature can carry a different slope, and a different sign, in each
+region of the data. The coefficient tables show this when compared across
+nodes. The color scale is diverging, centered on zero, and computed once
+across every table, so a sign change shows as a color flip.
 
 Each node's label carries \code{node_value}, what the \strong{tree alone} predicts
 there, while the table on hover carries what the \strong{linear model} adds. The

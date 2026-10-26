@@ -183,7 +183,7 @@ df_nunique_perfeat <- function(x, excludeNA = FALSE) {
 #' Move data frame column
 #'
 #' @param x data.frame.
-#' @param colname Character: Name of column you want to move.
+#' @param colname Character: Name of the column to move.
 #' @param to Integer: Which column position to move the vector to.
 #'
 #' @return data.frame

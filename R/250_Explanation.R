@@ -24,7 +24,7 @@ EXPLANATION_TYPES <- c("SHAP")
 
 # What the user asks for. "auto" reads the algorithm's default from
 # `explanation_traits()`; the concrete estimator that ran is recorded on the
-# result, so asked and resolved are never confused.
+# result, separately from the request.
 SHAP_ESTIMATORS <- c("auto", "exact", "kernel")
 
 # The concrete estimators, as recorded on a result. `TreeSHAP` covers CART as
@@ -46,13 +46,12 @@ SHAP_RESOLVED_ESTIMATORS <- c(
 
 # The value function each estimator computes when `perturbation` is left NULL.
 #
-# Per estimator, because the exact tier is
-# only free where the backend already computes it: LightGBM's
-# `predict(type = "contrib")` is path-dependent, weighting by training coverage,
-# and offers no background argument -- so an interventional default would make
-# the flagship algorithm's default path the expensive one. The resolved value is
-# recorded on every result, which is what keeps two algorithms' explanations
-# from being compared as if they answered the same question.
+# Per estimator, because an exact estimator is inexpensive only where the
+# backend computes it: LightGBM's `predict(type = "contrib")` is path-dependent,
+# weighting by training coverage, and takes no background argument, so an
+# interventional default would route LightGBM to the kernel estimator. The
+# resolved value is recorded on every result, so explanations computed under
+# different value functions are distinguishable.
 SHAP_ESTIMATOR_PERTURBATION <- c(
   TreeSHAP = "conditional",
   LinearSHAP = "interventional",
@@ -84,13 +83,12 @@ EXPLANATION_SPACES <- c("input", "model", "encoded")
 
 # Exact TreeSHAP over a single tree enumerates every coalition of the features
 # it splits on, so the work doubles with each one. Beyond this the kernel
-# estimator, which samples, is the right tool and is what the refusal names.
+# estimator, which samples, applies, and the refusal names it.
 CART_SHAP_MAX_FEATURES <- 14L
 
 # Conditional-distribution estimators offered by `shapr`. `independence` is
-# deliberately absent: it is shapr's spelling of the *interventional* value
-# function, which `@perturbation` already says, and admitting both would give
-# one decision two ways to be stated.
+# absent: it is shapr's name for the interventional value function, which
+# `@perturbation` states.
 SHAP_APPROACHES <- c(
   "empirical",
   "gaussian",
@@ -299,9 +297,9 @@ method(desc, ExplanationConfig) <- function(x) {
 #' dependence between features, attributing to what the model *uses*: a feature
 #' the model ignores gets zero even if it predicts the outcome perfectly.
 #' `"conditional"` respects the joint distribution, attributing to what the
-#' case's features *tell you*, so a correlated proxy for a used feature receives
-#' credit. Neither is the correct one -- debugging a model wants the first,
-#' reasoning about a subject wants the second.
+#' case's features carry information about, so a correlated proxy for a used
+#' feature receives credit. The first describes the model's computation; the
+#' second describes the case.
 #'
 #' **`scale` decides whether the contributions add up.** They are additive on
 #' the scale they are computed on. For regression that is the outcome and there
@@ -309,7 +307,7 @@ method(desc, ExplanationConfig) <- function(x) {
 #' margin, and probability is a nonlinear transform of it, so contributions on
 #' the probability scale do **not** sum to the predicted probability.
 #'
-#' **`estimator` is normally best left alone.** `"auto"` uses the exact
+#' **`estimator` defaults to `"auto"`,** which uses the exact
 #' estimator wherever the algorithm has one and the model-agnostic kernel
 #' estimator otherwise; `explanation_traits()` reports which applies where.
 #'
@@ -382,10 +380,9 @@ setup_SHAP <- function(
 #' @details
 #' What every kind of per-case explanation must state regardless of how it is
 #' computed: which model it explains, which feature space its numbers are
-#' indexed by, and which data it was computed against. The last is not
-#' bookkeeping -- an attribution is relative to a background, two explanations
-#' of one model against different backgrounds are not comparable, and nothing
-#' in the returned numbers says so.
+#' indexed by, and which data it was computed against. An attribution is
+#' relative to a background, and two explanations of one model against
+#' different backgrounds are not comparable.
 #'
 #' @author EDG
 #' @noRd
@@ -428,9 +425,7 @@ Explanation <- new_class(
 #' `@phi` is a named list of `n x p` numeric matrices, one per class. Regression
 #' and binary classification are length-1 -- binary is explained on the positive
 #' class, the negative being its exact negation -- so binary and multiclass
-#' share one structure and no consumer has to special-case them. This is the
-#' rule `prob_matrix()` already applies to predictions: two names for one
-#' quantity must not have two shapes.
+#' share one structure, as `prob_matrix()` does for predictions.
 #'
 #' `@phi_encoded` holds the same contributions in the fitted backend's own
 #' column space, and is NULL when no encoding intervened and the two would be
@@ -451,9 +446,8 @@ SHAP <- new_class(
     # One row per case, parallel to `predicted`, even though almost every
     # estimator's baseline is the same for every case. A model that routes each
     # case to a different sub-model has a different expected prediction per
-    # case -- `ConditionalSuperLearner` is one -- and one shape for both is
-    # worth more than the rows it repeats, for the reason `phi` is a list even
-    # when it holds one matrix.
+    # case -- `ConditionalSuperLearner` is one -- so one shape serves both, as
+    # `phi` is a list even when it holds one matrix.
     baseline = class_matrix,
     # The predictions the contributions decompose, on `@scale`. Carried so the
     # object can check its own additivity and a waterfall can label its endpoint
@@ -480,8 +474,8 @@ SHAP <- new_class(
     # Whether these are the Shapley values for the declared value function or an
     # estimate of them. A sampled kernel run is not exact; neither is a
     # fixed-weight decomposition of an ensemble whose weights vary with the
-    # case. Both are legitimate answers, and the difference is not visible in
-    # the numbers.
+    # case. Both are valid estimates, and the difference is not visible in the
+    # numbers.
     exact = prop_boolean(
       FALSE,
       description = "Whether the values are exact for the declared value function."
@@ -657,8 +651,7 @@ method(desc, SHAP) <- function(x) {
 #' Publishes what the explanation *is* -- estimator, value function, scale,
 #' space, the baselines, and the identities of the data and background -- but
 #' not the contribution matrices themselves, which are `n x p x k` bulk data.
-#' `Supervised` draws the same line for its prediction vectors, and for the same
-#' reason: a control-plane response is not where a per-case matrix belongs.
+#' `Supervised` draws the same line for its prediction vectors.
 #'
 #' The mean absolute contribution per feature is published, being the summary a
 #' consumer would otherwise compute from the whole matrix in order to rank

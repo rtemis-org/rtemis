@@ -48,8 +48,8 @@ the metrics describe.}
 Classification Metrics
 }
 \details{
-Note that auc_method = "pROC" is the only one that will output an AUC even if
-one or more predicted probabilities are NA.
+\code{auc_method = "pROC"} is the only method that outputs an AUC when one or more
+predicted probabilities are NA.
 }
 \examples{
 # Assume positive class is "b"

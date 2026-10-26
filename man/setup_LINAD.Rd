@@ -52,7 +52,7 @@ setup_LINAD(
 
 \item{nvmax}{(Tunable) Optional Integer [1, Inf): Most terms forward selection may add beside the intercept. Applies only when \code{node_model} is "forward". NULL uses 3.}
 
-\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Cost a term must earn to be added by forward selection. Applies only when \code{node_model} is "forward". NULL uses "bic".}
+\item{forward_stop}{(Tunable) Optional Character \{"bic", "aic", "none"\}: Criterion a term must improve to be added by forward selection. Applies only when \code{node_model} is "forward". NULL uses "bic".}
 
 \item{lambda}{(Tunable) Optional Numeric [0, Inf): L2 penalty on the leaf models. Applies only when \code{node_model} is "forward", "ridge" or "elasticnet". NULL uses 0.05.}
 
@@ -76,7 +76,7 @@ setup_LINAD(
 
 \item{split_bin_type}{(Tunable) Character \{"frequency", "width"\}: How bin edges are placed.}
 
-\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Cost a node's slopes must earn over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}. NULL uses "none".}
+\item{node_test}{(Tunable) Optional Character \{"none", "aic", "bic"\}: Information criterion a node's slopes must improve over the constant alone. Applies only when \code{node_model} is "ridge" or "elasticnet"; forward selection uses \code{forward_stop}. NULL uses "none".}
 
 \item{split_criterion}{(Tunable) Optional Character \{"mean", "linear"\}: What the stump search scores a candidate side by. Applies only when \code{split_search} is "stump". NULL uses "mean".}
 
@@ -115,16 +115,16 @@ LINADHyperparameters object.
 }
 \description{
 Setup hyperparameters for LINAD, the Linear Additive Tree. LINAD
-\strong{generalizes} the decision tree and the regularized linear model: CART, the
-Additive Tree and a penalized linear fit are each a special case of it,
+generalizes the decision tree and the regularized linear model: CART, the
+Additive Tree, and a penalized linear fit are each a special case of it,
 recovered exactly by the hyperparameter combinations given under Details.
 }
 \details{
 Every node carries a constant, as any decision tree's nodes do. \code{node_model}
 selects the model fitted at each node: \code{"constant"} for that constant alone,
-or a regularized linear model on top of it. That, with \code{max_leaves} and
-\code{gamma}, makes LINAD a generalization: the familiar algorithms are points in
-its hyperparameter space, and everything between them is reachable too.
+or a regularized linear model on top of it. With \code{max_leaves} and \code{gamma},
+these settings span a hyperparameter space that contains the following
+algorithms and the models between them.
 }
 \section{What LINAD generalizes}{
 
@@ -173,46 +173,41 @@ boosting, and like it is chosen on held-out data: the tree is grown to
 set that choice is made on.
 
 \code{gamma} lets every case carry weight into both branches, decaying as
-\code{gamma^depth}, so each node's model is pulled toward what the rest of the
-data supports. It is the algorithm's main variance-reducing device.
+\code{gamma^depth}, so each node's model is pulled toward the fit to the rest of
+the data, which reduces variance.
 
 \code{split_search = "exhaustive"} scores each candidate split by the loss after
 fitting both child models, rather than taking the best split of the gradient.
-It costs more per split and finds structure no stump can see: an interaction
-that changes another feature's slope without changing either side's mean
-leaves no trace in any one feature's marginal fit.
+It costs more per split and detects an interaction that changes another
+feature's slope without changing either side's mean, which leaves no trace
+in any one feature's marginal fit.
 
 A node's model is fitted to what its parent left, so its slopes are the
 \emph{change} to the parent's coefficients and \code{lambda} and \code{alpha} penalize that
 change. At \code{alpha = 1} the change is a lasso, so a feature whose coefficient
-does not need to move gets exactly zero and inherits its parent's value: the
-tree decides per feature, per node, whether an effect keeps adapting. Ridge
+does not need to move gets exactly zero and inherits its parent's value, so
+each feature's effect adapts or stays fixed per node. Ridge
 shrinks every change but zeroes none, so every coefficient moves at every
 node.
 
-\code{node_test} lets the tree decide, node by node, whether a linear model is
-warranted at all: the slopes are kept only where they reduce the node's
-residual sum of squares by more than they cost, and the node takes a plain
-constant otherwise. A tree whose flat regions carry constants and whose
-structured regions carry coefficients is both smaller to read and a statement
-about where the response is locally linear. It buys that sparsity at a price
-in accuracy, so it is off by default.
+\code{node_test} selects, node by node, between a linear model and a constant:
+the slopes are kept only where they improve the node's information
+criterion, and the node carries a constant otherwise. The resulting tree
+carries coefficients only in regions where the response is locally linear.
+The test can reduce accuracy; the default is \code{"none"}.
 
-It applies to the shrinking models only. Forward selection charges the same
-cost per term through \code{forward_stop}, and a set of terms that each paid for
-itself always pays for itself jointly, so a node-level test could never
-overturn it. One cost rule per node model, at the granularity that model
-admits.
+It applies to the shrinking models only. Forward selection applies the same
+criterion per term through \code{forward_stop}, and a set of terms that each
+passes it also passes it jointly.
 
-\code{split_criterion} sets what the stump scores a side by, and closes part of
-that gap cheaply. \code{"mean"} scores the level its fit explains, which is the CART
-criterion and is blind to curvature -- a parabola's two halves have the same
-mean by construction, so the correct split at the vertex scores near last.
-\code{"linear"} adds the slope in the split variable, at one further pass per
-feature per node, and on such a problem recovers the exhaustive search's fit.
-It cannot recover the cross-variable case above, and where the change belongs
-to another feature it fits the wrong one more confidently, so it is offered
-as a tunable rather than the default.
+\code{split_criterion} sets what the stump scores a side by. \code{"mean"} scores the
+level its fit explains, the CART criterion, which does not detect curvature:
+a parabola's two halves have the same mean, so the split at the vertex
+scores near last. \code{"linear"} adds the slope in the split variable, at one
+further pass per feature per node, and on such a problem recovers the
+exhaustive search's fit. It does not detect the cross-variable case above,
+and where the change belongs to another feature it can select a split on
+the wrong one. The default is \code{"mean"}.
 
 \code{split_binning} discretizes numeric features before either search, so a
 candidate split falls on a bin boundary rather than between any two distinct
@@ -226,8 +221,8 @@ cases, \code{"width"} evenly through the feature's range.
 A feature's behavior has two independent axes: whether it may \strong{define a
 partition}, and whether its modeled \strong{effect} is absent, shared by every
 subgroup, or free to change along a path. Three name-based selectors set
-them, and on each of the three \strong{NULL imposes no constraint} -- which means
-"all" for the first two and "nothing pinned" for the third:
+them, and on each of the three NULL imposes no constraint, which means "all"
+for the first two and "nothing pinned" for the third:
 
 \describe{
 \item{\code{split_features}}{Features the tree may split on.}
@@ -243,63 +238,56 @@ Roles are assigned to \strong{source features}: naming a factor moves all of its
 encoded columns together, never one of them.
 
 Declaring effect scope turns LINAD into a varying-coefficient model with a
-hierarchical form -- a global baseline plus the node deviations accumulated
-down the path. \code{global} is a hard constraint on the coefficient: it holds
-exactly, at any \code{gamma}. \code{gamma} is the soft, data-driven version of the same
-idea, pulling every node's fit toward what the rest of the data supports
-until, at \code{gamma = 1}, every coefficient is effectively global. The two
-compose without interacting: \code{gamma} decides how much a node's \emph{adaptive}
-coefficients may move, and \code{global_features} decides which coefficients are
-allowed to move at all.
+hierarchical form: a global baseline plus the node deviations accumulated
+down the path. \code{global} is a hard constraint on the coefficient and holds
+exactly at any \code{gamma}. \code{gamma} is a soft constraint, pulling every node's
+fit toward the fit to the rest of the data until, at \code{gamma = 1}, every
+coefficient is effectively global. The two are independent: \code{gamma} sets how
+far a node's adaptive coefficients may move, and \code{global_features} sets
+which coefficients may move.
 
 Because a global coefficient is estimated at the root, \code{root_learning_rate}
 shrinks it: at 0 the root fits no slopes and a global feature carries no
 effect anywhere.
 
-The constrained family keeps useful reductions. No splits (\code{max_leaves = 1})
+The constrained family has these reductions. No splits (\code{max_leaves = 1})
 is a penalized linear model; \code{node_model = "constant"} is a tree of
 constants; making every linear feature global gives a tree with shared
 coefficients and node-specific constants; and leaving all three NULL
 reproduces unconstrained LINAD exactly.
 
-Restricting the split set is also the largest single speed-up available on
-wide data, since the search cost is linear in the number of candidate
-features.
+The split search cost is linear in the number of candidate features, so
+restricting the split set reduces training time on wide data.
 }
 
 \section{Learning rate and the root model}{
 
-\code{learning_rate} shrinks the update made at each \strong{node}. It does not shrink
+\code{learning_rate} shrinks the update made at each node. It does not shrink
 the root, which \code{root_learning_rate} governs and which defaults to 1: the
-root model is the initialization \code{F_0}, not a boosting step, and shrinking an
-initialization is not meaningful.
+root model is the initialization \code{F_0}, not a boosting step.
 
-The consequence is worth stating, because it surprises: \strong{however small
-\code{learning_rate} is, the fit never falls below a single global linear model.}
-On data whose signal is largely linear, that model is already good, so
-shrinking the tree's correction moves the metrics very little and two very
-different small learning rates look alike. On a signal the root cannot
-represent -- a step with no linear component -- the same sweep moves test
+Consequently, for any \code{learning_rate}, the fit includes the full global
+linear model at the root. On data whose signal is largely linear, shrinking
+the tree's correction changes the metrics little, and different small
+learning rates give similar fits. On a signal the root cannot represent,
+such as a step with no linear component, the same sweep moves test
 R-squared from 0.58 to 0.97.
 
 To shrink everything, including the root, set \code{root_learning_rate} to the
-same value. That recovers the familiar picture in which a small rate leaves
-the model badly under-fitted: at \code{1e-6} the fit reduces to the constant that
-alone minimizes the loss -- the weighted mean of the outcome, or half its log
-odds for a classification -- which scores an R-squared of 0 rather than
-anything worse. \code{root_learning_rate} interpolates between that constant and
+same value. A small rate then under-fits: at \code{1e-6} the fit reduces to the
+constant that minimizes the loss (the weighted mean of the outcome, or half
+its log odds for a classification), which scores an R-squared of 0. \code{root_learning_rate} interpolates between that constant and
 the full linear model, never towards zero.
 
-The \code{line_search} step does \strong{not} counteract this. It is scale-free -- for
-squared error it is the exact minimizer along the update direction, which is
-near 1 whatever the residual's size -- so the applied step stays proportional
-to \code{learning_rate}. Measured node updates scale linearly with it, by a factor
+The \code{line_search} step does not counteract this. It is scale-free (for
+squared error it is the exact minimizer along the update direction, near 1
+for any residual size), so the applied step stays proportional to
+\code{learning_rate}. Measured node updates scale linearly with it, by a factor
 of 50 across a 50-fold change in the rate.
 
 \code{line_search} and \code{constant_rule} each select among
 alternative update rules -- the scope of the Newton step, which frontier node
-is split next, and how a node's constant is computed. There is no settled
-best choice among them, so each is tunable.
+is split next, and how a node's constant is computed. Each is tunable.
 }
 
 \examples{

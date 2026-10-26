@@ -1054,7 +1054,7 @@ test_that("a leaf's schema declares every property it inherits", {
 
 test_that("SuperLearner declares no feature_groups at all", {
   # It is meaningless for van der Laan's method, so rather than being declared
-  # and forbidden it is simply absent -- and so absent from the schema too.
+  # and forbidden it is absent -- and so absent from the schema too.
   expect_false(
     "feature_groups" %in% names(SuperLearnerHyperparameters@properties)
   )

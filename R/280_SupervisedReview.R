@@ -6,9 +6,8 @@
 #
 # A review holds every value it rests on, in typed tables -- the sample, one
 # row per performance metric, one row per baseline comparison, one row per
-# tuned hyperparameter checked -- so a reader who knows the algorithm and the
-# field can judge for themselves. Its findings then state what the review
-# concludes, each message restating the values it rests on. `repr` prints a
+# tuned hyperparameter checked -- so each finding can be checked against the
+# values. Its findings state what the review concludes, each message restating the values it rests on. `repr` prints a
 # summary: one row per metric, the baseline comparisons, the findings; the
 # full tables stay on the object.
 #
@@ -651,7 +650,7 @@ review_sample_line <- function(x) {
     paste0(s[["n_training"]], " training cases, no test set")
   }
   columns <- s[["n_learner_columns"]]
-  # The learner's columns are worth naming only when they differ from the
+  # The learner's columns are named only when they differ from the
   # input predictors: after a decomposition, or when the input is unknown.
   same <- identical(s[["n_predictors"]], columns) &&
     is.null(s[["n_components"]])

@@ -7,7 +7,7 @@
 #'
 #' @description
 #' Abstract base for the execution family: how a run dispatches work. `backend`
-#' is the discriminator and the variant holds what that backend actually needs.
+#' is the discriminator and each variant holds the settings of one backend.
 #' Concrete variants are `SerialExecutionConfig`, `FutureExecutionConfig` and
 #' `MiraiExecutionConfig`; build one with [setup_SerialExecution],
 #' [setup_FutureExecution] or [setup_MiraiExecution].

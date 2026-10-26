@@ -57,8 +57,8 @@ method(train_, TabNetHyperparameters) <- function(
   x <- prp@preprocessed
 
   # Train ----
-  # The predictor data should be standardized (e.g. centered or scaled). The model treats
-  # categorical predictors internally thus, you don't need to make any treatment.
+  # TabNet expects standardized (centered and scaled) numeric predictors, and
+  # encodes categorical predictors internally.
   config <- get_tabnet_config(hyperparameters)
   config[["verbose"]] <- verbosity > 0L
   # Resolved here; tabnet's own "auto" picks mps on Apple silicon: see

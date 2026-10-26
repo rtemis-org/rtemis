@@ -36,8 +36,8 @@ models. Missing scores stay missing. Wholly unavailable samples are omitted
 under \code{what = "all"}; explicit unavailable samples are errors.
 
 Comparison labels use \code{model_names}, complete list names, or algorithm
-names, made unique in that order. The existing rtemis data-fingerprint
-mismatch notice is retained, including when descriptions are disabled.
+names, made unique in that order. A data-fingerprint mismatch notice is
+printed, including when descriptions are disabled.
 }
 \section{Default plots}{
 

@@ -20,11 +20,11 @@
 # What the user asks for: the construction, tagged on the config.
 CONFORMAL_METHODS <- c("Split", "CVPlus", "CQR")
 
-# What actually ran, as recorded on a result. `setup_CVPlus()` resolves to three
+# What ran, as recorded on a result. `setup_CVPlus()` resolves to three
 # of these -- jackknife+ is CV+ over leave-one-out folds, and the set-valued
 # case over folds is cross-conformal (Vovk, 2015) rather than CV+, which is
-# defined for intervals. Asked and resolved are never confused, as for
-# `SHAP@estimator`.
+# defined for intervals. The requested and the resolved construction are stored
+# separately, as for `SHAP@estimator`.
 CONFORMAL_RESOLVED_METHODS <- c(
   "Split",
   "CVPlus",
@@ -34,7 +34,7 @@ CONFORMAL_RESOLVED_METHODS <- c(
 )
 
 # Nonconformity scores. "absolute" is the only one for a regression; the two
-# set-valued ones differ in what they buy, not in how well they work -- see
+# set-valued ones differ in set size and in coverage of uncertain cases; see
 # `setup_SplitConformal()`.
 CONFORMAL_SCORES <- c("absolute", "LAC", "APS")
 
@@ -142,8 +142,7 @@ method(print, ConformalConfig) <- function(
 # %% prop_conformal_alpha ----
 #' Miscoverage rate
 #'
-#' Declared once and used by each leaf, which is what keeps three copies of one
-#' decision from drifting apart.
+#' Declared once and used by each leaf.
 #'
 #' @return S7 property.
 #'
@@ -355,20 +354,19 @@ method(desc, ConformalConfig) <- function(x) {
 #' calibration cases and `alpha = 0.01` at least 99. `conformal()` aborts naming
 #' the count.
 #'
-#' **`score` is the real choice, and only for a classification.** A regression
-#' has one score, `abs(y - yhat)`, which is what NULL resolves to.
+#' **`score` is a choice for a classification only.** A regression has one
+#' score, `abs(y - yhat)`, which is what NULL resolves to.
 #'
 #' - `"APS"`, the default, accumulates the predicted probabilities from the most
-#'   probable class down to the true one. Larger sets, markedly better coverage
-#'   on the hard cases -- which is the reason to want a set at all.
+#'   probable class down to the true one. It produces larger sets, with better
+#'   coverage of the cases where the model is uncertain.
 #' - `"LAC"` scores `1 - p(y)`. It produces the smallest sets attaining valid
-#'   *marginal* coverage, and it buys them by under-covering exactly the cases
-#'   where the model is unsure. Choose it when small sets are the point and the
-#'   trade is understood.
+#'   *marginal* coverage, and under-covers the cases where the model is
+#'   uncertain.
 #'
 #' **APS is randomized** (Romano, Sesia and Candes, 2020): the true label's own
-#' probability enters its score multiplied by a uniform draw, one per case. That
-#' is not a refinement. Without it, every case whose true label ranks last
+#' probability enters its score multiplied by a uniform draw, one per case.
+#' Without it, every case whose true label ranks last
 #' scores exactly 1, so a model erring on more than `alpha` of its cases puts
 #' the threshold at 1 and every set holds every label -- valid coverage carrying
 #' no information. `seed` keeps the draw reproducible: left NULL, one is drawn
@@ -415,10 +413,9 @@ setup_SplitConformal <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' @details
 #' CV+ (Barber, Candes, Ramdas and Tibshirani, 2021) spends no data on
 #' calibration: every case is out-of-fold exactly once, so every case both
-#' trains and calibrates. Over a `SupervisedRes` the expensive part is already
-#' paid -- the per-fold models and their out-of-fold predictions are stored --
-#' and what remains is predicting `newdata` under each fold's model and taking
-#' two order statistics.
+#' trains and calibrates. A `SupervisedRes` stores the per-fold models and their
+#' out-of-fold predictions, so the computation is predicting `newdata` under
+#' each fold's model and taking two order statistics.
 #'
 #' **It delivers `1 - 2 * alpha` in the worst case**, not `1 - alpha`. The bound
 #' is conservative and observed coverage usually sits near `1 - alpha`; the
@@ -478,7 +475,7 @@ setup_CVPlus <- function(alpha = 0.1, score = NULL, seed = NULL) {
 #' amount. Adaptive width, same finite-sample guarantee.
 #'
 #' **It needs a backend that answers a quantile query from the model already
-#' fitted.** Today that is Ranger trained with `setup_Ranger(quantreg = TRUE)`:
+#' fitted.** That is Ranger trained with `setup_Ranger(quantreg = TRUE)`:
 #' a quantile regression forest keeps the training outcomes at its terminal
 #' nodes, so one fit answers every level. A gradient booster on the `quantile`
 #' objective targets the single level it was trained for, so a pair of bounds
@@ -515,9 +512,9 @@ setup_CQR <- function(alpha = 0.1) {
 #' @details
 #' What every region must state regardless of its shape: which model produced
 #' it, which construction ran, at what score and calibrated quantile, on how
-#' many cases, and against which data. The last is not bookkeeping -- a region
-#' is meaningless without knowing what calibrated it, two regions calibrated on
-#' different data are not comparable, and nothing in the numbers says so.
+#' many cases, and against which data. Two regions calibrated on different data
+#' are not comparable, and the fingerprint of the calibration data identifies
+#' it.
 #'
 #' `alpha` is held once, on `@config`. `@coverage` derives the guarantee from
 #' `@config@alpha` and `@method`.
@@ -735,11 +732,10 @@ method(`[[`, PredictionRegion) <- function(x, name) {
 # %% repr_region_guarantee ----
 #' State the requested level and the guarantee it buys
 #'
-#' Both, always. Printing the guarantee alone shows "80%" to a user who asked
-#' for `alpha = 0.1` and reads as a defect; printing the requested level alone
-#' would claim 90% coverage that a fold construction does not promise in the
-#' worst case. The two agree wherever the bound is exact, and the line then
-#' names one number.
+#' Both are printed. The guarantee alone would show "80%" for `alpha = 0.1`;
+#' the requested level alone would state 90% coverage that a fold construction
+#' does not guarantee in the worst case. Where the bound is exact, the two
+#' agree and the line names one number.
 #'
 #' @param x `PredictionRegion` object.
 #' @param output_type Character \{"ansi", "html", "plain"\}: Output type.

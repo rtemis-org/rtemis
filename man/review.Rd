@@ -30,8 +30,7 @@ baseline that ignores the predictors, and whether it overfits. The review
 is deterministic: it draws no random numbers.
 }
 \details{
-The review holds every value it rests on, so a reader can judge for
-themselves: \verb{@sample} (sample sizes, input predictors and the columns the
+The review holds every value it rests on: \verb{@sample} (sample sizes, input predictors and the columns the
 learner received), \verb{@class_counts}, \verb{@performance} (one row per metric:
 training, test, training minus test, the spread over resamples, and the
 test interval or pooled value), \verb{@baseline} (one row per comparison with a

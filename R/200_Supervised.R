@@ -498,8 +498,8 @@ Supervised <- schema_class(
       nullable = TRUE,
       description = "Question addressed by this analysis."
     ),
-    # Provenance. `session_info` is a full `utils::sessionInfo()` -- the first
-    # thing asked for when troubleshooting -- and `session` is the run timeline.
+    # Provenance. `session_info` is a full `utils::sessionInfo()`, and `session`
+    # is the run timeline.
     # `data_fingerprint` identifies the training data itself, so that comparing
     # models trained on different inputs is detectable.
     data_fingerprint = prop_object(
@@ -812,8 +812,7 @@ predict_supervised_ <- function(
   )
   # Classification predictions are probabilities, and each backend reduces the
   # binary case to a bare vector in its own way. Normalized here so that
-  # `predict()` returns what `@predicted_prob_*` holds: two names for the same
-  # quantity must not have two shapes.
+  # `predict()` returns the shape `@predicted_prob_*` holds.
   if (object@type == "Classification") {
     predicted <- prob_matrix(
       predicted,
@@ -2759,7 +2758,7 @@ ClassificationRes <- schema_class(
 #'
 #' @author EDG
 #' @noRd
-# We use getter functions to avoid duplicating data
+# Getter functions avoid duplicating data.
 CalibratedClassificationRes <- new_class(
   name = "CalibratedClassificationRes",
   parent = ClassificationRes,
@@ -2804,9 +2803,9 @@ CalibratedClassificationRes <- new_class(
     metrics_test_calibrated = ClassificationMetricsRes
   ),
   constructor = function(ClassificationRes_model, calibrations_models) {
-    # Aggregate calibrated metrics from individual models within each calibration resample
-    # calibrations_models is a list of *Res objects, each containing multiple models
-    # We need to extract all individual model metrics and aggregate them
+    # Aggregates calibrated metrics from the individual models within each calibration
+    # resample. `calibrations_models` is a list of *Res objects, each holding several
+    # models, so every individual model's metrics are extracted and aggregated.
     all_training_metrics <- unlist(
       lapply(calibrations_models, function(calmod) {
         calmod@metrics_training@res_metrics
@@ -2857,9 +2856,7 @@ method(predict, CalibratedClassificationRes) <- function(
   ...
 ) {
   check_inherits(newdata, "data.frame")
-  # `type`, as on every other resampled predict method. It was `what` here, so a
-  # caller who learned `type` on a `SupervisedRes` had it swallowed by `...` and
-  # got the default back without a word.
+  # `type`, as on every other resampled predict method.
   type <- match_arg(type, c("avg", "all", "metrics"))
 
   # Check lengths match
@@ -3396,7 +3393,7 @@ StackedLearner <- new_class(
     cv_risk = class_data.table,
     discrete_winner = NULL | class_character,
     # One character vector per entry, fully resolved: for everything but modality
-    # stacking each is simply `xnames`.
+    # stacking each is `xnames`.
     entry_features = class_list,
     y_levels = NULL | class_character,
     xnames = class_character,
@@ -3436,7 +3433,7 @@ method(print, StackedLearner) <- function(x, ...) {
 #' Class for LINAD models: a decision tree carrying a linear model at every
 #' node.
 #'
-#' Flat by design. `frame` holds one row per node and `coefficients` one row of
+#' Flat: `frame` holds one row per node and `coefficients` one row of
 #' coefficients per node, in place of a nested structure -- routing is then a
 #' vectorized pass per internal node, and the whole
 #' object serializes with no external references.
@@ -3482,9 +3479,7 @@ LinearAdditiveTree <- new_class(
     type = class_character,
     y_levels = NULL | class_character,
     # Every hyperparameter as the run resolved it, feature roles included.
-    # Several defaults exist only after resolution -- `n_cuts` is the clearest
-    # -- so a serialized fit that did not carry this would not record what
-    # produced it.
+    # Several defaults, such as `n_cuts`, exist only after resolution.
     settings = class_list,
     # Loss at every size the tree passed through, on the validation set and on
     # the training set. The pair is what shows overfitting: one alone cannot.
@@ -3630,8 +3625,8 @@ method(print, LinearAdditiveTree) <- function(x, ...) {
 #'
 #' `bag_counts` -- how many times each training case appears in each bag -- is
 #' the one piece of training-set-sized state kept on the fitted model. The
-#' infinitesimal jackknife reads it, and there is no other way to reach a
-#' standard error of the fit; it costs `n * n_trees` integers.
+#' infinitesimal jackknife reads it to compute the standard error of the fit;
+#' it costs `n * n_trees` integers.
 #'
 #' @author EDG
 #' @noRd
@@ -4167,8 +4162,7 @@ method(desc, class_list) <- function(
 
   # SupervisedRes
   if (type == "SupervisedRes") {
-    # Check that the same resampling method was used - ideally same seed, but do not enforce that, but report it
-    # Get resampling config from each
+    # Checks that the same resampling method was used; the seed is reported, not enforced.
     res_params <- lapply(x, function(m) m@outer_resampler@config)
     # Check all resamplers of same type
     if (!all(sapply(res_params, function(p) p@type == res_params[[1]]@type))) {

@@ -36,8 +36,7 @@ if \code{datadir} is also provided.}
 
 \item{quotechar}{Character: Quote character.}
 
-\item{ignore_errors}{Logical: If TRUE, ignore parsing errors (sometimes it's
-either this or no data, so).}
+\item{ignore_errors}{Logical: If TRUE, ignore parsing errors.}
 
 \item{make_unique}{Logical: If TRUE, keep only unique rows.}
 
@@ -45,8 +44,7 @@ either this or no data, so).}
 
 \item{filter_column}{Character: Name of column to filter on, e.g. "ID".}
 
-\item{filter_vals}{Numeric or Character vector: Values in \code{filter_column} to keep.
-\code{filter_column} to keep.}
+\item{filter_vals}{Numeric or Character vector: Values in \code{filter_column} to keep.}
 
 \item{character2factor}{Logical: If TRUE, convert character columns to
 factors.}
@@ -54,12 +52,11 @@ factors.}
 \item{collect}{Logical: If TRUE, collect data and return structure class
 as defined by \code{returnobj}.}
 
-\item{progress}{Logical: If TRUE, print progress (no indication this works).}
+\item{progress}{Logical: If TRUE, enable the DuckDB progress bar.}
 
 \item{returnobj}{Character: "data.frame" or "data.table" object class to
 return. If "data.table", data.frame object returned from
-\code{DBI::dbGetQuery} is passed to \code{data.table::setDT}; will add to
-execution time if very large, but then that's when you need a data.table.}
+\code{DBI::dbGetQuery} is passed to \code{data.table::setDT}.}
 
 \item{data.table.key}{Character: If set, this corresponds to a column name in the
 dataset. This column will be set as key in the data.table output.}

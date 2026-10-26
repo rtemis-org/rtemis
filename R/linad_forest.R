@@ -81,8 +81,7 @@ linadforest_bags <- function(y, n_trees, seed = NULL) {
 #' Grow one tree of a forest
 #'
 #' Draws the tree's feature subset, grows it on its bag, and selects its number
-#' of leaves on the cases the bag left out -- the validation set a bootstrap
-#' produces for free, and the reason a forest needs no tuning to size its trees.
+#' of leaves on the cases the bag left out, so tree size needs no tuning.
 #'
 #' The tree's factor levels are the **training** levels, not the bag's, so a
 #' level the bag happens to miss still has a column and prediction on new data
@@ -255,9 +254,8 @@ linadforest_oob_metrics <- function(oob_prediction, outcome, type) {
   predicted <- oob_prediction[covered]
   # `METRICS_SAMPLES` is a closed set with no out-of-bag member, and of the six
   # it has, "Validation" is what these cases are: held-out data on which a
-  # modeling choice -- each tree's number of leaves -- was made. Labelling them
-  # "Training" would name the rows correctly and invite exactly the in-sample
-  # reading the estimate exists to avoid.
+  # modeling choice -- each tree's number of leaves -- was made. "Training"
+  # would describe an in-sample estimate.
   if (type == "Classification") {
     levels_y <- levels(outcome)
     classification_metrics(
