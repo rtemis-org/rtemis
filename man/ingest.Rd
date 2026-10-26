@@ -28,27 +28,22 @@ NULL), \code{input_sha256} (SHA-256 of the input file's bytes), \code{retrieved_
 \code{n_cols}.
 }
 \description{
-The first step of any pipeline. A delimited file or a spreadsheet carries no
-usable type information; Parquet does. Ingesting once means nothing
-downstream infers a type a second time, and the decisions that were made are
-in the config.
+Reads a data file with the settings of an \code{IngestConfig}, converts the
+columns it declares types for, writes the result to a Parquet file, and
+returns a manifest of the operation.
 
-The config's \code{format} is checked against the file, and a mismatch is an
-error: a config written for a delimited file sets options a Parquet reader
-would ignore.
+The file extension names the format. A \code{config} whose \code{format} differs from
+it is an error.
 
 \code{path} may be an \verb{http://} or \verb{https://} URL or an \verb{hf://datasets/} path, as
-\code{read()} accepts them, downloaded to a temporary file; the extension of the
-file names the format. The manifest records the path as given in \code{input},
-the time resolution started in \code{retrieved_at}, and, for an \verb{hf://} path, the
-path pinned to the resolved commit and file in \code{input_resolved}. Later steps
-read the Parquet file, whose content is fixed.
+\code{read()} accepts them, downloaded to a temporary file. The manifest records
+the path as given in \code{input}, the time the download started in
+\code{retrieved_at}, and, for an \verb{hf://} path, the path pinned to the resolved
+commit and file in \code{input_resolved}.
 
-Returns a manifest describing what happened: the file in, the file out, a
-\code{DataFingerprint} of the data, the config, and which engine ran it. The
-engine is named from the start because it is unrecoverable later -- once a
-second implementation exists, nothing else could say which produced a given
-Parquet.
+The manifest also records the input and output files, the SHA-256 of the
+input, a \code{DataFingerprint} of the data, the config, and the engine that
+produced the Parquet file.
 }
 \examples{
 \dontrun{

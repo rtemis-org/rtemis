@@ -2,25 +2,20 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# How a data file is read and normalized to Parquet -- the first step of any
-# pipeline, and the only one that decides types.
+# Settings for reading a data file and writing it to Parquet, and `ingest()`,
+# which executes them.
 #
-# A family, as elsewhere in rtemis: a delimited file has a separator and a quote
-# character, a spreadsheet has a sheet number, and a Parquet has neither. A
-# single config carrying all of them would offer a user settings that do
-# nothing, and offer an agent settings it
-# can put in a document that will never take effect. `format` is the
-# discriminator and the leaf holds what that format actually has.
+# `IngestConfig` is an abstract family discriminated by `format`. Each leaf
+# holds the settings of one file format: a delimited file has a separator and a
+# quote character, a spreadsheet has a sheet number, and Parquet, RDS, Stata,
+# and ARFF files have no format-specific settings beyond the reader.
 #
-# `format` has no default. It is not a preference -- it is what the file *is* --
-# so a config either states it, and can be checked against the file, or the
-# reader guesses and no one can tell what was read. Stating it makes a mismatch
-# a finding.
+# `format` is required in a config document. `ingest()` derives the format from
+# the file extension and raises an error when the config states another.
 
-# The dtypes a user can *declare*. `other` is the fallback for what nothing else
-# matches -- a BLOB, a struct -- and is a description, never a conversion
-# target. Derived from the profile vocabulary so a dtype added there arrives
-# here without a second list to update.
+# Column types a config can declare: the profile dtype vocabulary without
+# `other`, which describes types outside the vocabulary (a BLOB, a struct) and
+# has no conversion.
 INGEST_DTYPES <- setdiff(PROFILE_DTYPES, "other")
 
 
@@ -28,8 +23,8 @@ INGEST_DTYPES <- setdiff(PROFILE_DTYPES, "other")
 #' IngestConfig Class
 #'
 #' @description
-#' Abstract base for the ingest family. Holds what applies whatever the file is:
-#' the operations performed *after* reading, and the types the user declares.
+#' Abstract base for the ingest family. Holds the settings shared by every
+#' format: declared column types and the operations applied after reading.
 #'
 #' @author EDG
 #' @noRd
@@ -39,28 +34,21 @@ IngestConfig <- schema_class(
   abstract = TRUE,
   properties = list(
     format = class_character,
-    # Declared types, keyed by column name. Inference is a guess made from the
-    # values a file happens to contain -- an all-integer column of codes reads
-    # as a number, a column of "0"/"1" as an integer -- and the guess decides
-    # what a learner is handed. Where the user knows, saying so beats every
-    # heuristic, and the record then reports what was declared.
+    # Declared types, keyed by column name. `apply_declared_types()` converts
+    # each named column after reading.
     columns = prop_map(
       prop_string(INGEST_DTYPES[[1L]], enum = INGEST_DTYPES),
       nullable = TRUE,
       description = paste0(
         "Declared column types, keyed by column name, in the `profile/r/v1` ",
-        "vocabulary. A column named here is converted after reading rather ",
-        "than inferred; one absent is left as the reader gave it."
+        "vocabulary. A column named here is converted to the declared type ",
+        "after reading; other columns keep the type the reader assigns."
       )
     ),
-    # Applied after reading, so they belong to every format.
+    # Applied after reading, for every format.
     character2factor = prop_boolean(
       TRUE,
-      description = paste0(
-        "Read character columns as factors. Supervised learning needs ",
-        "categorical predictors as factors, and most file formats cannot say ",
-        "which columns those are."
-      )
+      description = "Convert string columns to categorical columns."
     ),
     clean_colnames = prop_boolean(
       TRUE,
@@ -75,7 +63,7 @@ IngestConfig <- schema_class(
     role = "family",
     slug = "ingest",
     title = "rtemis IngestConfig",
-    description = "Language-independent config for reading a data file and normalizing it to Parquet. A delimited file or a spreadsheet carries no usable type information and Parquet does, so this is the one step that decides types -- everything after it reads a declaration rather than inferring one. `format` is what the file is, not a preference, so it has no default and a config that disagrees with its file is an error.",
+    description = "Language-independent config for reading a data file and writing it to Parquet. `format` names the file format and selects the settings that apply to it; a config whose `format` differs from the format of the file is an error. `columns` declares column types, which replace the types the reader assigns.",
     discriminator = "format",
     discriminator_description = "What the file is.",
     order = 3L
@@ -87,8 +75,8 @@ IngestConfig <- schema_class(
 #' DelimitedIngestConfig Class
 #'
 #' @description
-#' Reading a delimited file: the format that declares nothing, and therefore the
-#' one with the most to say.
+#' Settings for reading a delimited file: the reader library, field separator,
+#' quote character, and missing-value strings.
 #'
 #' @author EDG
 #' @noRd
@@ -98,8 +86,8 @@ DelimitedIngestConfig <- schema_class(
   package = "rtemis",
   properties = list(
     format = prop_algorithm("delimited"),
-    # Readers disagree -- on type inference, on what counts as missing -- so a
-    # record that did not name the reader could not account for its own numbers.
+    # Readers differ in type inference and in what they read as missing, so the
+    # config names the reader.
     reader = prop_string(
       "data.table",
       enum = c("data.table", "vroom", "duckdb", "arrow"),
@@ -129,8 +117,8 @@ DelimitedIngestConfig <- schema_class(
 #' ParquetIngestConfig Class
 #'
 #' @description
-#' Reading a Parquet file. It declares its own types, so there is nothing to
-#' tell the reader except which reader to be.
+#' Settings for reading a Parquet file, which stores its column types: the
+#' reader library.
 #'
 #' @author EDG
 #' @noRd
@@ -158,8 +146,8 @@ ParquetIngestConfig <- schema_class(
 #' XLSXIngestConfig Class
 #'
 #' @description
-#' Reading a spreadsheet. A workbook holds several tables, so which one is the
-#' only thing that must be said.
+#' Settings for reading a spreadsheet: the sheet number and missing-value
+#' strings.
 #'
 #' @author EDG
 #' @noRd
@@ -192,9 +180,8 @@ XLSXIngestConfig <- schema_class(
 #' RDSIngestConfig Class
 #'
 #' @description
-#' Reading an RDS file. R's own serialization carries its types, so the format
-#' has no settings -- the leaf exists so that saying "this is an RDS" is
-#' expressible, not because there is anything to configure.
+#' Settings for reading an RDS file, which stores R types. The format has no
+#' settings of its own; the leaf states the format.
 #'
 #' @author EDG
 #' @noRd
@@ -215,7 +202,8 @@ RDSIngestConfig <- schema_class(
 #' DTAIngestConfig Class
 #'
 #' @description
-#' Reading a Stata file. Its types are declared in the file.
+#' Settings for reading a Stata file, which stores its column types. The format
+#' has no settings of its own.
 #'
 #' @author EDG
 #' @noRd
@@ -236,7 +224,8 @@ DTAIngestConfig <- schema_class(
 #' ARFFIngestConfig Class
 #'
 #' @description
-#' Reading an ARFF file. Its header declares the attribute types.
+#' Settings for reading an ARFF file, whose header declares the attribute types.
+#' The format has no settings of its own.
 #'
 #' @author EDG
 #' @noRd
@@ -253,9 +242,9 @@ ARFFIngestConfig <- schema_class(
 ) # /rtemis::ARFFIngestConfig
 
 
-# The leaf per format. Stated once: `ingest()` picks the class for the format it
-# derived, and `.list_to_IngestConfig()` dispatches a parsed document through
-# the matching `setup_*`, so a format added here arrives in both.
+# The leaf class and constructor of each format. `ingest()` selects the class
+# for the format it derives, and `.list_to_IngestConfig()` dispatches a parsed
+# document through the matching `setup_*()`.
 INGEST_CLASSES <- list(
   delimited = DelimitedIngestConfig,
   parquet = ParquetIngestConfig,
@@ -275,13 +264,12 @@ INGEST_SETUP <- c(
 )
 
 
-# The arguments every format takes, documented once per constructor because each
-# is a user-facing contract in its own right and the audit compares them class
-# by class.
+# The arguments every format takes, documented in full on each constructor:
 #
 # @param columns Optional Named vector: Declared column types, keyed by column
 # name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-# here is converted to that type after reading.
+# here is converted to the declared type after reading, replacing the type the
+# reader assigned.
 # @param character2factor Logical: If TRUE, read character columns as factors.
 # @param clean_colnames Logical: If TRUE, normalize column names.
 # @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -290,18 +278,15 @@ INGEST_SETUP <- c(
 #' Set up a `DelimitedIngestConfig`
 #'
 #' @description
-#' Reading a delimited file -- the format that declares nothing, and therefore
-#' the one with the most to say.
+#' Creates the settings `ingest()` uses to read a delimited file.
 #'
-#' One constructor per format: each takes exactly the settings its format has,
-#' so an argument from another format is rejected by R as unused, and each
-#' format's own enums and defaults can be documented
-#' against the class they belong to.
+#' Each format has its own constructor, which takes the settings of that format
+#' only; an argument of another format is an unused-argument error.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -345,13 +330,13 @@ setup_DelimitedIngest <- function(
 #' Set up a `ParquetIngestConfig`
 #'
 #' @description
-#' Reading a Parquet file. It declares its own types, so there is nothing to
-#' tell the reader except which reader to be.
+#' Creates the settings `ingest()` uses to read a Parquet file. Parquet stores
+#' its column types, and the only format-specific setting is the reader library.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -386,13 +371,12 @@ setup_ParquetIngest <- function(
 #' Set up an `XLSXIngestConfig`
 #'
 #' @description
-#' Reading a spreadsheet. A workbook holds several tables, so which one is the
-#' only thing that must be said.
+#' Creates the settings `ingest()` uses to read a spreadsheet.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -429,13 +413,13 @@ setup_XLSXIngest <- function(
 #' Set up an `RDSIngestConfig`
 #'
 #' @description
-#' Reading an RDS file. R's own serialization carries its types, so the format
-#' has no settings of its own.
+#' Creates the settings `ingest()` uses to read an RDS file. RDS stores R types,
+#' and the format has no settings of its own.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -466,12 +450,13 @@ setup_RDSIngest <- function(
 #' Set up a `DTAIngestConfig`
 #'
 #' @description
-#' Reading a Stata file. Its types are declared in the file.
+#' Creates the settings `ingest()` uses to read a Stata file. Stata files store
+#' their column types, and the format has no settings of its own.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -502,12 +487,13 @@ setup_DTAIngest <- function(
 #' Set up an `ARFFIngestConfig`
 #'
 #' @description
-#' Reading an ARFF file. Its header declares the attribute types.
+#' Creates the settings `ingest()` uses to read an ARFF file. The ARFF header
+#' declares the attribute types, and the format has no settings of its own.
 #'
 #' @param columns Optional Named vector: Declared column types, keyed by column
 #' name, in the `profile/r/v1` vocabulary -- `c(Age = "integer")`. A column named
-#' here is converted to that type after reading, so a known type takes
-#' precedence over the reader's inference.
+#' here is converted to the declared type after reading, replacing the type the
+#' reader assigned.
 #' @param character2factor Logical: If TRUE, read character columns as factors.
 #' @param clean_colnames Logical: If TRUE, normalize column names.
 #' @param remove_duplicates Logical: If TRUE, drop rows repeating an earlier row.
@@ -587,9 +573,8 @@ ingest_display_name <- function(path) {
 # %% apply_declared_types ----
 #' Convert the columns the config declares types for
 #'
-#' Runs after reading, so it overrides whatever the reader inferred -- which is
-#' the point: inference is a guess made from the values a file happens to hold,
-#' and where the user knows, saying so beats every heuristic.
+#' Converts each column named in `columns` to its declared type. Runs after
+#' reading, so a declared type replaces the type the reader assigned.
 #'
 #' @param x `data.table`: The frame as read.
 #' @param columns Named character or NULL: Declared types by column name.
@@ -634,27 +619,22 @@ apply_declared_types <- function(x, columns) {
 #' Read a data file and normalize it to Parquet
 #'
 #' @description
-#' The first step of any pipeline. A delimited file or a spreadsheet carries no
-#' usable type information; Parquet does. Ingesting once means nothing
-#' downstream infers a type a second time, and the decisions that were made are
-#' in the config.
+#' Reads a data file with the settings of an `IngestConfig`, converts the
+#' columns it declares types for, writes the result to a Parquet file, and
+#' returns a manifest of the operation.
 #'
-#' The config's `format` is checked against the file, and a mismatch is an
-#' error: a config written for a delimited file sets options a Parquet reader
-#' would ignore.
+#' The file extension names the format. A `config` whose `format` differs from
+#' it is an error.
 #'
 #' `path` may be an `http://` or `https://` URL or an `hf://datasets/` path, as
-#' `read()` accepts them, downloaded to a temporary file; the extension of the
-#' file names the format. The manifest records the path as given in `input`,
-#' the time resolution started in `retrieved_at`, and, for an `hf://` path, the
-#' path pinned to the resolved commit and file in `input_resolved`. Later steps
-#' read the Parquet file, whose content is fixed.
+#' `read()` accepts them, downloaded to a temporary file. The manifest records
+#' the path as given in `input`, the time the download started in
+#' `retrieved_at`, and, for an `hf://` path, the path pinned to the resolved
+#' commit and file in `input_resolved`.
 #'
-#' Returns a manifest describing what happened: the file in, the file out, a
-#' `DataFingerprint` of the data, the config, and which engine ran it. The
-#' engine is named from the start because it is unrecoverable later -- once a
-#' second implementation exists, nothing else could say which produced a given
-#' Parquet.
+#' The manifest also records the input and output files, the SHA-256 of the
+#' input, a `DataFingerprint` of the data, the config, and the engine that
+#' produced the Parquet file.
 #'
 #' @param path Character: Path to the input file, an `http://` or `https://`
 #' URL, or an `hf://datasets/` path.
@@ -726,19 +706,19 @@ ingest <- function(
     rtemis.core::abort(
       "The config is for a '",
       config@format,
-      "' file but '",
+      "' file, but '",
       name,
-      "' is ",
+      "' is a '",
       format,
-      ". Its settings would not apply.",
+      "' file. Pass a config with `format = \"",
+      format,
+      "\"`, or omit `config`.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
 
-  # Every reading decision comes from the config. `read()`'s own defaults are
-  # deliberately not relied on: a default that is not in the config is a
-  # decision the record cannot report. Only the arguments this format has are
-  # passed, which is what makes the family worth having.
+  # Every reading setting passed to `read()` comes from the config, so the
+  # manifest reports each one. Only the settings of this format are passed.
   local_path <- if (!is.null(hf)) {
     download_hf(hf, verbosity = verbosity)
   } else if (remote) {
@@ -814,9 +794,9 @@ ingest <- function(
 # %% .list_to_IngestConfig ----
 #' Rebuild an `IngestConfig` from a parsed config document
 #'
-#' `format` picks the constructor, and every other key is one of its arguments
-#' -- so a key belonging to a different format fails there as an unused
-#' argument, naming it.
+#' `format` selects the constructor, and every other key is passed as one of
+#' its arguments. A key of another format is an unused-argument error that
+#' names the key.
 #'
 #' @param x Named list: The parsed document.
 #'
@@ -826,9 +806,9 @@ ingest <- function(
 #' @keywords internal
 #' @noRd
 .list_to_IngestConfig <- function(x) {
-  # Every key any format admits: the base's, plus each leaf's own. A key that
-  # belongs to a *different* format reaches its constructor and is refused as an
-  # unused argument, which names it.
+  # Every key any format admits: the base's, plus each leaf's own. A key of
+  # another format reaches the constructor of this one, which raises an
+  # unused-argument error naming it.
   keys <- unique(unlist(c(
     list(names(IngestConfig@properties)),
     lapply(INGEST_CLASSES, function(cls) names(cls@properties))

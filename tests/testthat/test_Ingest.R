@@ -117,7 +117,7 @@ test_that("the format is derived from the file, and a config that disagrees is r
       config = setup_DelimitedIngest(),
       verbosity = 0L
     ),
-    "would not apply",
+    "is a 'parquet' file",
     class = "rtemis_value_error"
   )
   # With no config, the format comes from the file and it just works.

@@ -15,8 +15,8 @@ setup_ParquetIngest(
 \arguments{
 \item{columns}{Optional Named vector: Declared column types, keyed by column
 name, in the \code{profile/r/v1} vocabulary -- \code{c(Age = "integer")}. A column named
-here is converted to that type after reading, so a known type takes
-precedence over the reader's inference.}
+here is converted to the declared type after reading, replacing the type the
+reader assigned.}
 
 \item{character2factor}{Logical: If TRUE, read character columns as factors.}
 
@@ -31,8 +31,8 @@ file.}
 \code{ParquetIngestConfig} object.
 }
 \description{
-Reading a Parquet file. It declares its own types, so there is nothing to
-tell the reader except which reader to be.
+Creates the settings \code{ingest()} uses to read a Parquet file. Parquet stores
+its column types, and the only format-specific setting is the reader library.
 }
 \examples{
 setup_ParquetIngest()
