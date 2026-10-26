@@ -818,7 +818,7 @@ method(desc, Resampler) <- function(x) {
 #'     \item{`type`}{Character: resampler type -- one of `"KFold"`,
 #'       `"StratSub"`, `"StratBoot"`, `"Bootstrap"`, `"LOOCV"`. `"Custom"` has
 #'       no wire form and is rejected here.}
-#'     \item{`n`}{Integer: number of resamples (not used for `"LOOCV"`).}
+#'     \item{`n_resamples`}{Integer: number of resamples (not used for `"LOOCV"`).}
 #'     \item{`train_p`}{Numeric: training proportion (used by `"StratSub"` and
 #'       `"StratBoot"`).}
 #'     \item{`stratify_var`}{Character or `NULL`: stratification variable name.}

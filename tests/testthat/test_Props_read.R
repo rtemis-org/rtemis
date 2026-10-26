@@ -76,7 +76,7 @@ test_that("every published property preserves its schema constraints on read", {
       ),
       base = base_of(cls)
     )
-    # The schema is what a consumer actually receives: JSON, not an R list.
+    # The schema is what a consumer receives: JSON, not an R list.
     schema <- jsonlite::fromJSON(
       jsonlite::toJSON(schema, auto_unbox = TRUE, null = "null", digits = NA),
       simplifyVector = FALSE

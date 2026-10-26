@@ -8,11 +8,10 @@
 # tabular -- the execution graph, per-fold predictions, the
 # grid-search results, the variable importances, the calibration points -- and a
 # table belongs in a columnar file, typed and compressed and readable by any
-# data tool. Some of it is not tabular at all: `rt_save()` already writes the
-# fitted object beside the record and `train()` writes a log, neither of which
-# the record names today.
+# data tool. Some of it is not tabular: `rt_save()` writes the fitted object
+# beside the record, and `train()` writes a log.
 #
-# So this is a reference to a *file*, not to a table. `n_rows` and `n_cols` are
+# This is a reference to a *file*, not to a table. `n_rows` and `n_cols` are
 # what a table has and are unset for anything else; `path`, `encoding`, `bytes`
 # and the digest are what every referenced file has.
 #
@@ -26,16 +25,12 @@
 # record names a sidecar.
 
 # %% DATA_ENCODINGS ----
-# How a referenced file is written. Parquet for a table, because a record is
-# *storage*: it is
-# already this project's storage format (`ingest` writes it, `profile/r/v1`
-# fixtures publish it), every data tool reads it, and row-group statistics are
-# what a later index queries. Arrow IPC stays the *wire* format, which is a
-# different job and is unaffected.
+# How a referenced file is written. Parquet for a table: it is the project's
+# storage format (`ingest` writes it, `profile/r/v1` fixtures publish it),
+# every data tool reads it, and an index can query its row-group statistics.
+# Arrow IPC is the wire format.
 #
-# One value because one kind of file is referenced today. The set grows when a
-# record names something else, not in anticipation of it: an encoding nothing
-# writes is a value every reader must handle and none will ever see.
+# One value: one kind of file is referenced.
 DATA_ENCODINGS <- c("parquet")
 
 
@@ -87,8 +82,8 @@ DataRef <- schema_class(
       enum = DATA_HASH_ALGORITHMS,
       description = "Hash algorithm, recorded so a hash is verifiable rather than merely comparable."
     ),
-    # No meaningful default, for the reason `DataFingerprint@hash` has none: a
-    # reference that cannot be checked is not a reference.
+    # No default, for the reason `DataFingerprint@hash` has none: a reference
+    # without a hash cannot be checked.
     hash = prop_string(
       "",
       description = "Hash digest of the file's bytes, as hex."

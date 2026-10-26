@@ -27,7 +27,7 @@
 #' object whose properties enforce their declared types, bounds, enums and
 #' arities. Those properties are the same `PropertySpec`s the published JSON
 #' Schemas are generated from, so reading a config in R applies the published
-#' contract by construction -- there is nothing an external validator could add.
+#' contract by construction.
 #'
 #' @param file Character: Path to input JSON config file.
 #'
@@ -70,7 +70,7 @@ read_config <- function(file) {
 #' The reconstruction half of [read_config], separated from the file half so
 #' that a config arriving as a list -- over the wire, or from a caller that
 #' already parsed the JSON -- goes through the same route as one read from
-#' disk. There is deliberately no second validation path: whatever
+#' disk. There is no second validation path: whatever
 #' [read_config] accepts, this accepts, and whatever it rejects, this rejects
 #' with the same condition.
 #'
@@ -195,8 +195,8 @@ check_is_S7 <- function(
 #'
 #' Every dispatched family serializes its settings as siblings of the
 #' discriminator: `{"algorithm": "Ranger", "num_trees": 500}`. A document that
-#' nests them -- `{"algorithm": "Ranger", "hyperparameters": {...}}`, the shape
-#' these families once had -- would otherwise be refused by `check_wire_keys()`
+#' nests them -- `{"algorithm": "Ranger", "hyperparameters": {...}}` -- would
+#' otherwise be refused by `check_wire_keys()`
 #' as an unknown key, which names the symptom where this names the fix.
 #'
 #' @param x Named list parsed from the wire.
@@ -282,9 +282,9 @@ check_wire_keys <- function(x, valid, label) {
 #' A typo and a renamed field look identical to a reader of the error, so the
 #' suggestion is what turns "unknown key" into a fix. Two things qualify as a
 #' near miss: a small edit distance (`maxdept` -> `maxdepth`), and a prefix
-#' relation, which is what an abbreviation or a rename-by-extension looks like
-#' (`n` -> `n_resamples`, the historical resampler rename). Edit distance alone
-#' misses that one, being 10 apart on a one-character key.
+#' relation, which is what an abbreviation or an extended name looks like
+#' (`n` -> `n_resamples`). Edit distance alone misses that one, being 10 apart
+#' on a one-character key.
 #'
 #' A wrong-but-plausible name (`train_p` on a KFold) matches neither and gets no
 #' misleading suggestion.

@@ -133,7 +133,7 @@ method(cluster_, SpectralLaplaceConfig) <- function(
 #'
 #' `kpar = "local"` is the whole specification: the backend builds the kernel
 #' itself from each case's seventh-nearest-neighbor distance and reads no
-#' width, so `kernel` is deliberately not passed.
+#' width, so `kernel` is not passed.
 #'
 #' @keywords internal
 #' @noRd

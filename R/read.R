@@ -11,7 +11,7 @@
 #' @details
 #' `read` is a convenience function to read:
 #'
-#' - **Delimited** files using `data.table:fread()`, `arrow:read_delim_arrow()`,
+#' - **Delimited** files using `data.table::fread()`, `arrow::read_delim_arrow()`,
 #'   `vroom::vroom()`, or `duckdb::duckdb_read_csv()`
 #' - **ARFF** files using `farff::readARFF()`
 #' - **Parquet** files using `nanoparquet::read_parquet` or `arrow::read_parquet()`

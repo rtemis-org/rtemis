@@ -10,10 +10,9 @@
 #                         which tasks the algorithm performs. `survival` is
 #                         recorded but *not published* in `traits/v1`: rtemis
 #                         resolves an outcome to Classification or Regression
-#                         only and dispatches no survival run, so publishing it
-#                         would offer a capability nothing can act on. Add it to
-#                         `trait_columns` in `data-raw/generate_checks.R` when
-#                         survival runs exist.
+#                         only and dispatches no survival run. Publishing it
+#                         requires adding it to `trait_columns` in
+#                         `data-raw/generate_checks.R`.
 # `handles_missing_data`  whether it accepts a training set containing `NA`.
 #                         This is the same fact each `train_` method states as
 #                         `check_supervised(allow_missing = )`, declared here so

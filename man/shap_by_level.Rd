@@ -23,22 +23,20 @@ What a per-feature contribution hides once it is averaged across cases: that
 one level of a diagnosis drives the prediction and the others do nothing.
 }
 \details{
-This is the right tool for "which level matters", and per-level contributions
-are not. A case has exactly one level, so its per-feature contribution
-\strong{is} the contribution of the level it has -- there is nothing to split. What
-averaging loses is only that cases at different levels were averaged together,
-and grouping them is what restores it.
+A case has exactly one level, so its per-feature contribution is the
+contribution of the level it has. Grouping cases by level reports how each
+level contributes.
 
 Splitting a contribution across the columns of an encoding answers a
-different and worse question. Those values include a term for every level the case does
-\emph{not} have; they depend on the encoding, since a contrast-coded factor's
-reference level has no column at all and so cannot appear; and for a linear
-model they are identical for every case at the same level. Grouping has none
-of those problems and shows the reference level like any other.
+different question. Those values include a term for every level the case
+does not have; they depend on the encoding, since a contrast-coded factor's
+reference level has no column; and for a linear model they are identical for
+every case at the same level. Grouping by level does not depend on the
+encoding and includes the reference level.
 
 \code{newdata} must be the data the explanation was computed on, which is checked
-against its fingerprint: contributions lined up against other rows would
-produce a plausible but meaningless table.
+against its fingerprint, so contributions are never paired with the values
+of other rows.
 }
 \examples{
 x <- data.frame(

@@ -80,9 +80,8 @@ config_parts <- function(config) {
   # A clustering or decomposition run reads a numeric matrix, and its document
   # names the columns inside the algorithm's own config, because there the
   # selection is part of what the algorithm is given (`cluster/r/v1`,
-  # `decompose/r/v1`). Reading only the top level made every excluded column a
-  # feature of the run: a clustering plan naming 122 numeric columns came back
-  # with FEATURE_TYPE_UNSUPPORTED for the date column it had left out.
+  # `decompose/r/v1`). Columns the selection excludes are not features of the
+  # run.
   #
   # A supervised run's own `decomposition_config` is a step inside it, not the
   # run, so the block is read only where there is no `hyperparameters`.
@@ -216,7 +215,7 @@ effective_dtype <- function(profile, column, parts) {
 #' Observed level counts for one column
 #'
 #' Empty where the column is not categorical, and *also* empty where it has more
-#' than `PROFILE_MAX_LEVELS` levels -- the profile omits those deliberately. A
+#' than `PROFILE_MAX_LEVELS` levels, which the profile omits. A
 #' caller that needs to tell the two apart compares against `n_distinct`.
 #'
 #' @param profile `DataProfile` object.
@@ -267,8 +266,7 @@ validate_data <- function(config, data, outcome = NULL, step = NULL) {
   outcome_name <- resolution[["name"]]
   # What the run will train on, which is not the same as what the table holds.
   # A config that names its predictors excludes the rest, so a finding about a
-  # column it excluded would be true of the dataset and false of the run -- and
-  # a finding the user can see is wrong is one they learn to argue with.
+  # column it excluded would describe the dataset, not the run.
   columns <- profile_columns(profile)
   feature_names <- setdiff(columns[["name"]], outcome_name)
   if (!is.null(parts[["features"]])) {
@@ -401,10 +399,9 @@ resolve_outcome <- function(profile, outcome, supervised) {
 # set in the profile's vocabulary, and the two must change together.
 SUPERVISED_OUTCOME_DTYPES <- c("integer", "number", "categorical")
 
-# Profile dtypes `check_numeric_or_factor()` accepts as a predictor. Narrower
-# than the outcome set only in that it is the same set -- both require numeric
-# or factor -- but they are separate rules in `check_supervised()` and are kept
-# separate here so a change to one does not silently move the other.
+# Profile dtypes `check_numeric_or_factor()` accepts as a predictor. The same
+# set as the outcome dtypes (numeric or factor), declared separately because
+# `check_supervised()` applies them as separate rules.
 SUPERVISED_FEATURE_DTYPES <- c("integer", "number", "categorical")
 
 
@@ -419,10 +416,9 @@ SUPERVISED_FEATURE_DTYPES <- c("integer", "number", "categorical")
 #'   class and a character vector has none.
 #' - The config declares a task the column cannot serve. `positive_class` is a
 #'   binary-classification setting, so it names a factor level; on a numeric
-#'   outcome rtemis infers regression and the setting is a statement about a
-#'   question the run is not asking. An algorithm that performs only one of the
-#'   two tasks says the same thing about itself. A warning, because the run
-#'   completes with the setting ignored.
+#'   outcome rtemis infers regression and the setting does not apply. An
+#'   algorithm that performs only one of the two tasks declares its task the
+#'   same way. A warning, because the run completes with the setting ignored.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param outcome_name Character or NULL: The outcome column.
@@ -461,10 +457,9 @@ check_outcome_type <- function(profile, outcome_name, parts) {
   list(new_diagnostic(
     code = "OUTCOME_TYPE_MISMATCH",
     # A warning: `train()` ignores `positive_class` on a numeric outcome and
-    # completes. A portable recipe reused across a classification and a
-    # regression dataset reaches this routinely. The run answers the question
-    # the *data* poses, which can differ from the one the config states; the
-    # caller sees the warning and decides.
+    # completes. A recipe reused across a classification and a regression
+    # dataset reaches this case. The task follows the outcome, which can differ
+    # from the task the config states.
     severity = "warning",
     message = paste0(
       "Config declares ",
@@ -493,12 +488,11 @@ check_outcome_type <- function(profile, outcome_name, parts) {
 #' The task a config states it is for, or NULL if it states none
 #'
 #' rtemis infers the task from the outcome, so most configs declare nothing and
-#' NULL is the common answer. Only a setting that is meaningless under the other
-#' task counts as a declaration: `positive_class` names a factor level, and an
-#' algorithm that performs one task performs one task. A hyperparameter that
-#' merely *implies* a task (an objective, a family) is not read here -- each
-#' would need its own per-algorithm mapping, and a wrong reading of one would
-#' reject a config that runs.
+#' NULL is the common answer. Only a setting that does not apply under the other
+#' task counts as a declaration: `positive_class`, which names a factor level,
+#' and an algorithm that performs only one task. A hyperparameter that implies
+#' a task (an objective, a family) is not read here, since each would require a
+#' per-algorithm mapping.
 #'
 #' @param parts Named list from `config_parts()`.
 #'
@@ -585,7 +579,7 @@ config_algorithm <- function(parts) {
 #' A stratified resampler puts each class into every part in the class's own
 #' proportion, so a class with fewer cases than there are parts cannot reach all
 #' of them. At least one part then scores a class it never saw, and the score
-#' for it is not wrong so much as meaningless.
+#' for that class in that part is undefined.
 #'
 #' Only stratified types are checked. A plain bootstrap draws with replacement
 #' and makes no promise about class balance, so there is no count it fails to
@@ -680,10 +674,8 @@ check_resample_min_class <- function(
       n_resamples = n_resamples,
       min_class = min_level,
       min_class_n = min_class,
-      # Long form, one record per level, as `profile/r/v1` carries them. A
-      # name -> count map cannot be iterated by an expression language, so the
-      # rule set could not reproduce it and the two would state the same fact
-      # in shapes a conformance run could not compare.
+      # Long form, one record per level, as `profile/r/v1` carries them, so the
+      # rule set, which iterates arrays, states the fact in the same shape.
       class_counts = lapply(
         seq_len(NROW(counts)),
         function(i) {
@@ -691,8 +683,8 @@ check_resample_min_class <- function(
         }
       )
     ),
-    # Fewer parts than the rarest class has cases is the one repair that needs
-    # no judgment. Below two no fold count works, so no repair is offered.
+    # The repair sets the number of parts to the rarest class's case count.
+    # Below two no fold count works, so no repair is offered.
     fix = if (min_class >= 2L) {
       list(list(
         op = "replace",
@@ -707,10 +699,9 @@ check_resample_min_class <- function(
 # %% check_resample_n_rows ----
 #' Are there enough rows for the resamples asked for?
 #'
-#' Two failures, one fatal and one merely useless. More parts than rows cannot
-#' be made at all. Parts that *can* be made but hold a single case can: a score
-#' computed on one case carries no information, and averaging such scores across
-#' parts does not create any.
+#' Two failures. More parts than rows cannot be made, an error. Parts that hold
+#' a single case can be made, a warning: a score computed on one case carries
+#' no information about generalization.
 #'
 #' Which quantity decides it depends on the type -- a fold count for KFold, a
 #' training fraction for the subsampling types, the row count alone for the rest
@@ -866,9 +857,8 @@ check_resample_n_rows <- function(resampler, n_rows, pointer) {
 # %% check_feature_constant ----
 #' Do any predictors hold one value throughout?
 #'
-#' A column that never varies cannot explain a column that does. rtemis trains
-#' on it regardless -- so this is a warning, not an error -- but the coefficient
-#' or split it produces is an artifact of the column being there, not a finding.
+#' A column that never varies carries no information about the outcome. rtemis
+#' trains on it, so this is a warning, not an error.
 #'
 #' A column that is entirely missing counts: `is_constant()` reads it as one
 #' (there is no varying observed value) and `remove_constants` removes it, so
@@ -937,13 +927,11 @@ check_feature_constant <- function(profile, feature_names, parts) {
       "."
     ),
     evidence = list(features = constant, n_features = length(constant)),
-    # Naming the columns is deterministic; the union with what the config
-    # already removes is what keeps the patch from discarding that list.
+    # Naming the columns is deterministic; the patch takes the union with what
+    # the config already removes, so that list is kept.
     #
     # With no block to patch into, two operations, since an expression language
-    # has no object constructor:
-    # this is the spelling a second implementation can also produce. RFC 6902
-    # applies them in order, and the result is the same document.
+    # has no object constructor. RFC 6902 applies them in order.
     fix = if (is.null(pp)) {
       list(
         list(
@@ -980,10 +968,9 @@ check_feature_constant <- function(profile, feature_names, parts) {
 #' `effective_dtype()` applies it, which is why a string predictor is reported
 #' only when the config declines the conversion.
 #'
-#' The preprocessor's own `character2factor` is a different setting and does not
-#' rescue anything here: `preprocess()` is fitted per fold, inside resampling,
-#' and `check_supervised()` has already run. Converting the column at that point
-#' changes the data, so no config patch applies.
+#' The preprocessor's own `character2factor` is a different setting and does
+#' not apply here: `preprocess()` is fitted per fold, inside resampling, after
+#' `check_supervised()` has run. No config patch applies.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
@@ -1030,7 +1017,7 @@ check_feature_type <- function(profile, feature_names, parts) {
 # %% check_dim_p_gt_n ----
 #' Does the learner see more predictors than there are rows?
 #'
-#' Counted at the width the model actually fits, which is two steps from the
+#' Counted at the width the model fits, which is two steps from the
 #' column count:
 #'
 #' - **Categorical encoding.** A factor contributes one column per level it
@@ -1039,17 +1026,14 @@ check_feature_type <- function(profile, feature_names, parts) {
 #'   The profile's `n_distinct` supplies the level counts.
 #' - **Decomposition.** `train()` applies `decomposition_config` before fitting,
 #'   so a pipeline that extracts `k` components hands the learner `k` features
-#'   however wide the data was. Reporting the encoded width there would state a
-#'   number the model never sees.
+#'   however wide the data was.
 #'
-#' Severity is the algorithm's answer, not a judgment: `p_gt_n` is FALSE only
-#' where the fit is an unregularized least squares and goes rank-deficient, and
-#' those are the runs that complete while producing aliased coefficients -- a
-#' warning by the definition of the level. Everything else regularizes, selects,
-#' or cannot be rank-deficient, so the situation is worth recording and nothing
-#' is wrong: a note. The remedy -- a regularized algorithm, a decomposition
-#' step, more rows -- is the user's choice; this reports the numbers it rests
-#' on.
+#' Severity follows the algorithm's `p_gt_n` trait. It is FALSE only where the
+#' fit is an unregularized least squares that becomes rank-deficient; those
+#' runs complete with aliased coefficients, a warning. Every other algorithm
+#' regularizes, selects, or cannot be rank-deficient, and the finding is a
+#' note. The finding reports the counts; remedies include a regularized
+#' algorithm, a decomposition step, and more rows.
 #'
 #' @param profile `DataProfile` object for the dataset.
 #' @param feature_names Character: The predictor columns.
@@ -1162,9 +1146,7 @@ check_dim_p_gt_n <- function(profile, feature_names, parts) {
 #'
 #' `remove_cases_thres` and `remove_features_thres` drop what is missing *above
 #' a threshold*, so whether they resolve a dataset's gaps depends on the
-#' dataset. Treating them as no help reports an error on a run that completes;
-#' treating them as a remedy misses one that does not. Both are wrong, and the
-#' data is in hand, so this simulates them exactly instead.
+#' dataset. This simulates them exactly on the data.
 #'
 #' With neither threshold set the profile answers on its own, and that is the
 #' only path a supervised config can take: `SupervisedPreprocessorConfig`
@@ -1238,7 +1220,7 @@ missing_after_preprocessing <- function(profile, dat, feature_names, pp) {
 # %% check_missing_incompatible ----
 #' Will missing values reach a run that cannot take them?
 #'
-#' Three ways they can, in the order they bite:
+#' Three ways they can, in the order they occur:
 #'
 #' - **A missing outcome.** No preprocessing option addresses it: `preprocess()`
 #'   transforms features, and `check_supervised()` rejects a training set whose
@@ -1310,7 +1292,7 @@ check_missing_incompatible <- function(
     }
   }
 
-  # Whether a step runs is now the config's type: a supervised config carries no
+  # Whether a step runs follows from the config's type: a supervised config carries no
   # `PREPROCESSOR_TRAIN_EXCLUDED` property, so `pp_opt()` reports the declared
   # default -- off -- and there is nothing to gate.
   runs <- function(op) {
@@ -1369,7 +1351,7 @@ check_missing_incompatible <- function(
     return(out)
   }
 
-  # What actually reaches the learner, with the threshold steps simulated: a
+  # What reaches the learner, with the threshold steps simulated: a
   # feature that is 90% missing is dropped by `remove_features_thres = 0.5`, and
   # a run whose gaps leave with it completes.
   # A supervised config carries no threshold property, so nothing is credited
@@ -1380,10 +1362,8 @@ check_missing_incompatible <- function(
   }
   algorithm <- config_algorithm(parts)
   allows <- if (is.null(algorithm)) NA else algorithm_allows_missing(algorithm)
-  # Named, not just counted: told only "2 columns", a reader guesses which,
-  # and one guessed a column that was not even a feature of the run
-  # (Haiku 4.5 on a clustering plan, 2026-09-22). Every other column finding
-  # names its columns.
+  # Named, not only counted, as every other column finding names its
+  # columns.
   with_gaps <- feature_names[vapply(
     feature_names,
     function(nm) profile_field(profile, nm, "n_missing") > 0L,

@@ -3,11 +3,10 @@
 # 2026- EDG rtemis.org
 
 # S7 property factories: each factory returns an S7 property whose type,
-# default, and validation logic are generated from a `PropertySpec` -- a nested
-# S7 object that rides along on the property. Because the constraints are data
-# (not closures), `S7_to_JSONSchema()` can convert any class built from these
-# factories to a JSON Schema mechanically: one declaration produces the R
-# validator, the default, the schema, and (downstream) the TUI form.
+# default, and validation logic are generated from a `PropertySpec` stored on
+# the property. The constraints are data, so `S7_to_JSONSchema()` converts any
+# class built from these factories to a JSON Schema: one declaration produces
+# the R validator, the default, the schema, and the TUI form.
 #
 # JSON Schema mapping (see spec_to_schema):
 # - type/bounds/enum      -> "type", "minimum"/"maximum"/"exclusiveMinimum"/
@@ -17,7 +16,7 @@
 #                            A search space sits one level above the property's
 #                            own type, so a scalar's is an array and an
 #                            "array" container's is an array of arrays.
-# - container = "array"   -> "type": "array" (a genuinely vector-valued field,
+# - container = "array"   -> "type": "array" (a vector-valued field,
 #                            e.g. per-feature weights). With tunable it takes
 #                            the oneOf form above; mutually exclusive with
 #                            broadcast, which would collide at the array level.
@@ -26,8 +25,8 @@
 #                            an array whose items are an array)
 # - broadcast = TRUE      -> "oneOf": [element, array] (a scalar stands in for
 #                            the whole container)
-# - description           -> "description" (annotation). `default` is
-#                            deliberately NOT emitted; see spec_to_schema.
+# - description           -> "description" (annotation). `default` is not
+#                            emitted; see spec_to_schema.
 
 # %% DATA_BOUNDS ----
 # Training-data dimensions a hyperparameter's valid values can be tied to.
@@ -79,11 +78,11 @@ NAME_BOUNDS <- c("feature_names", "numeric_feature_names")
 #            keys are part of the contract. A struct member may itself be a
 #            container; a table's may not, since a cell is a scalar.
 # - "factor" an R factor: a classification outcome or prediction. Emitted as
-#            `{levels, codes}` -- the levels in order, and a 1-based index into
-#            them per case -- which is what every categorical type stores (an R
-#            factor, an Arrow dictionary, a pandas Categorical). An array of
-#            labels would lose both the order, which decides which class is
-#            positive, and any level with no cases.
+#            `{levels, codes}`: the levels in order, and a 1-based index into
+#            them per case, the representation of an R factor, an Arrow
+#            dictionary, and a pandas Categorical. The encoding preserves the
+#            level order, which decides which class is positive, and levels
+#            with no cases.
 PROP_CONTAINERS <- c(
   "none",
   "array",
@@ -200,17 +199,13 @@ DATA_BOUND_NOUN_PLURAL <- c(
 #' @field description Character: Human-readable description (schema
 #'   "description", TUI help text).
 #' @field agent_writable Logical or NULL: If FALSE, no agent-facing view of
-#'   this property should offer it for the model to fill in -- `outdir`,
-#'   `verbosity`, and the like, which are the host's to set, not part of the
-#'   question being asked. NULL (the default for every property unless
-#'   stamped by `prop_host_only()`) means agent-writable. A fact about
-#'   *authorship policy*, not about the type: unlike every other field on this
-#'   spec, it is deliberately never emitted into a published schema's
-#'   `x-rtemis` block -- see `spec_to_schema()`'s comment on `annotations` --
-#'   because who may author a property can change with the workflow while the
-#'   property's type cannot, and a published schema must not. It is read
-#'   directly off the class by `generate_authoring.R`, into a separately
-#'   versioned artifact (`authoring/v1`) with its own lifecycle.
+#'   this property should offer it for the model to fill in: `outdir`,
+#'   `verbosity`, and other settings of the host. NULL (the default for every
+#'   property unless stamped by `prop_host_only()`) means agent-writable. An
+#'   authorship policy, not part of the type: it is not emitted into a
+#'   published schema's `x-rtemis` block (see `spec_to_schema()`'s comment on
+#'   `annotations`). `generate_authoring.R` reads it from the class into a
+#'   separately versioned artifact (`authoring/v1`).
 #'
 #' @author EDG
 #' @noRd
@@ -239,15 +234,15 @@ PropertySpec <- new_class(
     # Arity, as three orthogonal axes:
     # - `container` says how values are wrapped: a scalar, a JSON array, or a
     #   string-keyed map.
-    # - `items` describes the *element* when it is not simply this spec's own
-    #   type and constraints, which is what makes nested shapes (a matrix = an
-    #   array of arrays, a map of arrays) expressible. NULL means "the element
-    #   is this spec's leaf type", the common case.
+    # - `items` describes the element when it differs from this spec's own
+    #   type and constraints, for nested shapes (a matrix is an array of
+    #   arrays; a map of arrays). NULL means the element is this spec's leaf
+    #   type.
     # - `broadcast` allows a bare scalar in place of the container, for fields
     #   that mean "this value for every case/tree".
-    # `tunable` is deliberately NOT part of this: its array is a *search space*,
-    # not a value, which is why the two are mutually exclusive below and why a
-    # reader must never infer one from the other's shape.
+    # `tunable` is separate: its array is a search space, not a value. The two
+    # are mutually exclusive below, and a reader cannot infer one from the
+    # other's shape.
     container = class_character,
     # `class_any`, not `NULL | PropertySpec`: the class cannot reference itself
     # while its own `properties` list is being evaluated. The validator below
@@ -256,72 +251,67 @@ PropertySpec <- new_class(
     alternatives = class_any,
     allow_missing = new_property(class_logical, default = FALSE),
     external = new_property(class_logical, default = FALSE),
-    # The members of a declared object shape, which one recursive `items` spec
-    # cannot describe because they are heterogeneous: each carries its own type
-    # and bounds. Shared by the two containers built on that shape -- a `table`
-    # is an array of it, a `struct` is one of it -- so the emitted row object
-    # and the emitted struct object come from the same declaration.
-    # `class_any` for the same reason as `items` -- the class cannot reference
+    # The members of a declared object shape. Members are heterogeneous, each
+    # with its own type and bounds. A `table` is an array of this shape and a
+    # `struct` is one instance of it, so the emitted row object and the emitted
+    # struct object come from the same declaration.
+    # `class_any` for the same reason as `items`: the class cannot reference
     # itself while its own `properties` list is being evaluated.
     members = class_any,
-    # Which members are always present. Declaring every possible one and
-    # requiring only these is what lets a conditional column (an AUC that
-    # exists only for binary classification) be absent without being invalid,
-    # without needing class-level if/then vocabulary.
+    # Which members are always present. Every possible member is declared and
+    # only these are required, so a conditional column (an AUC that exists only
+    # for binary classification) may be absent.
     required_members = NULL | class_character,
     additional_members = class_any,
     min_members = new_property(class_integer, default = 0L),
     broadcast = class_logical,
     # How many elements an array container holds, and whether they repeat.
     # Only "array" carries these: a matrix's rows and a map's keys have no
-    # equivalent JSON Schema keyword pair, so widening them would publish a
-    # constraint nothing enforces.
+    # equivalent JSON Schema keyword pair.
     min_items = new_property(class_integer, default = 1L),
     max_items = NULL | class_integer,
     unique_items = new_property(class_logical, default = FALSE),
     # At least one element must reach this value. A bound on the array's
-    # *contents*, for a candidate set where some values
-    # are useless alone but legal beside a usable one.
+    # contents, for a candidate set where some values are valid only beside
+    # another value.
     contains_min = NULL | class_numeric,
-    # A constant is determined by the class, not chosen by the user: it is not
-    # settable, and `@default` holds the single permitted value. Distinct from
-    # a *fixed* property, which the user does set but cannot tune.
+    # A constant is determined by the class: it is not settable, and `@default`
+    # holds the single permitted value. A fixed property, by contrast, is
+    # settable but not tunable.
     constant = new_property(class_logical, default = FALSE),
     # NULL means "determine this by tuning".
     # `nullable + tunable` does not imply it: GLMNET's `lambda` is found by
     # cv.glmnet and LightGBM's `nrounds` by early stopping, but a nullable
-    # tunable like `mtry` simply falls back to the backend default.
+    # tunable like `mtry` falls back to the backend default.
     tune_on_null = new_property(class_logical, default = FALSE),
     # NULL means "apply the default for this task type" -- LightGBM's
     # `objective` is "multiclass" or "regression" depending on the outcome.
-    # The sibling of `tune_on_null`: both say what NULL *means*, and the three
-    # possibilities are "leave unset", "determine by tuning", and this.
+    # The sibling of `tune_on_null`: both state what NULL means. The three
+    # meanings are "leave unset", "determine by tuning", and this one.
     #
-    # The line against `derived`: a task-type default restates what was asked
-    # for, while a derived value is measured from the dataset -- its dimensions
-    # or its values alike. `feature_fraction`'s sqrt(n_features) is derived; it
-    # depends on the data, not on the question.
+    # A task-type default follows from the task, while a derived value is
+    # measured from the dataset, its dimensions or its values.
+    # `feature_fraction`'s sqrt(n_features) is derived.
     default_on_null = new_property(class_logical, default = FALSE),
     data_bound = NULL | class_character,
     # Shape, orthogonal to `data_bound`: the value has one entry per case
     # (`id_strat`, an initial embedding) or per feature (scaling centers,
-    # one-hot levels), so it cannot be filled in before the data is seen. Purely
-    # an annotation for form builders -- every such property is a settable input
-    # and is serialized. `data_bound` is about *validating* against the data.
+    # one-hot levels), so it cannot be filled in before the data is seen. An
+    # annotation for form builders: every such property is a settable input
+    # and is serialized. `data_bound` validates a value against the data.
     data_dependent = new_property(class_logical, default = FALSE),
-    # Applicability, orthogonal to validity: the value is well-formed but inert
-    # unless a sibling holds one of the listed values. The shape is "sibling is
-    # one of a set", conjoined across entries; three consumers evaluate it --
-    # the class validator, the tuning grid, and the form builders vendored into
-    # the CLI and live.
+    # Applicability, orthogonal to validity: the value takes effect only when a
+    # sibling holds one of the listed values. Entries are conjunctive. The class
+    # validator, the tuning grid, and the form builders in the CLI and live
+    # evaluate it.
     applies_when = NULL | class_list,
     # Which declaration group the property came from, for a form builder to
     # render as one section. Stamped by the factory that declares the group, so
     # it always matches where the property is declared; it records structure
-    # only, not importance or audience. A class whose properties are declared
-    # one at a time leaves it unset, and a reader shows those together.
+    # only. A class whose properties are declared one at a time leaves it
+    # unset, and a reader shows those together.
     group = NULL | class_character,
-    # See the `@field agent_writable` doc above: deliberately never reaches
+    # See the `@field agent_writable` doc above: excluded from
     # `spec_to_schema()`'s `annotations` list, stamped only by
     # `prop_host_only()`, and read directly by `generate_authoring.R`.
     agent_writable = NULL | class_logical,
@@ -553,8 +543,8 @@ PropertySpec <- new_class(
     # A search space sits one level above the property's own type, so a
     # container's is an array of arrays. `broadcast` breaks that: it makes a
     # bare element a value too, so the array level means both "one explicit
-    # value" and "a search over broadcast elements" with nothing to separate
-    # them. The two markers are therefore exclusive, not merely awkward.
+    # value" and "a search over broadcast elements". The two markers are
+    # therefore mutually exclusive.
     if (self@broadcast && self@tunable) {
       return(
         "@broadcast and @tunable are mutually exclusive: a broadcast element and a one-element search space are the same shape."
@@ -880,13 +870,13 @@ PropertySpec <- new_class(
 # %% spec_fields ----
 #' A PropertySpec's fields as a plain nested list
 #'
-#' The form a spec is *stored* in, on the property and in the property's
+#' The form a spec is stored in, on the property and in the property's
 #' validator closure. An S7 object carries its class definition by value in its
-#' `S7_class` attribute, so storing the `PropertySpec` itself would write a copy
-#' of the whole class object -- tens of KB -- into the package's lazy-load
-#' database once per property, and S7 composes class objects by value, which
-#' multiplies that cost through every class that declares or inherits such a
-#' property. The fields alone are three orders of magnitude smaller.
+#' `S7_class` attribute, so a stored `PropertySpec` would write a copy of the
+#' class object (tens of KB) into the lazy-load database once per property, and
+#' S7 composes class objects by value, repeating it in every class that
+#' declares or inherits the property. The fields alone are three orders of
+#' magnitude smaller.
 #'
 #' Nested `items` and `members` specs are converted too: the validators reach
 #' them recursively and must find the same representation at every level.
@@ -959,15 +949,13 @@ spec_object <- function(fields) {
       "additional_members"
     ]])
   }
-  # A field this build does not know is one a newer rtemis added. It reaches
-  # here whenever an object crosses versions -- a worker loading an installed
-  # package while the session runs a newer one is the common case, and a
-  # `.rds` model read by an older install is the other. Every spec field is
-  # either an annotation for readers or a bound already enforced by the
-  # property's own validator closure, so dropping an unknown one costs metadata
-  # and nothing else. Aborting instead would fail the whole run, and it would
-  # fail it far from here: the abort surfaces as "All 4 tuning grid cells
-  # failed", naming neither the field nor the version skew.
+  # An unknown field comes from a newer rtemis, when an object crosses
+  # versions: a worker loads an installed package older than the session's, or
+  # an older install reads a `.rds` model. Every spec field is either an
+  # annotation or a bound the property's validator closure already enforces,
+  # so dropping an unknown field loses metadata only. An abort here would
+  # surface far from its cause, as "All 4 tuning grid cells failed", naming
+  # neither the field nor the version skew.
   unknown <- setdiff(names(fields), names(PropertySpec@properties))
   if (length(unknown) > 0L) {
     warning(
@@ -1136,12 +1124,11 @@ validate_table_column <- function(column, fields) {
 #' Check the names present against a declared object shape
 #'
 #' Shared by the two containers built on `@members`. Every name present must be
-#' declared -- an undeclared one is a typo or a field nothing downstream knows
-#' how to read -- and every required one must be present. An optional declared
+#' declared, and every required one must be present. An optional declared
 #' member may be absent, which is how a conditional metric reports "not computed
 #' for this task".
 #'
-#' @param present Character: Names the value actually carries.
+#' @param present Character: Names the value carries.
 #' @param fields Named list of spec fields with `members` set, from
 #'   `spec_fields()`.
 #' @param noun Character: What one member is called in messages, "column" for a
@@ -1239,9 +1226,8 @@ validate_struct <- function(value, fields) {
 # %% validate_table ----
 #' Validate a `table` container against its column specs
 #'
-#' Every column present must be declared -- an undeclared one is a typo or a
-#' field nothing downstream knows how to read -- and every required column must
-#' be present. An optional declared column may be absent, which is how a
+#' Every column present must be declared, and every required column must be
+#' present. An optional declared column may be absent, which is how a
 #' conditional metric reports "not computed for this task".
 #'
 #' @param value Property value being set.
@@ -1285,8 +1271,7 @@ validate_table <- function(value, fields) {
 #' Check a hyperparameter domain against the spec it was assigned to
 #'
 #' Every candidate must be a valid *value* of the property, so each is checked
-#' against the same spec with `tunable` cleared -- a domain of domains is not a
-#' thing.
+#' against the same spec with `tunable` cleared.
 #'
 #' One combination cannot be inferred at the call site and is caught here: a
 #' single bare vector on a vector-valued hyperparameter, which is how one value
@@ -1320,8 +1305,8 @@ validate_candidates <- function(value, fields) {
   candidate[["tunable"]] <- FALSE
   for (i in seq_along(candidates)) {
     # `validate_value()`, not `validate_with_spec()`: S7 checked that this is a
-    # `HyperparameterCandidates` object and stopped there, so the type of each
-    # value inside it is checked here or nowhere.
+    # `HyperparameterCandidates` object; the type of each value inside it is
+    # checked here.
     msg <- validate_value(candidates[[i]], candidate)
     if (!is.null(msg)) {
       return(paste0("candidate ", i, " ", msg))
@@ -1410,8 +1395,8 @@ validate_with_spec <- function(value, fields) {
     ))
   }
   if (fields[["type"]] == "object" && container == "none") {
-    # One named list is a single value however many keys it holds, and its
-    # contents are the backend's contract, not ours.
+    # One named list is a single value however many keys it holds; its
+    # contents are validated by the backend.
     return(if (is.list(value)) NULL else "must be a list.")
   }
   if (container == "matrix") {
@@ -1513,7 +1498,7 @@ validate_with_spec <- function(value, fields) {
     # as `NULL | <base>` so that S7 prototypes them to NULL rather than to the
     # base class's empty vector. An empty vector reaching here is a real value
     # and is rejected, so that `!is.null()` guards downstream stay meaningful.
-    # Only point at NULL when NULL is actually accepted.
+    # Only point at NULL when NULL is accepted.
     return(
       if (nullable) {
         "must not be empty (use NULL to leave it unset)."
@@ -1706,7 +1691,7 @@ make_prop <- function(spec) {
     object = class_list
   )
   # An R vector already holds "many of a scalar", so `array` and `map` over a
-  # scalar leaf keep the atomic class (a map is simply a *named* vector). Only
+  # scalar leaf keep the atomic class (a map is a *named* vector). Only
   # a container whose elements are themselves containers needs a list.
   base_class <- switch(
     spec_r_kind(fields),
@@ -2932,15 +2917,12 @@ get_spec <- function(prop) {
 #' builder reading the schema can render them as one section.
 #'
 #' @details
-#' Applied to the whole list at once, by the factory that declares the group.
-#' That is the point: the group is a fact about where the property is declared,
-#' so stamping it in one place keeps it from disagreeing with reality -- and it
-#' costs no argument on the eleven `prop_*` factories.
+#' Applied to the whole list at once, by the factory that declares the group,
+#' so the group always matches where the property is declared.
 #'
 #' The spec is stored on a property as a plain list, so the group is set in
-#' place. It is metadata for readers and takes no part in validation, which is
-#' why the property's validator closure -- built before this runs, over the
-#' fields it does check -- needs no rebuilding.
+#' place. It is metadata for readers and takes no part in validation, so the
+#' property's validator closure, built before this runs, is unchanged.
 #'
 #' @param props Named list of S7 properties, from `prop_*` factories.
 #' @param group Character: Group name.
@@ -2969,17 +2951,14 @@ prop_group <- function(props, group) {
 #' Mark a list of properties as not agent-writable
 #'
 #' @description
-#' Stamps `agent_writable = FALSE` onto a set of properties -- `outdir`,
-#' `verbosity`, and the like, which the host sets, not the question a config
-#' answers.
+#' Stamps `agent_writable = FALSE` onto a set of properties that the host sets,
+#' such as `outdir` and `verbosity`.
 #'
 #' @details
-#' Applied to the whole list at once, the same shape as `prop_group()`: a fact
-#' about workflow authorship, stamped where the property is declared, at no
-#' cost to the eleven `prop_*` factories. Never reaches the published schema
-#' -- see `PropertySpec@agent_writable`'s doc -- read instead by
-#' `generate_authoring.R` into the separately versioned `authoring/v1`
-#' artifact.
+#' Applied to the whole list at once, as `prop_group()` is. The flag is not
+#' emitted into the published schema (see `PropertySpec@agent_writable`);
+#' `generate_authoring.R` reads it into the separately versioned
+#' `authoring/v1` artifact.
 #'
 #' @param props Named list of S7 properties, from `prop_*` factories.
 #'
@@ -3018,9 +2997,8 @@ prop_host_only <- function(props) {
 #' @keywords internal
 #' @noRd
 get_spec_fields <- function(prop) {
-  # An S7 property is a named list. Anything else was not built by a factory,
-  # which the callers that accept a property as an *argument* must be able to
-  # tell without tripping over `[[` on an atomic vector.
+  # An S7 property is a named list. Any other value was not built by a
+  # factory; the check precedes `[[`, which fails on an atomic vector.
   if (!is.list(prop)) {
     return(NULL)
   }
@@ -3050,7 +3028,7 @@ prop_accepts_null <- function(prop) {
 
 
 # %% Property roles ----
-# Two orthogonal axes, deliberately not one:
+# Two orthogonal axes:
 #
 # `role` -- WHO writes the value, which decides what the schema says.
 #
@@ -3063,44 +3041,39 @@ prop_accepts_null <- function(prop) {
 # - "computed" A view derived from other published fields, never stored
 #              (`ClassificationMetrics@confusion_matrix` is a function of the
 #              per-class counts). Declared with `prop_computed()`. Absent from
-#              the schema and from
-#              a written config: publishing it would be a second representation
-#              of something already there, free to disagree with the first.
+#              the schema and from a written config, which carry each value
+#              once.
 # - "r_only"   An R value with no wire form at all: a fitted backend model (an
 #              `rpart` tree, an `lgb.Booster`), or a `sessionInfo()`. Declared
 #              with `prop_r_only()`, and likewise absent from the schema.
 #
-# The line between "computed" and "r_only" is what a consumer can do about it.
-# A computed field is *recoverable* -- everything it derives from is published,
-# so a port loses nothing by its absence. An r_only field is not: the value
-# exists only inside R, and the `.rds` is its only carrier. Declaring it opaque
-# instead would promise a field that never arrives, which is why publishing an
-# escape hatch was rejected here as it was for inputs.
+# A computed field is recoverable: everything it derives from is published.
+# An r_only field is not: the value exists only inside R, and the `.rds` is
+# its only carrier. Neither appears in the schema.
 #
 # State is never written to a config: `lambda.min` and `best_iter` are copied
 # off the fitted model, which is the carrier, so the copy is re-derived on read.
-# A *record* does carry them, but that is the record generator's business, not a
+# A record carries them; the record generator decides that, not a
 # per-property flag.
 #
 # `prop_serialized()` answers the question for both roles, and every family's
-# `serializable_props` goes through it -- a flat config must not serialize a
-# field a nested one drops just because it has no method of its own.
+# `serializable_props` goes through it, so flat and nested configs serialize
+# the same fields.
 #
-# A spec-less property with no role is drift: it is neither a declared input
-# nor declared state, and schema generation aborts.
+# A spec-less property with no role is undeclared, and schema generation
+# aborts.
 #
-# `data_dependent` is a third axis and a *pure annotation*: the value is shaped
+# `data_dependent` is a third axis and an annotation only: the value is shaped
 # by one dataset (per-case IDs, an initial embedding, per-feature centers), so a
-# form should not prompt for it. It does **not** gate serialization -- every
-# data-dependent property is a settable input, and dropping a value the user
-# supplied would lose it silently.
+# form does not prompt for it. It does not gate serialization: every
+# data-dependent property is a settable input and is written.
 
 # %% prop_state ----
 #' S7 property holding run state
 #'
 #' Written by the run, not the user. Appears in the generated schema marked
-#' `readOnly` -- a reader needs the field to reconstruct the class, and a run
-#' record carries it -- so a form builder shows it without prompting for it.
+#' `readOnly`: a reader needs the field to reconstruct the class, a run record
+#' carries it, and a form builder shows it without prompting for it.
 #'
 #' Wraps a property built by a `prop_*` factory, so run state is declared with
 #' the same type, bounds and description as configuration.
@@ -3128,8 +3101,8 @@ prop_state <- function(property) {
 #' Whether `write_config()` emits a property's value
 #'
 #' Everything a user can set is written; state is not, being re-derived on read.
-#' Independent of `prop_role()` only in emphasis: the role decides what the
-#' schema says, this decides what a written config contains.
+#' The role decides what the schema says; this decides what a written config
+#' contains.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -3150,9 +3123,8 @@ prop_serialized <- function(prop) {
     return(TRUE)
   }
   # Everything a user can set is written back, including the data-shaped values
-  # (`id_strat`, `Y_init`, learned scaling centers): dropping a value the user
-  # supplied would lose it silently. Only a constant is omitted, being implied
-  # by the algorithm.
+  # (`id_strat`, `Y_init`, learned scaling centers). Only a constant is
+  # omitted, being implied by the algorithm.
   !fields[["constant"]]
 } # /rtemis::prop_serialized
 
@@ -3164,8 +3136,8 @@ prop_serialized <- function(prop) {
 #' is omitted from the generated schema and from a written config.
 #'
 #' Unlike `prop_state()` this takes a plain S7 property: a view has a getter and
-#' no `PropertySpec`, there being nothing to validate -- its value is a function
-#' of fields that are themselves validated.
+#' no `PropertySpec`: its value is a function of fields that are themselves
+#' validated.
 #'
 #' @param property S7 property (typically one with a `getter`).
 #'
@@ -3212,20 +3184,17 @@ prop_runtime <- function(description, cls = class_any) {
 #' S7 property that exists only in R
 #'
 #' Marks an R-specific property with no wire form, such as `sessionInfo()`,
-#' so it is omitted from the generated schema and from serialization rather
-#' than aborting generation as undeclared drift. Shared native state uses
-#' `prop_runtime()` so other implementations can generate the property.
+#' so it is omitted from the generated schema and from serialization. Shared
+#' native state uses `prop_runtime()`, so other implementations can generate
+#' the property.
 #'
-#' Reach for it only when the value genuinely exists and cannot travel. A slot
-#' that holds nothing wants deleting, not declaring: the marker exists so that
-#' forgetting to declare a property fails loudly, and it cannot tell you that a
-#' property should not be there at all.
+#' Applies to a value that exists and has no portable form. A spec-less
+#' property without this or another role marker fails schema generation; the
+#' marker does not detect a property that holds nothing.
 #'
-#' Distinct from `prop_computed()`: a computed view is recoverable from fields
-#' that *are* published, so its absence costs a consumer nothing, while an
-#' r_only value exists only inside R and the saved `.rds` is its only carrier.
-#' The marker is required, so a property added without one fails schema
-#' generation.
+#' A computed view (`prop_computed()`) is recoverable from published fields,
+#' while an r_only value exists only inside R, and the saved `.rds` is its
+#' only carrier.
 #'
 #' @param property S7 property.
 #'
@@ -3246,7 +3215,7 @@ prop_r_only <- function(property) {
 #' @param prop S7 property (an element of `Class@properties`).
 #'
 #' @return Character: "config", "state", "computed", "runtime", "r_only", or `NA_character_` for a
-#'   spec-less property with no declared role (i.e. drift).
+#'   spec-less property with no declared role.
 #'
 #' @author EDG
 #' @keywords internal
@@ -3265,16 +3234,15 @@ prop_role <- function(prop) {
 #'
 #' True for everything the generated schema declares: configuration and run
 #' state alike. False for a computed view (recoverable from published fields)
-#' and for an r_only value (no wire form at all), which is why both are also
-#' absent from [to_json].
+#' and for an r_only value (no wire form), both of which are absent from
+#' [to_json].
 #'
 #' Distinct from `prop_serialized()`, which answers the narrower question of
 #' whether `write_config()` emits the value: state is published but never
 #' written to a config, being re-derived on read.
 #'
-#' A spec-less property with no role counts as published, so a class that has
-#' not been migrated to the factories serializes as it always did; schema
-#' generation is where that drift is caught.
+#' A spec-less property with no role counts as published; schema generation
+#' rejects it.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -3467,7 +3435,7 @@ spec_prop_values <- function(self) {
 #' Computed constant `algorithm` property
 #'
 #' Each config subclass overrides the inherited `algorithm` property with a
-#' computed constant, so the value is always correct and never stored.
+#' computed constant, so the value is fixed by the class and never stored.
 #'
 #' @param algorithm Character: Algorithm name.
 #'
@@ -3542,10 +3510,10 @@ own_prop_values <- function(self, base) {
 # %% config_prop_values ----
 #' A subclass's own property values that belong in a serialized config
 #'
-#' The runtime parameter list (`@hyperparameters` / `@config`) intentionally
-#' carries everything a training backend needs, including algorithm constants
-#' and run state. A *serialized config* is narrower: only what a user actually
-#' chose, plus nested config objects, which serialize as their own schema.
+#' The runtime parameter list (`@hyperparameters` / `@config`) carries
+#' everything a training backend needs, including algorithm constants and run
+#' state. A serialized config carries what a user chose, plus nested config
+#' objects, which serialize as their own schema.
 #' Membership is decided by `prop_serialized()`, so this and a flat config's
 #' `serializable_props` answer the question the same way. Dropped: **constants**,
 #' which the algorithm already implies, and **state** whose value the fitted
@@ -3584,8 +3552,7 @@ config_prop_values <- function(self, base) {
 #' The settings a family base declares for every variant
 #'
 #' A dispatched document is the discriminator, these, then the variant's own
-#' settings as siblings. The one definition of the middle group, used by the
-#' three places that must agree about it: `family_prop_values()` composes their
+#' settings as siblings. The one definition of the middle group, used by: `family_prop_values()` composes their
 #' *values* into the document, `config_record()` reports their *origins*, and
 #' `S7_to_JSONSchema()` declares those origins in the leaf's record schema.
 #'
@@ -3623,7 +3590,7 @@ family_shared_names <- function(base) {
 #' Every shared field except an object-valued one (an execution config's
 #' `device`), which is a nested record carrying its own `origin`, as a nested
 #' config is everywhere else. The record schema and `config_record()` both read
-#' this, so writer and schema cannot disagree.
+#' this.
 #'
 #' @param base S7 class: The family base, or NULL.
 #'
@@ -3650,8 +3617,8 @@ family_shared_origin_names <- function(base) {
 # %% family_prop_values ----
 #' The fields a family's dispatcher declares, as a serialized config carries them
 #'
-#' The discriminator first -- without it a dispatcher matches no branch and
-#' its `unevaluatedProperties` rejects everything else -- then the properties
+#' The discriminator first (a dispatcher matches its branch by it), then the
+#' properties
 #' the base declares for every variant (a decomposition's `features`), in
 #' declaration order. What the variant itself declares is
 #' `config_prop_values()`'s half; `dispatched_props()` joins the two.
@@ -3680,10 +3647,8 @@ family_prop_values <- function(x, base, discriminator) {
 #' One shape for every config family, the one `S7_dispatcher_JSONSchema()`
 #' publishes: the discriminator, the base's shared fields, then the variant's
 #' own settings, all as siblings. A variant with nothing set serializes as the
-#' discriminator alone, so "nothing set" is said by absence, as a delta config
-#' says everything else -- never by an empty settings object, which is the one
-#' construct a writer has to remember to emit and the one observed models could
-#' not.
+#' discriminator alone: "nothing set" is expressed by absence, as in any delta
+#' config.
 #'
 #' @param x S7 object: a member of the family.
 #' @param base S7 class: the family base class.
@@ -3706,9 +3671,9 @@ dispatched_props <- function(x, base, discriminator) {
 #' A property value in the shape its JSON Schema declares
 #'
 #' One conversion, for one mismatch: a `map` container publishes
-#' `type: object`, but its R value for a scalar leaf is a *named atomic vector*,
-#' and `jsonlite::toJSON()` drops names on atomic vectors -- emitting an array,
-#' which its own schema rejects. Handing it a list restores the object.
+#' `type: object`, but its R value for a scalar leaf is a named atomic vector,
+#' and `jsonlite::toJSON()` drops names on atomic vectors, emitting an array
+#' its schema rejects. Converting the value to a list emits an object.
 #'
 #' Driven by the spec: Ranger's `class_weights` is also a named numeric but
 #' declares an `array`, and keeps that wire type.
@@ -3816,15 +3781,15 @@ wire_value <- function(value, prop) {
   ) {
     # R has no scalar: a one-element vector is the vector, and
     # `toJSON(auto_unbox = TRUE)` unboxes it to a bare value -- which the schema
-    # rejects, having declared an array. Marked `AsIs` so the array survives.
+    # rejects, having declared an array. Marked `AsIs` so it stays an array.
     # A `broadcast` property is exempt: there a scalar is a declared form of its
     # own, standing for "this value for every case".
     return(I(value))
   }
   if (fields[["container"]] == "factor" && is.factor(value)) {
     # `toJSON()` on a factor emits its labels and drops the levels attribute,
-    # losing both their order -- which is what decides the positive class --
-    # and any level with no cases.
+    # losing their order, which decides the positive class, and any level with
+    # no cases.
     return(list(levels = I(levels(value)), codes = I(as.integer(value))))
   }
   value
@@ -3834,9 +3799,8 @@ wire_value <- function(value, prop) {
 # %% from_wire ----
 #' Restore R-side shapes from values read back from JSON
 #'
-#' The inverse of `wire_value()`, and the single wire -> R translation: every
-#' `.list_to_*()` reconstructor calls it, so a shape that needs rebuilding is
-#' handled once for every config kind. Four shapes differ between the
+#' The inverse of `wire_value()`, and the single wire -> R translation, called
+#' by every `.list_to_*()` reconstructor. Four shapes differ between the
 #' wire and R, each decided by the property's own spec:
 #'
 #' - A **map** over a scalar leaf is a named atomic vector in R and a JSON
@@ -4076,8 +4040,7 @@ route_config_assignment <- function(
 #' JSON Schema has no view of the training data, so a `data_bound` cannot be
 #' expressed structurally and is carried in the property description instead.
 #' Both directions share this one definition: `spec_to_schema()` appends it,
-#' `schema_to_spec()` strips it back off. Two copies would let the reader fail
-#' to recognize a sentence the writer had changed.
+#' `schema_to_spec()` strips it back off.
 #'
 #' @param data_bound Character: The bound; see `DATA_BOUNDS`.
 #' @param container Character \{"none", "array", "map", "matrix", "table"\}: How
@@ -4125,8 +4088,8 @@ data_bound_note <- function(data_bound, container, broadcast) {
 #' Names the dimension *this* property follows, so a reader is told which of
 #' cases, features or classes decides its shape. The dimension comes from `data_bound` where one is declared;
 #' a `map` with none is keyed by feature name (see `prop_map()`), the one shape
-#' whose dependence the container states on its own. Anything else falls back to
-#' the bare fact, since nothing in the declaration says more.
+#' whose dependence the container states on its own. Any other property gets
+#' the general statement.
 #'
 #' @param spec `PropertySpec`.
 #'
@@ -4172,14 +4135,11 @@ data_dependent_comment <- function(spec) {
 #' The JSON Schema object a hyperparameter domain emits
 #'
 #' A search space is tagged, so a reader can tell it from a value without
-#' consulting the property's declared type; nesting depth alone is not
-#' decisive: a broadcast array of
-#' arrays and a container tunable's search space are the same shape, and only
-#' the annotation separated them.
+#' consulting the property's declared type: a broadcast array of arrays and a
+#' container tunable's search space have the same nesting depth.
 #'
-#' The tag also leaves room to grow. A domain that is not enumerable -- a range
-#' a random or Bayesian tuner samples -- is a sibling key here, where a bare
-#' nested array has nowhere to put one.
+#' A non-enumerable domain, such as a range a random or Bayesian tuner
+#' samples, is a sibling key of `candidates`.
 #'
 #' @param value_schema Named list: The schema of one value of the property,
 #' which is what one candidate is.
@@ -4211,12 +4171,10 @@ candidates_schema <- function(value_schema) {
 #'
 #' `check_applies_when()` reads the sibling's value, unwraps a search domain to
 #' its candidates, and opens the gate when **any** of the resulting scalars is
-#' listed. This builds the JSON Schema saying the same thing, and it must be
-#' driven by the shapes the sibling's *own* schema admits: tunability decides
-#' whether a search domain is one of them, not what a plain value looks like.
-#' Deriving the shape from `@tunable` alone published a scalar `enum` against a
-#' vector-valued sibling and an array matcher against a domain that serializes
-#' as `{"candidates": [...]}` -- an object matching neither.
+#' listed. This builds the equivalent JSON Schema from the shapes the
+#' sibling's own schema admits: a plain value of its container, plus, when the
+#' sibling is tunable, a search domain serialized as `{"candidates": [...]}`.
+#' `@tunable` alone does not determine the shape of a plain value.
 #'
 #' @param spec `PropertySpec` of the gating sibling, or NULL if it carries none.
 #' @param allowed Vector: The values that open the gate.
@@ -4230,17 +4188,16 @@ candidates_schema <- function(value_schema) {
 #' @noRd
 gate_value_schema <- function(spec, allowed, cls_name, gate_name) {
   scalar <- list(enum = I(allowed))
-  # A sibling with no spec carries no declared shape; a bare scalar is the only
-  # thing that can be assumed about it.
+  # A sibling with no spec carries no declared shape and is matched as a bare
+  # scalar.
   if (is.null(spec)) {
     return(scalar)
   }
   container <- spec@container
   if (!container %in% c("none", "array")) {
-    # Bounded on purpose: a map, table, struct or matrix sibling has no
-    # membership reading agreed with `check_applies_when()`, and guessing one
-    # would publish a rule R does not enforce. Widen this deliberately, with a
-    # gate that needs it.
+    # A map, table, struct, or matrix sibling has no membership semantics in
+    # `check_applies_when()`, so it cannot gate a property. Extending this
+    # requires the same extension in `check_applies_when()`.
     rtemis.core::abort(
       "@applies_when cannot gate on ",
       cls_name,
@@ -4290,9 +4247,9 @@ gate_value_schema <- function(spec, allowed, cls_name, gate_name) {
 #'
 #' One clause per gated property: *if the property is present and not null,
 #' the sibling that gates it holds one of the listed values.* The `if` names
-#' the property in `required` so that a document omitting it is untouched --
-#' `properties` alone passes vacuously on an absent key and would fire `then`
-#' on every such document.
+#' the property in `required` so that a document omitting it is untouched:
+#' `properties` alone passes vacuously on an absent key and would apply `then`
+#' to every such document.
 #'
 #' The `then` constrains a value and never demands a key, which is what
 #' `assert_config_contract()` requires of an input schema: an absent gate
@@ -4354,11 +4311,10 @@ applies_when_clauses <- function(x, properties) {
 # %% applies_when_note ----
 #' The sentence describing an `applies_when` gate
 #'
-#' The gate is emitted structurally in `x-rtemis`, but a reader that renders
-#' only descriptions would otherwise show a conditional value as an
-#' unconditional one. Both directions share this one definition:
-#' `spec_to_schema()` appends it, `schema_to_spec()` strips it back off. Two
-#' copies would let the reader fail to recognize a sentence the writer changed.
+#' The gate is emitted structurally in `x-rtemis`; the sentence states it to a
+#' reader that renders only descriptions. Both directions share this one
+#' definition: `spec_to_schema()` appends it, `schema_to_spec()` strips it
+#' back off.
 #'
 #' @param applies_when Named list: The gate; see `PropertySpec`.
 #'
@@ -4385,12 +4341,12 @@ applies_when_note <- function(applies_when) {
 #' Shared by the two containers built on `@members`: a `struct` emits this
 #' directly, a `table` emits an array of it. Every declared member appears in
 #' `properties`, but only the always-present ones in `required`, so an optional
-#' member simply does not appear where it was not computed.
+#' member is absent where it was not computed.
 #' `additionalProperties: false` makes an undeclared member an error.
 #'
-#' Takes the members directly, so that record
-#' *structure* -- a tuning table's rows, which belong to no class -- can be
-#' built from the same declarations as a class property's.
+#' Takes the members directly, so that record structure that belongs to no
+#' class, such as a tuning table's rows, is built from the same declarations
+#' as a class property.
 #'
 #' @param members Named list of `PropertySpec` objects, one per member.
 #' @param required Character or NULL: The always-present members. NULL means
@@ -4504,7 +4460,7 @@ spec_to_schema <- function(
     }
     reference_schema(spec, reference, reference_urls)
   } else if (spec@container == "array") {
-    # A genuinely vector-valued field (e.g. per-feature weights).
+    # A vector-valued field (e.g. per-feature weights).
     arr <- Filter(
       Negate(is.null),
       list(
@@ -4523,8 +4479,8 @@ spec_to_schema <- function(
       # search space -- see the note on PropertySpec@container.
       arr[["type"]] <- "array"
       # Every element of the broadcast array is that scalar, so "at least one
-      # element reaches the bound" is "the scalar reaches it". Without this the
-      # scalar branch carries no threshold and accepts what R rejects.
+      # element reaches the bound" is "the scalar reaches it". The scalar
+      # branch carries the same threshold R enforces.
       scalar_element <- element
       if (!is.null(spec@contains_min)) {
         scalar_element[["minimum"]] <- spec@contains_min
@@ -4646,9 +4602,8 @@ spec_to_schema <- function(
   }
   # No `default` keyword is emitted; defaults are published separately by
   # `data-raw/generate_defaults.R`, keyed by schema `$id`.
-  # A `data_bound` cannot be expressed structurally - JSON Schema has no view of
-  # the training data - so record it in the description, where a consumer
-  # building a form or a config can still surface the constraint.
+  # A `data_bound` cannot be expressed structurally, since JSON Schema has no
+  # view of the training data, so the description states it.
   description <- spec@description
   if (!is.null(spec@data_bound)) {
     note <- data_bound_note(spec@data_bound, spec@container, spec@broadcast)
@@ -4671,13 +4626,11 @@ spec_to_schema <- function(
   if (nzchar(description)) {
     out[["description"]] <- description
   }
-  # The axes standard JSON Schema cannot express. Deliberately NOT the whole
-  # spec: bounds, enum, and nullability are already recoverable from the
-  # standard keywords, and duplicating them would create a second
-  # representation that can disagree with the first. What is here is what a
-  # reader cannot derive -- most importantly `tunable` vs `broadcast`, which
-  # emit identical `oneOf` shapes. Absent keys take their default (FALSE, or
-  # "none" for `container`).
+  # The axes standard JSON Schema cannot express. Bounds, enum, and
+  # nullability are carried by the standard keywords only. `x-rtemis` holds
+  # what a reader cannot derive from them, including `tunable` and
+  # `broadcast`, which emit identical `oneOf` shapes. Absent keys take their
+  # default (FALSE, or "none" for `container`).
   annotations <- Filter(
     Negate(is.null),
     list(
@@ -4785,8 +4738,8 @@ spec_to_schema <- function(
   if (spec@data_dependent) {
     # Machine-visible in the published contract: a consumer building a form
     # skips these, since the data decides their shape.
-    # It does not say the value is derived -- these are settable inputs, and a
-    # supplied one is used in place of computing it.
+    # These are settable inputs: a supplied value is used in place of
+    # computing it.
     out[["$comment"]] <- data_dependent_comment(spec)
   }
   out
@@ -4807,9 +4760,9 @@ spec_to_schema <- function(
 #              The value is `null`, so an incomplete record still states
 #              something true about every field.
 #
-# "default" is kept distinct from "user" because folding them would claim
-# somebody chose `strat_n_bins = 4`; "tuned" from "derived" because a value
-# cross-validation selected is a different fact from one read off the data.
+# "default" and "user" are distinct: a default value was not chosen by the
+# user. "tuned" and "derived" are distinct: one was selected by
+# cross-validation, the other computed from the data.
 VALUE_ORIGINS <- c("user", "default", "derived", "tuned", "unset")
 
 
@@ -4838,9 +4791,9 @@ VALUE_ORIGINS <- c("user", "default", "derived", "tuned", "unset")
 origin_schema <- function(props) {
   entries <- lapply(names(props), function(nm) {
     spec <- get_spec(props[[nm]])
-    # "unset" is always permitted: any field can be one the run never reached.
+    # "unset" is always permitted: the run may stop before reaching any field.
     allowed <- if (!is.null(spec) && spec@default_on_null) {
-      # NULL applies the task-type default, a restatement of the question.
+      # NULL applies the task-type default.
       c("user", "default", "unset")
     } else if (identical(prop_role(props[[nm]]), "state")) {
       # Only a run writes it, so it was computed one way or the other.
@@ -4872,17 +4825,16 @@ origin_schema <- function(props) {
 # %% folds_schema ----
 #' The `folds` block of a supervised record schema
 #'
-#' A record's top level says what was *asked for*; `folds` says what *ran*, once
-#' per outer resample. They are separate because a resampled run resolves
-#' different values in each fold -- early stopping picks a different `nrounds`
-#' every time -- so a single resolved value at the top level would be a claim
-#' the run never made.
+#' A record's top level states what was requested; `folds` states what ran,
+#' once per outer resample. A resampled run resolves different values in each
+#' fold (early stopping selects a different `nrounds` in each), so resolved
+#' values are recorded per fold.
 #'
 #' A single fit is one fold, so a position has the same meaning in every
 #' record.
 #'
-#' Built here, like `origin_schema()`, because it is record *structure* that
-#' belongs to no class.
+#' Built here, like `origin_schema()`, as record structure that belongs to no
+#' class.
 #'
 #' @param refs Named character: record-schema URLs for the per-fold blocks
 #'   (`hyperparameters`, and optionally `preprocessor_config` /
@@ -4958,12 +4910,10 @@ folds_schema <- function(refs, metrics_refs = NULL) {
 #' holds it: the candidate grid, each candidate's training and validation
 #' scores, and the winner. The three tables join on `param_combo_id`.
 #'
-#' Two of the shapes here have **data-dependent keys**, and the schema says so:
-#' a `param_grid` row carries one column per
-#' *hyperparameter being tuned*, and `best` is keyed the same way, so neither
-#' set can be declared without a schema per algorithm. They are declared as far
-#' as they can be -- the joining id, and the fact that every other value is a
-#' scalar -- which is the same treatment `prop_map()` gives per-feature values.
+#' Two of the shapes here have data-dependent keys: a `param_grid` row carries
+#' one column per hyperparameter being tuned, and `best` is keyed the same
+#' way. The schema declares the joining id and that every other value is a
+#' scalar, as `prop_map()` does for per-feature values.
 #'
 #' The score tables are fully declared, reusing the metric columns the metrics
 #' classes carry, so a candidate's score is bounded exactly as the final score
@@ -5054,11 +5004,10 @@ tuning_schema <- function() {
 #' across folds, and beside it the standard deviation, which is null for a
 #' single fit because one model has no dispersion.
 #'
-#' Typed loosely on purpose. The metric set differs between regression and
-#' classification, and the authoritative, per-metric-bounded declaration is the
-#' metrics schema each fold's `metrics` block `$ref`s. This block exists so that
-#' "how did this run do?" is one lookup in a file, with no averaging and no R --
-#' which is what makes a directory of records rankable.
+#' Typed as a map of numbers: the metric set differs between regression and
+#' classification, and the per-metric declaration with bounds is the metrics
+#' schema each fold's `metrics` block references. This block states a run's
+#' headline scores in one lookup, without averaging across folds.
 #'
 #' @param sd Logical: If TRUE, describe the dispersion block.
 #'
@@ -5096,9 +5045,9 @@ metrics_schema <- function(sd = FALSE) {
 # %% prop_to_schema ----
 #' The JSON Schema for one S7 property
 #'
-#' Reads the two role axes off the property and hands them to
-#' `spec_to_schema()`, so a leaf and a dispatcher's base field cannot annotate
-#' the same declaration differently.
+#' Reads the two role axes off the property and passes them to
+#' `spec_to_schema()`, so a leaf and a dispatcher's base field annotate the
+#' same declaration identically.
 #'
 #' @param prop S7 property (an element of `Class@properties`).
 #'
@@ -5120,10 +5069,8 @@ prop_to_schema <- function(prop) {
 #' by their declared role (see `prop_role()`), not by a list kept here:
 #' `"config"` and `"state"` properties are generated from their spec, state
 #' being marked `readOnly`, while `"computed"` and `"r_only"` properties are
-#' omitted -- the first because everything it derives from is published, the
-#' second because it has no wire form at all. A spec-less property with no role
-#' is an error, so a class that drifts from the factory vocabulary fails schema
-#' generation.
+#' omitted: the first is derived from published fields, and the second has no
+#' wire form. A spec-less property with no role is an error.
 #'
 #' @param x S7 class (e.g. `LightRFHyperparameters`).
 #' @param id Character: Schema `$id` URL
@@ -5154,21 +5101,15 @@ prop_to_schema <- function(prop) {
 #' @param session_url Character or NULL: If set (and `record` is TRUE), adds a
 #'   required, nullable `session` property referencing that schema -- the
 #'   reference to the execution graph written beside the record. Nullable
-#'   because a run can produce no session: a pipeline result records none, and a
-#'   model fitted before sessions existed has none to write.
+#'   because a run can produce no session: a pipeline result records none.
 #' @param record Logical: If TRUE, emit the **record** form of the schema: the
-#'   same properties, but every one required. A record states what a run
-#'   actually used, so nothing in it may fall back to a reader's defaults -- an
-#'   unset value is written as an explicit `null`. The
-#'   difference between an input schema and a record schema is exactly this;
-#'   membership is identical.
+#'   same properties, but every one required. A record states what a run used,
+#'   so every field is present, and an unset value is written as an explicit
+#'   `null`. Input and record schemas have identical membership.
 #' @param asserted Logical: If TRUE, emit an **assertion** schema: the input
-#'   form, but with every property required. For a results class -- a document
-#'   rtemis produces rather than one a caller authors, and which has no record
-#'   sibling to carry the requirement. The config contract's reason for omitting
-#'   `required` is that a config is a partial expression of intent; a results
-#'   document asserts fact, so the record's rule applies to it and not the
-#'   config's. Mutually exclusive with `record`.
+#'   form, but with every property required. For a results class: a document
+#'   rtemis produces, with no record sibling. Mutually exclusive with
+#'   `record`.
 #' @param reference_urls Optional named character: Publication URLs keyed by
 #'   qualified class identity. If omitted, derived from the package catalog.
 #' @param closed Logical: If TRUE (default) the schema sets
@@ -5236,7 +5177,7 @@ S7_to_JSONSchema <- function(
   ref_props <- props[typed_refs]
   props <- props[setdiff(names(props), typed_refs)]
   # A derived view is not part of the contract: it is a function of fields the
-  # schema already declares, so publishing it would let the two disagree.
+  # schema already declares.
   props <- props[
     !vapply(
       props,
@@ -5363,8 +5304,7 @@ S7_to_JSONSchema <- function(
       properties[["folds"]] <- folds_schema(fold_refs, metrics_refs)
       required <- c(required, "folds")
     }
-    # What the run scored. A record that states the config and the provenance
-    # but not the result cannot answer the question it is opened for.
+    # What the run scored.
     if (!is.null(metrics_refs)) {
       properties[["metrics"]] <- metrics_schema()
       properties[["metrics_sd"]] <- metrics_schema(sd = TRUE)
@@ -5384,8 +5324,7 @@ S7_to_JSONSchema <- function(
     }
     # Where the execution graph is, not what it holds: the graph is a table and
     # travels as a columnar file beside the record. Required so that a record
-    # always states whether there is one, nullable so that "there is none" is
-    # sayable.
+    # always states whether there is one, nullable for a run without one.
     if (!is.null(session_url)) {
       properties[["session"]] <- list(
         description = "The run's execution graph, written beside this record.",
@@ -5475,8 +5414,7 @@ discriminator_value <- function(cls, discriminator) {
 #' [S7_to_JSONSchema] subtracts them from the leaves
 #' via its `base` argument. Spec-less base properties are class machinery (a
 #' computed settings list, the discriminator, run state such as `tuned`) and
-#' have no schema form, so they are skipped: a base class is expected to carry
-#' them.
+#' have no schema form, so they are skipped.
 #'
 #' @param base S7 class or NULL: The family base class. NULL yields no
 #'   properties.
@@ -5525,8 +5463,7 @@ base_schema_properties <- function(
 #' declares for every variant, and an `allOf` of `if/then` clauses that apply
 #' the selected variant's leaf schema (`<family>/<variant>/v1`) to the whole
 #' object. The discriminator enum, the leaf `$ref` URLs and the `allOf` table
-#' are all derived from the classes, so the dispatcher cannot drift from the
-#' leaves it dispatches to.
+#' are all derived from the classes.
 #'
 #' The leaf URLs are derived from `id`: for a dispatcher
 #' `.../<family>/v1/schema.json`, variant `A` maps to
@@ -5557,9 +5494,8 @@ base_schema_properties <- function(
 #' @details
 #' One shape, matching how every family serializes (`dispatched_props()`): the
 #' variant's settings are **siblings of the discriminator**. A document holding
-#' only the discriminator is that variant with every default, so "nothing set"
-#' is said by absence, as a delta config says everything else, and a writer
-#' has no empty settings object to emit.
+#' only the discriminator is that variant with every default: "nothing set" is
+#' expressed by absence.
 #'
 #' Each `then` is exactly the leaf `$ref`, applied to the whole object; readers
 #' key on that. `additionalProperties` is evaluated per schema and would not
@@ -5569,11 +5505,11 @@ base_schema_properties <- function(
 #' (`closed = FALSE` in [S7_to_JSONSchema]) so they compose.
 #'
 #' The leaf's keys and the dispatcher's are disjoint by construction: `base`
-#' subtracts every base property, the discriminator included, from each leaf,
-#' so a setting can never land on a key the dispatcher declares.
+#' subtracts every base property, the discriminator included, from each
+#' leaf.
 #'
-#' `base` closes the loop with [S7_to_JSONSchema]'s `base` argument, which
-#' *subtracts* the family base's properties from every leaf: the dispatcher
+#' `base` pairs with [S7_to_JSONSchema]'s `base` argument, which subtracts
+#' the family base's properties from every leaf: the dispatcher
 #' adds them back at the top level, from the same `PropertySpec`, so the shared
 #' fields are declared once. Base properties carrying no spec are class
 #' machinery (a computed settings list, run state) and are skipped, as is the
@@ -5688,13 +5624,12 @@ S7_dispatcher_JSONSchema <- function(
       ),
       required = I(discriminator)
     )
-    # Exactly the `$ref` and nothing else: a `then` carrying anything besides
-    # the reference is a different construct to the readers that key on it.
+    # Exactly the `$ref`: readers key on a `then` that holds only the
+    # reference.
     list(`if` = condition, then = list(`$ref` = leaf_id(variant)))
   })
-  # The one sentence a writer needs: where the settings go, and what leaving
-  # them out means. Stated by the generator so every family says it
-  # identically.
+  # States where the settings go and what omitting them means. Generated, so
+  # every family states it identically.
   shape <- if (record) {
     paste0(
       "`",

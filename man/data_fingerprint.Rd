@@ -32,7 +32,7 @@ are for interoperability with systems that record those.}
 \description{
 Computes a \code{DataFingerprint}: a content hash of \code{x} plus the structural facts
 (dimensions, column names) that make a mismatch between two runs diagnosable.
-Used to record which data a run actually used, so undocumented drift between
+Used to record which data a run used, so undocumented drift between
 experiments is visible.
 }
 \examples{

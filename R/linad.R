@@ -10,7 +10,7 @@
 # "The Linear Additive Tree". Equation and algorithm numbers below cite that
 # manuscript.
 #
-# Everything here is plain numeric code over matrices, deliberately: the three
+# Everything here is plain numeric code over matrices. The three
 # primitives `linad_gram()`, `linad_solve()` and `linad_stump()` are the only
 # places that touch the data in bulk, so a compiled kernel can replace them
 # without the growth loop above them changing.
@@ -317,9 +317,10 @@ linad_enet_gram <- function(
 #' by its weighted means selects the same features and the same coefficients --
 #' the gain `g_j^2 / s_j` is invariant to a column rescaling and to the level.
 #'
-#' `nvmax` is a term count, not an upper bound: the search takes exactly that
-#' many steps unless it runs out of features that improve the fit. That is the
-#' behavior the published experiments were run under.
+#' With `stop_rule = "none"`, `nvmax` is a term count: the search takes exactly
+#' that many steps unless no remaining feature improves the fit. With `"aic"`
+#' or `"bic"`, `nvmax` is an upper bound, and the search stops at the first term
+#' that fails the criterion.
 #'
 #' @param G Numeric matrix: `X'WX`.
 #' @param Xty Numeric vector: `X'Wy`.
@@ -348,10 +349,9 @@ linad_forward <- function(
   diagonal <- diag(G)
   nugget <- LINAD_NUGGET * max(mean(diagonal), .Machine[["double.eps"]])
   n_steps <- min(as.integer(nvmax), d - length(active))
-  # A per-term cost is what makes `nvmax` a ceiling rather than a quota. Ridge
-  # shrinks but never zeroes, so a penalized gain alone would still spend the
-  # whole budget: every added term reduces the residual sum of squares by
-  # something positive.
+  # A per-term cost makes `nvmax` an upper bound rather than a count. Ridge
+  # shrinks but never zeroes, so every added term reduces the residual sum of
+  # squares, and a penalized gain alone takes all `nvmax` steps.
   cost <- switch(
     stop_rule,
     none = NULL,
@@ -426,8 +426,7 @@ linad_forward <- function(
       NULL
     }
     # Selection under the objective the fit uses: the same penalty enters the
-    # Schur complement, so a feature that only looks good unpenalized does not
-    # win the search.
+    # Schur complement, so the search ranks features by the penalized gain.
     # Every candidate's Schur complement from one triangular solve over their
     # columns together, rather than one solve each: the matrices are the size of
     # the active set, so per-call overhead otherwise dwarfs the arithmetic.
@@ -456,8 +455,8 @@ linad_forward <- function(
       }
       improved <- residual_sum_squares(proposed, trial)
       # The Gaussian information criterion, in the form that needs only the two
-      # residual sums of squares: a term is kept when the deviance it buys
-      # exceeds what it costs.
+      # residual sums of squares: a term is kept when its deviance reduction
+      # exceeds the criterion's per-term charge.
       if (
         !is.finite(improved) ||
           improved <= 0 ||
@@ -579,8 +578,8 @@ linad_constant <- function(
 #' Equations 19 and 20 need four weighted sums and nothing else, so the rule
 #' lives here and both routes to it -- `linad_constant()` over explicit rows and
 #' `linad_gram_solve()` over accumulated sufficient statistics -- reach the same
-#' function. Two implementations agreeing is precisely what the exhaustive
-#' search has been caught not doing.
+#' function, so the exhaustive search and the commit compute the same
+#' constant.
 #'
 #' @param swr Numeric: `sum(w r)`.
 #' @param sw Numeric: `sum(w)`.
@@ -632,16 +631,16 @@ linad_constant_from_sums <- function(
 
 
 # %% linad_node_test ----
-#' Whether a node's slopes earn their coefficients
+#' Whether a node keeps its slopes
 #'
 #' The constant is nested in the linear model, so on the node's own cases the
-#' slopes always reduce the residual sum of squares and the comparison is
-#' meaningless without a cost. This is the Gaussian information criterion in
+#' slopes always reduce the residual sum of squares; the comparison charges a
+#' per-term cost. This is the Gaussian information criterion in
 #' the form that needs only the two sums of squares, charging `n_terms` at the
 #' rule's per-term rate.
 #'
 #' Both split searches and the commit call this, so a candidate is scored by
-#' the model the node will actually receive.
+#' the model the node will receive.
 #'
 #' @param rss_constant Numeric: Weighted residual sum of squares of the
 #' constant-only fit.
@@ -700,7 +699,8 @@ linad_node_test <- function(rss_constant, rss_linear, sw, n_terms, rule) {
 #' @param alpha Numeric: Elastic-net mixing.
 #' @param nvmax Integer: Forward-selection term count.
 #' @param forward_stop Character: Forward selection's per-term cost rule.
-#' @param node_test Character: Cost the slopes must earn over the constant.
+#' @param node_test Character: Information criterion the slopes must improve
+#' over the constant.
 #' @param allowed Optional Integer vector: Slope columns this node may fit.
 #' NULL allows every column.
 #'
@@ -795,10 +795,9 @@ linad_slopes <- function(
 #' jointly, for ridge at any `lambda` and for forward selection. Without it the
 #' slopes absorb part of the level and the fit is worse.
 #'
-#' Separating them is the point. The constant is what the *tree* contributes at
-#' this node and accumulates into `node_value`; the slopes are what the *linear
-#' model* adds. `"constant"` simply fits no slopes, which is what reduces LINAD
-#' to the Additive Tree -- the manuscript notes the software "allows to skip
+#' The constant is what the tree contributes at this node and accumulates into
+#' `node_value`; the slopes are what the linear model adds. `"constant"` fits
+#' no slopes, which reduces LINAD to the Additive Tree -- the manuscript notes the software "allows to skip
 #' fitting of the linear models".
 #'
 #' @param xm Numeric matrix: Intercept-augmented design matrix.
@@ -813,8 +812,8 @@ linad_slopes <- function(
 #' @param type Character: "Regression" or "Classification".
 #' @param max_step Numeric: Bound on the constant.
 #' @param constant_rule Character: Which rule computes the constant.
-#' @param node_test Character: Cost a node's slopes must earn over the constant
-#' alone, as `linad_node_test()` applies it.
+#' @param node_test Character: Information criterion a node's slopes must
+#' improve over the constant alone, as `linad_node_test()` applies it.
 #' @param allowed Optional Integer vector: Slope columns this node may fit,
 #' indexing the design without its intercept. NULL allows every column.
 #'
@@ -996,7 +995,7 @@ linad_cut_positions <- function(
     # The admissible position whose value sits closest to each evenly spaced
     # target. A feature with a gap contributes one position for every target
     # that falls in it, which `unique()` then collapses -- so an equal-width
-    # search on a skewed feature really does try fewer cuts.
+    # search on a skewed feature tries fewer cuts.
     chosen <- vapply(
       targets,
       function(target) breaks[[which.min(abs(values - target))]],
@@ -1019,8 +1018,7 @@ linad_cut_positions <- function(
 #'
 #' Sort orders and the positions where a feature's sorted values change are
 #' properties of the training data, not of a node, so they are computed once and
-#' reused at every split search. This is the single largest reason the split
-#' search is not delegated to `rpart`, which re-sorts on every call.
+#' reused at every split search.
 #'
 #' Splits are searched on the **original** features, so a factor splits on a set
 #' of levels and the rule reads naturally, while the leaf models use the encoded
@@ -1119,8 +1117,8 @@ linad_scan_features <- function(context, features = NULL) {
 #'
 #' `NULL` means *no constraint imposed* for each of the three selectors, which
 #' reads as "all" for splits and linear terms and "nothing pinned" for global
-#' effects. Each returns NULL in turn, so an unrestricted run takes exactly the
-#' code path it took before feature roles existed.
+#' effects. Each returns NULL in turn, so an unrestricted run takes the
+#' unrestricted code path.
 #'
 #' A categorical's dummy columns share one `assign` code, so naming the factor
 #' moves the whole encoded group together -- roles are assigned to source
@@ -1393,8 +1391,8 @@ linad_stump <- function(
 #' Which cases take the left branch at one split
 #'
 #' The single definition of the routing rule, used while growing, while
-#' predicting, and while rebuilding a tree from its frame -- so training and
-#' inference cannot drift apart.
+#' predicting, and while rebuilding a tree from its frame, so training and
+#' inference route cases identically.
 #'
 #' @param split List: A `linad_stump()` result, or a frame row carrying
 #' `feature`, `kind`, `value` and `levels`.
@@ -1419,7 +1417,7 @@ linad_goes_left <- function(split, x) {
 #' Newton step size for one functional update
 #'
 #' Equation 27. One Newton step in `rho` for the update `f + rho * v`, over the
-#' rows the update actually touches -- cases outside the node are unaffected, so
+#' rows the update touches -- cases outside the node are unaffected, so
 #' they cannot inform the step.
 #'
 #' For squared error the step is the exact minimizer, since the objective is
@@ -1573,8 +1571,8 @@ linad_node_loss <- function(state, coefficients, idx) {
 #' second how many of them one node considers.
 #'
 #' NULL, or an `mtry` that reaches the whole pool, returns `allowed` unchanged --
-#' NULL where nothing was restricted, so an unrestricted run takes its original
-#' path.
+#' NULL where nothing was restricted, so an unrestricted run takes the
+#' unrestricted path.
 #'
 #' @param context List: `linad_context()` output.
 #' @param mtry Optional Integer: Features to sample.
@@ -1676,8 +1674,8 @@ linad_split_search <- function(
 # %% linad_improves ----
 #' Whether a proposal reduces the loss
 #'
-#' The growth loop's own admission test, named once so the `mtry_split` retry
-#' and the loop cannot drift apart on what counts as progress.
+#' The growth loop's admission test, shared by the loop and the `mtry_split`
+#' retry.
 #'
 #' @param proposal Optional List: `linad_propose()` output.
 #'
@@ -1722,8 +1720,8 @@ linad_propose <- function(state, node, features = NULL) {
   member <- logical(state[["n"]])
   member[node[["index"]]] <- TRUE
   # One active-row rule per node, resolved here and handed to the search and to
-  # both commits. Resolving it separately on each side is how the search comes
-  # to score a model that is never built.
+  # both commits. Resolving it separately would make the search score a model
+  # the commit does not build.
   active <- linad_active_rows(node[["weights"]])
   split <- linad_split_search(
     state,
@@ -1818,8 +1816,7 @@ linad_propose <- function(state, node, features = NULL) {
 #' features `split_features` admits.
 #'
 #' A node is expanded once and its proposal cached, so a feature sample that
-#' finds nothing worth splitting on would close that node for good, an artifact
-#' of the caching. One retry over every admissible feature keeps `mtry_split` a
+#' finds no loss-reducing split would close that node permanently. One retry over every admissible feature keeps `mtry_split` a
 #' choice of *which* split is made and never of *whether* the node can split at
 #' all: a node closes only where no admissible feature improves the loss.
 #'
@@ -2230,10 +2227,8 @@ linad_fit <- function(
 
   fitted <- linad_frame(nodes, leaves, steps, colnames(xm))
   fitted[["coefficients"]] <- linad_unscale(fitted[["coefficients"]], scaling)
-  # Every value the run actually used, resolved. Several defaults are resolved
-  # only here -- `n_cuts` is the clearest -- so without this a serialized fit
-  # does not record what produced it and reproducing it means knowing the
-  # package version's resolution rules.
+  # Every value the run used, resolved. Several defaults, such as `n_cuts`, are
+  # resolved only here, so the serialized fit records them.
   fitted[["settings"]] <- settings
   fitted
 } # /rtemis::linad_fit
@@ -2348,8 +2343,7 @@ linad_selected_nodes <- function(frame, terminal) {
 #' Returns the violations, so a caller can assert on them in a test or report
 #' them across a benchmark. Cheap enough to run on every fit.
 #'
-#' These are properties an accuracy measurement cannot see: a tree that wastes
-#' leaves is a worse number, not a visible fault.
+#' Accuracy metrics do not detect these violations.
 #'
 #' @param model `LinearAdditiveTree` object.
 #'
@@ -2370,9 +2364,8 @@ linad_check_tree <- function(model, min_cases_child = NULL) {
   leaf_rows <- match(terminal, node)
   internal <- which(!is.na(frame[["left"]]))
 
-  # No node smaller than the floor its split was required to leave. A rule that
-  # moves that floor without saying so spends the leaf budget on nodes too small
-  # to carry a model, which no accuracy measurement reliably shows.
+  # No node smaller than the floor its split was required to leave, so no leaf
+  # is too small to carry a model.
   if (!is.null(min_cases_child)) {
     undersized <- node[frame[["n"]] < min_cases_child]
     if (length(undersized) > 0L) {
@@ -2448,7 +2441,7 @@ linad_check_tree <- function(model, min_cases_child = NULL) {
     }
   }
 
-  # A model whose numbers are not numbers predicts nothing.
+  # Every stored number is finite.
   if (!all(is.finite(model@coefficients))) {
     problems <- c(problems, "coefficients hold non-finite values")
   }
@@ -2595,8 +2588,7 @@ linad_route <- function(frame, x, terminal) {
 #' @noRd
 linad_raw_prediction <- function(model, x, xm, n_leaves = NULL) {
   # Coefficients are applied by position, so a design rebuilt on a different
-  # basis has to be caught here or it is multiplied silently. Empty for a model
-  # fitted before the names were recorded.
+  # basis is rejected here. Empty when the model records no column names.
   if (
     length(model@design_names) > 0L &&
       !identical(colnames(xm), model@design_names)
@@ -2656,8 +2648,9 @@ linad_size_curve <- function(model, x, xm, y, type) {
 #'
 #' The manuscript's leaf-count selection: score the tree at every size it passed
 #' through and take the argmin, "equivalent to choosing the number of trees in
-#' gradient boosting based on validation error". Smoothing the curve first trades
-#' a little optimism for a lot of stability when the validation set is small.
+#' gradient boosting based on validation error". Smoothing the curve first
+#' reduces the variance of the selected size when the validation set is
+#' small.
 #'
 #' @param model `LinearAdditiveTree` object.
 #' @param x data.frame: Validation features, unencoded.
@@ -2693,8 +2686,8 @@ linad_select_leaves <- function(model, x, xm, y, type, smooth = FALSE) {
 #'
 #' Reference coding, not one-hot: an intercept plus a full set of level
 #' indicators is rank deficient, which leaves the leaf coefficients
-#' unidentifiable -- unacceptable for a model whose coefficients are the thing a
-#' reader is meant to look at.
+#' unidentifiable. LINAD reports its leaf coefficients, so they must be
+#' identifiable.
 #'
 #' LINAD is therefore one of the algorithms that keeps its features unencoded
 #' through the pipeline and encodes them here. It needs both forms at once: splits are searched and routed
@@ -2913,8 +2906,8 @@ linad_settings <- function(hyperparameters) {
 #' @param alpha Numeric: Elastic-net mixing.
 #' @param nvmax Integer: Forward-selection term count.
 #' @param forward_stop Character: Forward selection's per-term cost rule.
-#' @param node_test Character: Cost a side's slopes must earn over the constant
-#' alone, as `linad_node_test()` applies it.
+#' @param node_test Character: Information criterion a side's slopes must
+#' improve over the constant alone, as `linad_node_test()` applies it.
 #' @param sg Optional Numeric: `sum(w g)` over the same rows, for Equation 20.
 #' @param sh Optional Numeric: `sum(w h)` over the same rows.
 #' @param type Character: "Regression" or "Classification".
@@ -3024,7 +3017,7 @@ linad_gram_loss <- function(G, Xty, syy, b) {
 #' data, which takes the cost per feature from `O(k(n d^2 + d^3))` to
 #' `O(n d^2 + k d^3)`.
 #'
-#' Soft weighting survives the same trick. Writing `G_L` and `G_R` for the two
+#' The same accumulation applies under soft weighting. Writing `G_L` and `G_R` for the two
 #' hard-side Grams, the gamma-weighted ones are `G_L + gamma * G_R` and
 #' `gamma * G_L + G_R`, both of which the sweep already has.
 #'

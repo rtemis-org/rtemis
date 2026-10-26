@@ -59,9 +59,9 @@ html_success <- function(..., bold = TRUE) {
 #' Minus signs become `&minus;`, which is typographically the same width as a
 #' plus and so does not shift the alignment.
 #'
-#' `max_height` is not cosmetic. A model over a hundred features produces a
-#' table taller than the screen, which renders as a broken-looking tooltip and
-#' makes the browser lay out hundreds of rows on every hover.
+#' `max_height` bounds the tooltip: a model over a hundred features produces a
+#' table taller than the screen, and the browser lays out hundreds of rows on
+#' every hover.
 #'
 #' @param x data.frame: Two columns, a label and a numeric value.
 #' @param value_col Character vector: Background color per data row, length
@@ -78,8 +78,7 @@ html_success <- function(..., bold = TRUE) {
 #' @param font_col Character: Header and label color.
 #' @param value_font_col Optional Character: Color of the value text, recycled
 #' over rows. NULL picks black or white per cell from that cell's own
-#' background, which is the only choice that stays legible across a full
-#' diverging gradient.
+#' background, which stays legible across a full diverging gradient.
 #' @param font_size Character: CSS font size.
 #' @param header_bg Character: Header background.
 #' @param table_bg Character: Table background.

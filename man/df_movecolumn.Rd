@@ -9,7 +9,7 @@ df_movecolumn(x, colname, to = ncol(x))
 \arguments{
 \item{x}{data.frame.}
 
-\item{colname}{Character: Name of column you want to move.}
+\item{colname}{Character: Name of the column to move.}
 
 \item{to}{Integer: Which column position to move the vector to.}
 }

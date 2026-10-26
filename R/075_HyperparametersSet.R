@@ -13,7 +13,7 @@
 #
 # `gate_tuning_grid()` already removes the combinations that are *invalid* --
 # `nvmax` where `node_model` is "constant". This is for the ones that are
-# perfectly valid and simply not the combinations meant: LINAD's CART point is
+# valid but not the combinations intended: LINAD's CART point is
 # `node_model = "constant"` **and** `gamma = 0` **and** `learning_rate = 1`
 # **and** `line_search = "none"`, a conjunction of properties that gate nothing,
 # so no product over them can express it and no gate can exclude the cells
@@ -32,12 +32,10 @@
 #' Members share an algorithm, checked on `algorithm`, so any constructor that
 #' produces that algorithm's hyperparameters composes with a set.
 #'
-#' **A set of one is useful and is not a degenerate case.** It is how a run names
-#' its configuration: `list(baseline = setup_LINAD(...))` records `"baseline"` as
-#' the fitted model's `variant` and in the recipe, so a run says what it was
-#' without anyone reading its values back. That is why `train()` records the set
-#' it was given *before* collapsing a one-member set to its member -- collapse
-#' first and the name is nowhere in the config.
+#' **A set of one names a run's configuration.** `list(baseline =
+#' setup_LINAD(...))` records `"baseline"` as the fitted model's `variant` and
+#' in the recipe. `train()` records the set it was given before collapsing a
+#' one-member set to its member, so the name is in the config.
 #'
 #' @field variants List of `Hyperparameters` objects: Named configurations. Unnamed members are labeled
 #' by position when the set is built.
@@ -353,9 +351,8 @@ member_grid_fill <- function(member, name, n) {
 #' changes here -- and the grids are row-bound, with every row naming the member
 #' it came from in `.variant`.
 #'
-#' A member with nothing to tune still contributes one row. It is a
-#' configuration to be compared against the others, which is the whole reason a
-#' set of fixed members is a search at all.
+#' A member with nothing to tune still contributes one row, a configuration
+#' compared against the others.
 #'
 #' @param x `HyperparametersSet` object.
 #'
@@ -490,13 +487,11 @@ is_wire_hyperparameters_set <- function(x) {
 #' The wire form of a set
 #'
 #' `{"variants": {"cart": {...}, "addtree": {...}}}` -- a JSON object keyed by
-#' member name, so the names survive the round trip. They have to: the name is
-#' what the tuner reports as the winner, so a set whose names regenerated on read
-#' would report a different answer than the run that produced it.
+#' member name, so the names survive the round trip: the tuner reports the
+#' winner by name.
 #'
-#' `algorithm` is left out: it is a computed getter over the members, so the
-#' members already carry it and a set is not a document that could disagree
-#' with itself.
+#' `algorithm` is left out: it is a computed getter over the members, which
+#' carry it.
 #'
 #' @param x `HyperparametersSet` object.
 #'
@@ -551,8 +546,7 @@ method(to_json, HyperparametersSet) <- function(x, ...) {
 #' Validate every member against the data
 #'
 #' Each member is a configuration the tuner may select, so each must satisfy the
-#' data-dependent bounds -- a member whose `mtry` exceeds the feature count is
-#' not made acceptable by sitting beside one that does not.
+#' data-dependent bounds.
 #'
 #' Checked before tuning, so an unsatisfiable member is reported as such, before
 #' any grid cell runs. The message names the member, since "mtry cannot

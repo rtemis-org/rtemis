@@ -34,7 +34,7 @@ DOC_TYPE_MAP <- c(
   List = "object"
 )
 
-# Type words that are legitimate in docs but have no `PropertySpec` equivalent,
+# Type words that are valid in docs but have no `PropertySpec` equivalent,
 # i.e. they describe a plain S7 property. Not findings.
 DOC_TYPE_NONSPEC <- c(
   "Function",
@@ -43,7 +43,7 @@ DOC_TYPE_NONSPEC <- c(
 )
 
 # Property name -> a fallback `@param` name, for the case where a `setup_*`
-# argument is deliberately spelled differently from the property it sets. The
+# argument is spelled differently from the property it sets. The
 # property's own name always takes precedence; the alias is consulted only when
 # no `@param` of that name exists.
 #
@@ -620,8 +620,8 @@ audit_prop_docs <- function(r_dir, classes = NULL, aliases = PROP_DOC_ALIASES) {
     if (length(settable) == 0L) {
       # Nothing a user could set (e.g. `LOOCVConfig`: a constant discriminator
       # plus state `resample()` fills in), so there is nothing to document and
-      # a missing doc source is not a finding -- `setup_LOOCV()` correctly has
-      # no `@param` to have.
+      # a missing doc source is not a finding: `setup_LOOCV()` has no
+      # `@param`.
       next
     }
     if (length(params) == 0L) {

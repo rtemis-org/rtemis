@@ -19,9 +19,9 @@ matchcases(
 )
 }
 \arguments{
-\item{target}{data.frame you are matching against.}
+\item{target}{data.frame: Cases to match against.}
 
-\item{pool}{data.frame you are looking for matches from.}
+\item{pool}{data.frame: Cases to draw matches from.}
 
 \item{n_matches}{Integer: Number of matches to return.}
 

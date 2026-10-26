@@ -1,13 +1,10 @@
-# check_supervised.R
+# check_input_data.R
 # ::rtemis::
 # EDG rtemis.org
 
-# Notes:
-# Some algorithms do not work with variable names containing dots (SparkML)
-
 # %% check_numeric_or_factor() ----
 check_numeric_or_factor <- function(x) {
-  # check all columns are either numeric or factor and report any that are not
+  # Every column must be numeric or a factor; any other column is reported.
   non_numeric_or_factor <- which(
     !vapply(x, function(col) is.numeric(col) || is.factor(col), logical(1L))
   )

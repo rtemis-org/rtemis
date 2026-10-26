@@ -12,13 +12,13 @@
 MONOTONIC_HAL_MAX_DEGREE <- 1L
 
 # Fewest cases glmnet wants in a cross-validation fold before it stops grouping
-# them, and the fewest folds worth running.
+# them, and the fewest folds run.
 MONOTONIC_HAL_MIN_FOLD_SIZE <- 3L
 MONOTONIC_HAL_MIN_FOLDS <- 3L
 
 
 # %% monotonic_hal_nfolds ----
-#' Folds the internal cross-validation can actually support
+#' Folds the internal cross-validation can support
 #'
 #' The calibration sets this algorithm is built for are often small -- a single
 #' resample's test partition -- and `nfolds` cases split ten ways leaves folds

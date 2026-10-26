@@ -614,7 +614,7 @@ testthat::test_that("a tunable property tags its search space", {
     "array"
   )
   # The tag makes this structurally distinct from a broadcast property, which
-  # emits arrays at both depths and was previously the identical shape.
+  # emits arrays at both depths.
   testthat::expect_true(s[["x-rtemis"]][["tunable"]])
   testthat::expect_null(s[["x-rtemis"]][["broadcast"]])
   # Round trip: the value branch still leads, so the reader is unchanged.
@@ -1452,7 +1452,7 @@ test_that("a table serializes row-oriented, keeping absent and null distinct", {
   expect_match(json, '"auc":null')
   restored <- jsonlite::fromJSON(json)
   expect_identical(restored, df)
-  # A column never computed is simply absent from every row.
+  # A column never computed is absent from every row.
   absent <- as.character(jsonlite::toJSON(
     data.frame(accuracy = 0.9, label = "f1"),
     auto_unbox = TRUE,
@@ -1878,7 +1878,7 @@ test_that("no class redeclares an inherited property with a different default", 
   #
   #   B <- new_class("B", parent = A, properties = list(x = new_property(default = 99)))
   #   B@properties$x$default   # 99  <- what the schema and defaults artifact read
-  #   B()@x                    #  1  <- what actually runs
+  #   B()@x                    #  1  <- what runs
   #
   # A published default that no run can produce is worse than a missing one, so
   # the pattern is banned outright rather than worked around. It is what decides

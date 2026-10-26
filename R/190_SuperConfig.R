@@ -14,12 +14,11 @@
 #' property common to both concrete shapes -- a portable recipe naming file
 #' paths (`SuperConfigPaths`) and an in-memory recipe carrying tabular data
 #' directly (`SuperConfigTabular`) -- named for what a supervised-learning
-#' recipe *is* regardless of how its data arrives, the same idiom
-#' `ResamplerConfig`/`IngestConfig` and their leaves already use. Where a
-#' property genuinely accepts either concrete shape (e.g. a fitted
-#' `Supervised@config`, which records whichever kind of recipe trained it),
-#' typing it `NULL | SuperConfig` is the correct, precise union -- only
-#' *dispatch* on which shape a config is needs the concrete classes.
+#' recipe is regardless of how its data arrives, as `ResamplerConfig` and
+#' `IngestConfig` are for their leaves. A property that accepts either concrete
+#' shape (e.g. a fitted `Supervised@config`, which records whichever kind of
+#' recipe trained it) is typed `NULL | SuperConfig`; dispatch on the shape uses
+#' the concrete classes.
 #'
 #' @author EDG
 #' @noRd
@@ -31,11 +30,9 @@ SuperConfig <- new_class(
     list(
       # Which column is predicted, and from which. rtemis's convention is that
       # the outcome is the last column and every other column is a predictor,
-      # arranged by `set_outcome()`. That convention is fine as a default and
-      # wrong as the only expression of it: a default that is not in the config is
-      # a decision the record cannot report. Left NULL, the convention applies
-      # exactly as before; named, `train()` arranges the frame and the record
-      # says what was predicted from what.
+      # arranged by `set_outcome()`. Left NULL, the convention applies; named,
+      # `train()` arranges the frame and the record states what was predicted
+      # from what.
       outcome = prop_string(
         NULL,
         nullable = TRUE,
@@ -166,13 +163,11 @@ SuperConfigPaths <- schema_class(
       description = "Path to the held-out test data."
     ),
     # How the paths above are read. A delimited file carries no type
-    # information, so something has to decide that a column of labels is a
-    # factor rather than a string, and that decision belongs to the config: it
-    # changes what the run trains on, it is what `validate_config()` has to know
-    # to answer whether the run can work, and the record has to be able to
-    # report it. Applied to all three datasets, so their columns cannot end up
-    # typed differently from each other. Not shared with `SuperConfigTabular`:
-    # in-memory data arrives already typed, so there is nothing here to decide.
+    # information, so the config states whether a column of labels is read as a
+    # factor or a string; the setting changes what the run trains on,
+    # `validate_config()` reads it, and the record reports it. Applied to all
+    # three datasets, so their columns are typed alike. Not shared with
+    # `SuperConfigTabular`: in-memory data arrives already typed.
     character2factor = prop_boolean(
       TRUE,
       description = paste0(
@@ -505,7 +500,7 @@ setup_SuperConfig <- function(
     question = iflengthy(x[["question"]])
   )
   # `execution_config` and `verbosity` carry non-NULL defaults in
-  # `setup_SuperConfig`; only override them when the config actually supplies a
+  # `setup_SuperConfig`; only override them when the config supplies a
   # value, so a portable recipe that omits them keeps the defaults.
   if (!is.null(x[["execution_config"]])) {
     args[["execution_config"]] <- .list_to_ExecutionConfig(
@@ -539,8 +534,8 @@ setup_SuperConfig <- function(
 #' Like `SuperConfigPaths`, but carries in-memory training/validation/test
 #' data in place of file paths. Used by `rtemislive`, where uploads arrive over
 #' a WS frame.
-#' Not serializable to a config file -- in-memory data does not round-trip
-#' cleanly. Use `SuperConfigPaths` when you need on-disk reproducibility.
+#' Not serializable to a config file. `SuperConfigPaths` provides on-disk
+#' reproducibility.
 #'
 #' @author EDG
 #' @noRd

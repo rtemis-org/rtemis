@@ -172,7 +172,7 @@ one value per feature. NULL uses 1 for every feature.}
 leaf: the smooth counterpart of a case count.}
 
 \item{min_gain_to_split}{(Tunable) Numeric [0, Inf): Minimum loss reduction a split must
-buy to be made.}
+produce for the split to be made.}
 
 \item{max_delta_step}{(Tunable) Numeric: Cap on each leaf's output; 0 or less leaves it
 uncapped.}
@@ -247,10 +247,9 @@ Setup hyperparameters for LightRF training.
 }
 \details{
 Get more information from \link[lightgbm:lgb.train]{lightgbm::lgb.train}.
-Note that \code{boosting}, \code{learning_rate}, \code{bagging_freq} and
-\code{early_stopping_rounds} are \emph{constants} here: they cannot be set, because
-they are what makes \code{lightgbm} train a random forest. All of them are
-settable when training gradient boosting with LightGBM.
+\code{boosting}, \code{learning_rate}, \code{bagging_freq}, and \code{early_stopping_rounds}
+are constants here: their values make \code{lightgbm} train a random forest.
+All of them are settable in \link{setup_LightGBM}.
 }
 \examples{
 lightrf_hyperparams <- setup_LightRF(nrounds = 1000L, ifw = FALSE)

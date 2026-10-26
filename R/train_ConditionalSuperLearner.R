@@ -520,9 +520,9 @@ method(predict_super, ConditionalSuperLearner) <- function(
 # %% varimp_super.ConditionalSuperLearner ----
 #' Get the oracle's variable importance from a Conditional SuperLearner
 #'
-#' The oracle's importance answers the question the model is for: which
-#' covariates decide *which* model applies. Unlike a stacked ensemble's weights
-#' this is a genuine feature importance, over the same features the experts see.
+#' The oracle's importance states which covariates decide which model applies.
+#' Unlike a stacked ensemble's weights, it is a feature importance, over the
+#' same features the experts see.
 #'
 #' NULL when the chosen oracle reports no importance of its own.
 #'

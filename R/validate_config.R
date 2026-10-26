@@ -9,8 +9,7 @@
 #      key at every level and each `setup_*` builds an S7 object whose
 #      properties enforce their declared types, bounds, enums and arities. So
 #      the schema half of validation is that reconstruction wrapped, not a
-#      second validator beside it. Anything else would be a copy of a contract
-#      rtemis already publishes, free to drift.
+#      second validator beside it.
 #
 #   2. Is it the right config for *this* data? -- answered by the checks in
 #      `validate_data.R`, which the schema question gates: a config that will
@@ -136,16 +135,13 @@ validate_config <- function(
 # %% preflight_config ----
 #' Check a training call's configuration against its data before it runs
 #'
-#' The pre-flight [train] performs when `preflight = TRUE`. The user who most
-#' needs these checks is the one who does not know to ask for them: without it a
-#' config that cannot work is discovered by the run failing, or -- worse -- by a
-#' run that completes and reports a number computed on folds a class never
-#' reached.
+#' The pre-flight [train] performs when `preflight = TRUE`. Without it, a config
+#' that cannot work is discovered when the run fails, or when a run completes
+#' and reports a number computed on folds a class never reached.
 #'
-#' Errors stop the run, because every one of them means the run either fails or
-#' answers a different question than the caller asked. Warnings and notes are
-#' reported and the run proceeds: a warning says the result is likely not what
-#' was wanted, which is the caller's judgment to make, not this function's.
+#' Errors stop the run: each means the run would fail or answer a different
+#' question than the caller asked. Warnings and notes are reported and the run
+#' proceeds.
 #'
 #' The config is reassembled here because the inner [train] holds its
 #' configuration as separate arguments. Every property

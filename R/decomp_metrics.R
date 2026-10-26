@@ -41,8 +41,8 @@ decom_metrics <- data.frame(
     c("can_apply", "invertible"),
     c("can_apply", "invertible")
   )),
-  # Whether the metric needs data the fit never saw. The ones that do are the
-  # only reason `decomposition_metrics()` exists beside the set `decomp()` computes.
+  # Whether the metric needs data the fit never saw. `decomposition_metrics()`
+  # computes these, beyond the set `decomp()` computes.
   needs_new_data = c(
     FALSE,
     FALSE,
@@ -361,10 +361,10 @@ compute_decomposition_metrics <- function(
 #' with the right column names, holding different data. Two halves of one split
 #' have the same shape and the same names.
 #'
-#' Reported, never raised, following `warn_fingerprint_mismatch()`: scoring a
-#' fit against a deliberately altered copy of its training data is a legitimate
-#' thing to do, so this must not be escalatable to an error in a valid workflow.
-#' The hard preconditions stay errors.
+#' Reported, not raised, as in `warn_fingerprint_mismatch()`: scoring a fit
+#' against an altered copy of its training data is a valid analysis, so this
+#' does not become an error under `options(warn = 2)`. The hard preconditions
+#' remain errors.
 #'
 #' @param decom `Decomposition` object.
 #' @param x Tabular data: What the caller supplied as the fitted data.
@@ -382,10 +382,9 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
     return(invisible(FALSE))
   }
   xm <- decomp_matrix(decom, x)
-  # The case count settles it for free whenever it differs, and that case is
-  # about to abort in `compute_decomposition_metrics()` with a more specific
-  # message. Hashing first would serialize the whole frame only to report what
-  # the dimensions already said, ahead of an error that says it better.
+  # A differing case count already identifies a mismatch, and that case aborts
+  # in `compute_decomposition_metrics()` with a more specific message, so the
+  # frame is not hashed.
   if (!identical(reference@n_rows, NROW(xm))) {
     return(invisible(FALSE))
   }
@@ -428,14 +427,14 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' they are computed against the components `decom` already holds. A different
 #' number of cases is an error, and `x` failing to match
 #' `decom@data_fingerprint` is reported without raising, since scoring a fit
-#' against an altered copy of its training data is a legitimate thing to do.
+#' against an altered copy of its training data is a valid analysis.
 #'
 #' `decomp()` already stores this on its result for the data it was fitted on,
-#' so calling this without `new_data` recomputes what `decom@metrics` holds. The
-#' reason to call it is `new_data`: `reconstruction_gap` is the difference
-#' between out-of-sample and in-sample relative reconstruction error, and it is
-#' the signal that a decomposition has fitted its training cases rather than
-#' their structure.
+#' so calling this without `new_data` recomputes what `decom@metrics` holds.
+#' With `new_data` it computes `reconstruction_gap`, the difference between
+#' out-of-sample and in-sample relative reconstruction error, which indicates a
+#' decomposition that has fitted its training cases rather than their
+#' structure.
 #'
 #' Reconstruction is measured in the units of the data as it was passed to
 #' `decomp()`, so the numbers are comparable across algorithms and across

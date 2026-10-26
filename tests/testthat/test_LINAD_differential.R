@@ -9,7 +9,7 @@
 #
 # What this catches that the reduction tests cannot: the reductions pin the
 # degenerate corner -- constant leaves, a hard partition, no shrinkage -- while
-# the configuration the algorithm is actually used in has no external reference.
+# the configuration the algorithm is used in has no external reference.
 # Here the reference is written from the definition, so it covers linear leaves,
 # soft weighting and the exhaustive search directly.
 
@@ -25,7 +25,7 @@
 #' Each side is fitted by `linad_solve()` -- the function the *commit* uses, not
 #' the one the search uses -- so this reference states the search's contract
 #' rather than restating its implementation: a candidate must be scored by the
-#' model the node will actually receive. The active rows are the node's own,
+#' model the node will receive. The active rows are the node's own,
 #' resolved once as `linad_propose()` resolves them, which is the rule both
 #' sides are required to share.
 reference_sweep <- function(state, r, w, member, derivatives = NULL) {

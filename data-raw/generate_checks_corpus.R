@@ -9,7 +9,7 @@
 # `test_ValidateConfigFixtures.R` is the oracle for every implementation of
 # `checks/v1`, but it is R fixtures constructing frames: it proves rtemis
 # agrees with itself and says nothing about anything else. This records what
-# each fixture actually put in and got out --
+# each fixture put in and got out --
 #
 #     (profile, config, outcome) -> findings
 #

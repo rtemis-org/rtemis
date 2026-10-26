@@ -35,21 +35,20 @@ exchangeable.
 calibration cases and \code{alpha = 0.01} at least 99. \code{conformal()} aborts naming
 the count.
 
-\strong{\code{score} is the real choice, and only for a classification.} A regression
-has one score, \code{abs(y - yhat)}, which is what NULL resolves to.
+\strong{\code{score} is a choice for a classification only.} A regression has one
+score, \code{abs(y - yhat)}, which is what NULL resolves to.
 \itemize{
 \item \code{"APS"}, the default, accumulates the predicted probabilities from the most
-probable class down to the true one. Larger sets, markedly better coverage
-on the hard cases -- which is the reason to want a set at all.
+probable class down to the true one. It produces larger sets, with better
+coverage of the cases where the model is uncertain.
 \item \code{"LAC"} scores \code{1 - p(y)}. It produces the smallest sets attaining valid
-\emph{marginal} coverage, and it buys them by under-covering exactly the cases
-where the model is unsure. Choose it when small sets are the point and the
-trade is understood.
+\emph{marginal} coverage, and under-covers the cases where the model is
+uncertain.
 }
 
 \strong{APS is randomized} (Romano, Sesia and Candes, 2020): the true label's own
-probability enters its score multiplied by a uniform draw, one per case. That
-is not a refinement. Without it, every case whose true label ranks last
+probability enters its score multiplied by a uniform draw, one per case.
+Without it, every case whose true label ranks last
 scores exactly 1, so a model erring on more than \code{alpha} of its cases puts
 the threshold at 1 and every set holds every label -- valid coverage carrying
 no information. \code{seed} keeps the draw reproducible: left NULL, one is drawn

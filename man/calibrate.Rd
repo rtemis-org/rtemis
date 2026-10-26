@@ -62,7 +62,7 @@ A calibration map must be monotonic non-decreasing. A map that reorders
 scores changes the ranking of the predictions, and so changes AUC; a
 non-decreasing one cannot. \link{available_calibration} lists the algorithms
 that carry that guarantee. Any other \code{Hyperparameters} object is accepted
-and trained like any other model, but nothing then constrains the map.
+and trained like any other model, and the map is then unconstrained.
 \itemize{
 \item \link{setup_Isotonic} (the default) fits isotonic regression. The map is a step
 function, so it merges nearby scores into ties, which moves AUC slightly
@@ -78,8 +78,8 @@ costs accuracy whenever the correction needed is concave.
 at the cost of ties and a markedly slower fit.
 }
 
-Isotonic is the default because no monotonic lasso configuration is
-uniformly better and every one of them is several times slower.
+In rtemis benchmarks, no monotonic lasso configuration was uniformly more
+accurate than isotonic regression, and each was several times slower.
 \code{data-raw/benchmark_calibrators.R} reproduces the comparison.
 
 The calibrator that ran is recorded on the returned object's \verb{@calibrator}

@@ -46,7 +46,7 @@ learners each see one group of features.
 }
 \details{
 With a wide \code{x} formed by concatenating modalities -- imaging, genomics, labs
--- and few cases, one model per modality can beat one model over everything,
+-- and few cases, one model per modality can outperform one model over all features,
 and each modality can take the algorithm that suits it: SPLS for correlated
 blocks, LASSO for sparse ones, gradient boosting for interactions. Training is
 otherwise identical to \link{setup_SuperLearner}: cross-validated predictions from
@@ -56,8 +56,8 @@ each base learner, combined by the meta learner.
 a single \code{Hyperparameters} object as \code{base_learners} to use the same algorithm
 on every group.
 
-Whether this beats one model over the concatenated modalities is the empirical
-question it exists to answer, and two things decide it. Each base learner sees
+Two properties affect whether this outperforms one model over the
+concatenated modalities. Each base learner sees
 only its own group, so what every \emph{other} modality contributes to the outcome
 is irreducible noise to it, which can hide a real signal in a weak modality
 behind a strong one. And the default meta learner returns a convex

@@ -101,7 +101,7 @@ setup_Ranger(
 
 \item{oob_error}{Logical: If TRUE, compute the OOB prediction error. Set to FALSE to save time if only the forest is needed.}
 
-\item{save_memory}{Logical: If TRUE, use the memory-saving (slower) splitting mode. Use only if you encounter memory problems.}
+\item{save_memory}{Logical: If TRUE, use the memory-saving (slower) splitting mode.}
 
 \item{verbose}{Logical: If TRUE, show computation status and estimated runtime.}
 

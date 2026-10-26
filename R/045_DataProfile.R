@@ -4,19 +4,18 @@
 
 # What a dataset *is*, in the facts a validator needs and nothing more.
 #
-# The speech act is new. The three that came before it are a **request** (a
-# config), an **assertion** (a record) and an **annotation** (defaults); this
-# one is a **description**. It states measured facts about one dataset and makes
-# no claim about what should be done with them.
+# A profile is a **description**, beside the **request** (a config), the
+# **assertion** (a record), and the **annotation** (defaults). It states
+# measured facts about one dataset.
 #
-# It exists so that validating a config against data does not require the data.
+# Validating a config against a profile does not require the data.
 # Every data check rtemis performs reads summary statistics -- row count, column
 # types, distinct counts, missing counts, outcome level counts -- and each is a
 # single pass in any language. Publishing the description means the rtemis CLI
 # computes it in polars and evaluates the same rules without starting R
 # (~570 ms) for a check that takes under a millisecond.
 #
-# Two shapes are deliberate:
+# Two shapes:
 #
 # - **Arrays of records.** `columns` is a table with a `name` column. Small expression languages iterate
 #   arrays and cannot iterate objects, so a rule asking "which columns never
@@ -59,7 +58,7 @@
 #   categorical  sc:Text, plus a reference to an `sc:Enumeration` RecordSet
 #   other        (none -- Croissant has no atomic type for it)
 #
-# Note the direction that does not invert: `categorical` and `string` both go to
+# The mapping does not invert: `categorical` and `string` both go to
 # `sc:Text`, and only the enumeration reference tells them apart. A serializer
 # reading Croissant back must consult that reference, not `dataType` alone.
 # `PROFILE_MAX_LEVELS` also means a categorical may arrive with no level counts
@@ -79,12 +78,12 @@ PROFILE_DTYPES <- c(
 # `getnumericnames()` returns on a frame -- a Date is not one of them, because
 # `profile_dtype()` calls it temporal before `is.numeric()` sees it -- and the
 # set `validate_data.R` and `data-raw/checks.R` both read, so the run and the
-# checks cannot disagree about what a feature is.
+# checks select the same features.
 NUMERIC_DTYPES <- c("number", "integer")
 
 # Level counts are carried for a categorical column with at most this many
-# levels. An identifier column read as a category would otherwise put one row
-# per case into a document whose whole purpose is to be small.
+# levels, so an identifier column read as a category does not add one row per
+# case to the profile.
 PROFILE_MAX_LEVELS <- 64L
 
 
@@ -120,8 +119,8 @@ PROFILE_MAX_LEVELS <- 64L
 #' @field n_duplicates Optional Integer [0, Inf): Rows that repeat an earlier
 #'   row exactly. NULL when not counted.
 #' @field fingerprint Optional `DataFingerprint`: Identity of the dataset
-#'   described. NULL when not computed -- hashing is the one expensive thing
-#'   here, and a profile is often made and read in one breath. Not named `data`:
+#'   described. NULL when not computed; hashing is the one expensive operation
+#'   here. Not named `data`:
 #'   Croissant's `RecordSet.data` means embedded records, and this document is
 #'   meant to be readable beside one.
 #'
@@ -201,8 +200,8 @@ DataProfile <- schema_class(
 #' The profile's type token for one column
 #'
 #' The R half of the vocabulary. A second implementation maps its own types onto
-#' the same tokens; what must not happen is a token appearing here that
-#' `PROFILE_DTYPES` does not declare, which is why the fallback is "other".
+#' the same tokens. Every token returned is one `PROFILE_DTYPES` declares; the
+#' fallback is "other".
 #'
 #' @param x Vector: One column.
 #'

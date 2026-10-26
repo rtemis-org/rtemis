@@ -2,7 +2,7 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
-# Dataset identity for provenance records: what data a run actually used, so
+# Dataset identity for provenance records: what data a run used, so
 # that across a batch of experiments a user can tell whether runs shared an
 # input or drifted undocumented. A path alone does not establish this -- the
 # file at that path can change -- so a `DataFingerprint` pairs a content hash
@@ -69,7 +69,7 @@ DATA_HASH_SERIALIZE_VERSION <- 3L
 # A token carries its format version where the format has one, so bumping
 # `DATA_HASH_SERIALIZE_VERSION` renames the encoding and the fingerprints it
 # affects report as not comparable. Which ones it
-# affects is not obvious: v2 and v3 payloads coincide for a plain data.frame
+# affects depends on the input: v2 and v3 payloads coincide for a plain data.frame
 # and diverge for any ALTREP column, which v3 writes compactly -- exactly the
 # kind of silent, input-dependent change the token exists to make visible.
 DATA_HASH_ENCODINGS <- c(
@@ -163,10 +163,9 @@ DataFingerprint <- schema_class(
       nullable = TRUE,
       description = "Path the data was read from. Unset for in-memory input."
     ),
-    # Recorded, not asserted. Whether a second implementation reproduces a
-    # digest is a question a specification answers, and none exists; what can be
-    # stated without one is what this build actually did. Free-form for the same
-    # reason `encoding` is: a value written elsewhere must be readable here.
+    # Records the implementation that computed the digest. Free-form for the
+    # same reason `encoding` is: a value written elsewhere must be readable
+    # here.
     language = prop_string(
       "",
       description = "The language that computed the hash."
@@ -260,7 +259,7 @@ hash_data_structure <- function(x) {
 #'
 #' Computes a `DataFingerprint`: a content hash of `x` plus the structural facts
 #' (dimensions, column names) that make a mismatch between two runs diagnosable.
-#' Used to record which data a run actually used, so undocumented drift between
+#' Used to record which data a run used, so undocumented drift between
 #' experiments is visible.
 #'
 #' @param x tabular data: The dataset. Required for every method, so that
@@ -495,11 +494,10 @@ data_fingerprint <- function(
 #' table. pyarrow reproduces these digests exactly when it writes an empty
 #' metadata map (`replace_schema_metadata({})`) instead of dropping the field.
 #'
-#' So a second implementation reproduces these digests only by matching three
-#' things, none of which follows from reading the Arrow spec alone. Nothing here
-#' claims it will -- `@language` and `@data_structure` record what produced a
-#' digest instead, and the rules below are what a specification would have to
-#' pin down if one is ever written:
+#' A second implementation reproduces these digests only by matching three
+#' rules, none of which follows from the Arrow specification alone.
+#' `@language` and `@data_structure` record what produced a digest. The
+#' rules:
 #'
 #' - schema metadata is an *empty map*, not an absent field;
 #' - one record batch, since chunk boundaries are message boundaries and a
@@ -679,14 +677,13 @@ fingerprint_diff <- function(x, y) {
 # %% warn_fingerprint_mismatch ----
 #' Notify when a set of models was not trained on the same data
 #'
-#' Comparing metrics across models trained on different inputs can be a silent
-#' failure -- the numbers look comparable and may not be. Every model that
-#' carries a fingerprint is compared against the first; models without one
-#' (trained before fingerprinting, or as a nested sub-model) are skipped.
+#' Metrics of models trained on different inputs may not be comparable. Every
+#' model that carries a fingerprint is compared against the first; models
+#' without one, such as nested sub-models, are skipped.
 #'
-#' Printed as a message, never as an R warning or an error: comparing models
-#' across different data is often deliberate -- feature selection, ablations,
-#' differing preprocessing. It reports a fact; the user judges it.
+#' Printed as a message, not as an R warning or an error: comparing models
+#' across different data is common in feature selection, ablations, and
+#' preprocessing comparisons.
 #'
 #' @param models List of `Supervised` / `SupervisedRes` objects.
 #'
@@ -719,11 +716,9 @@ warn_fingerprint_mismatch <- function(models) {
   if (length(diffs) == 0L) {
     return(invisible(FALSE))
   }
-  # A printed notice, deliberately NOT a real R warning: comparing models
-  # trained on different data is often entirely legitimate (feature selection,
-  # ablations, different preprocessing), so this must not be escalatable to an
-  # error by `options(warn = 2)` in a valid workflow. It informs; it does not
-  # accuse.
+  # A printed notice, not an R warning, so `options(warn = 2)` does not turn
+  # it into an error in a workflow that compares models across data (feature
+  # selection, ablations, different preprocessing).
   rtemis.core::warn(
     "Models were not all trained on the same data. Compared to '",
     labels[[1L]],

@@ -13,7 +13,7 @@
 #' The timeline table and the kind-color map come from
 #' `session_timeline()` and `session_kind_colors()`, the shared
 #' helpers also used by rtemis.server for the rtemislive web UI, so both
-#' renderers stay in sync.
+#' renderers draw the same data.
 #'
 #' Registered as the `plot()` method for `SupervisedSession`.
 #'
@@ -61,9 +61,9 @@ draw_supervised_session <- function(
     group = "kind",
     axis_type = "value",
     tooltip = "tip",
-    # Outline failed/aborted nodes (fill still encodes the kind, so a parallel
-    # failed cell keeps its siblings' color -> the same-palette = parallel
-    # reading holds, while failures still pop via the red border).
+    # Outline failed/aborted nodes. The fill still encodes the kind, so a failed
+    # parallel cell keeps its siblings' color, and the red border marks the
+    # failure.
     border = "failed",
     xlab = "Elapsed (ms)",
     title = title,

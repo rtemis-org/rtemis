@@ -40,8 +40,8 @@ ClusteringConfig <- schema_class(
     algorithm = class_character,
     # Declared on the base as `DecompositionConfig` declares it, so every
     # algorithm shares it and the document -- not a job parameter beside it --
-    # says which columns were clustered. A subset is only a subset if it names
-    # at least two distinct columns.
+    # says which columns were clustered. A subset names at least two distinct
+    # columns.
     features = prop_string(
       NULL,
       nullable = TRUE,
@@ -89,8 +89,8 @@ method(serializable_props, ClusteringConfig) <- function(x) {
 # %% cluster_membership.ClusteringConfig ----
 # The default: no membership matrix, so `cluster()` builds a `HardClustering`.
 # An algorithm that fits one overrides this; the presence of an override is what
-# the roster test asserts, since a missing method is silently indistinguishable
-# from a genuine absence.
+# the roster test asserts, since a missing method is indistinguishable from an
+# algorithm that fits no membership.
 method(cluster_membership, ClusteringConfig) <- function(config, clust) {
   NULL
 } # /rtemis::cluster_membership.ClusteringConfig
@@ -120,7 +120,7 @@ method(assign_clusters_, ClusteringConfig) <- function(config, clust, newdata) {
 
 
 # %% cluster_k.ClusteringConfig ----
-# Deliberately an abort, not a label count. Counting distinct labels is right
+# An abort, not a label count. Counting distinct labels is correct
 # only where a backend's non-noise labels enumerate its fitted clusters; it
 # over-counts a noise sentinel and under-counts a cluster that won no case. An
 # algorithm that discovers `k` states where its count comes from.
@@ -821,8 +821,8 @@ PAMConfig <- schema_class(
   properties = list(
     algorithm = prop_algorithm("PAM"),
     # The backend's bound is `k <= n_cases - 1`, which `data_bound = "n_cases"`
-    # cannot state: it checks `<=` the dimension itself. The real bound is given
-    # in the description instead, so the published note is not off by one.
+    # cannot state: it checks `<=` the dimension itself. The bound is given in
+    # the description instead, so the published note is exact.
     k = prop_integer(
       3L,
       min = 1L,
@@ -1483,8 +1483,8 @@ setup_Nystrom <- function(sample = NULL) {
 # One variant per kernel, because the kernels take different settings: a
 # width for the Gaussian and the exponential kernels, none for the locally
 # scaled Gaussian, and only the two with a global width can be approximated
-# by the Nystrom method. One class with a `kernel` enum needed four rules to
-# say which setting went with which kernel; three classes need none.
+# by the Nystrom method. Each class carries only its kernel's settings, so no
+# cross-field rule is needed.
 #
 # The remaining 'kernlab' kernels -- polynomial, linear, hyperbolic tangent,
 # Bessel, ANOVA, spline -- are not exposed: they are inner products rather

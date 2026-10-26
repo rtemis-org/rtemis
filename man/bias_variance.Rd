@@ -63,16 +63,15 @@ The test set is held out \strong{once} and every resample is drawn from what is
 left, which is what makes the predictions comparable across resamples: a test
 set that moved would confound the model's variability with the sample's.
 }
-\section{Whether the bias is really the bias}{
+\section{Bias against true values and against observed outcomes}{
 
-Squared bias is measured against \code{true_values} when you have them, and
-against the observed outcome when you do not. The difference is not
-cosmetic:
+Squared bias is measured against \code{true_values} when supplied, and against
+the observed outcome otherwise:
 
 \describe{
 \item{With \code{true_values}}{\code{bias_squared} is the bias, exactly. Only
-simulated data has this, which is what makes a simulation study the place
-to ask how a learner divides its error.}
+simulated data has true values, so a simulation study measures how a
+learner divides its error.}
 \item{Without}{The observed outcome carries the irreducible noise, so what
 is reported is \eqn{bias^2 + \sigma^2} and no amount of resampling
 separates them. It stays comparable \strong{between learners on the same data}

@@ -370,7 +370,7 @@ dt_pctmissing <- function(x, verbosity = 1L) {
 #'   beta = c(TRUE, FALSE, TRUE, NA, TRUE),
 #'   gamma = c(FALSE, FALSE, TRUE, FALSE, NA)
 #' )
-#' # You can usee fillNA to fill NA values with a constant
+#' # `fillNA` fills NA values with a constant
 #' dt_set_logical2factor(z, cols = "beta", labels = c("No", "Yes"), fillNA = "No")
 #' z
 #' w <- data.table(mango = 1:5, banana = c(FALSE, FALSE, TRUE, TRUE, FALSE))
@@ -417,8 +417,8 @@ dt_set_logical2factor <- function(
 
 #' Inspect column types
 #'
-#' Will attempt to identify columns that should be numeric but are either character or
-#' factor by running [inspect_type] on each column.
+#' Identifies columns that may be numeric but are stored as character or factor, by running
+#' [inspect_type] on each column.
 #'
 #' @param x data.table: Input data.table.
 #' @param cols Character vector: columns to inspect.
@@ -454,9 +454,9 @@ dt_inspect_types <- function(x, cols = NULL, verbosity = 1L) {
 
 #' Set column types automatically
 #'
-#' This function inspects a data.table and attempts to identify columns that should be
-#' numeric but have been read in as character, and fixes their type ***in-place***.
-#' This can happen when one or more fields contain non-numeric characters, for example.
+#' Inspects a data.table, identifies columns that hold numbers but were read as character,
+#' and converts their type ***in-place***. Such columns arise, for example, when one or more
+#' fields contain non-numeric characters.
 #'
 #' @param x data.table: Input data.table. Will be modified ***in-place***, if needed.
 #' @param cols Character vector: columns to work on. If not defined, will work on all

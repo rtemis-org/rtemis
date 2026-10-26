@@ -18,8 +18,8 @@
 #' under `what = "all"`; explicit unavailable samples are errors.
 #'
 #' Comparison labels use `model_names`, complete list names, or algorithm
-#' names, made unique in that order. The existing rtemis data-fingerprint
-#' mismatch notice is retained, including when descriptions are disabled.
+#' names, made unique in that order. A data-fingerprint mismatch notice is
+#' printed, including when descriptions are disabled.
 #'
 #' @section Default plots:
 #' `plot()` on a fitted model draws the view `present()` returns, without the
@@ -403,7 +403,7 @@ method(present, class_list) <- function(
   records <- comparison_data(x, metric, model_names, what)
   names(x) <- records[["models"]]
   # This producer-owned notice compares only available fingerprints and remains
-  # a notice (not an R warning) for legitimate comparisons across input data.
+  # a notice (not an R warning) for comparisons across input data.
   warn_fingerprint_mismatch(x)
   present_description(x, verbosity, records[["metric"]])
   comparison_drawing(

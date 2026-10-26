@@ -12,9 +12,8 @@ LINAD_NODE_MARGIN_Y <- 9L
 # two sides.
 LINAD_NODE_BORDER <- 1L
 
-# What the layout must reserve beyond the estimated text width. Derived rather
-# than written down, so changing the margin cannot silently reintroduce
-# overlaps.
+# What the layout must reserve beyond the estimated text width, derived from
+# the margin so that a change to the margin keeps nodes apart.
 LINAD_NODE_PADDING <- 2L * LINAD_NODE_MARGIN_X + LINAD_NODE_BORDER
 
 
@@ -98,14 +97,12 @@ linad_palette <- function(colors) {
 # %% linad_diverging ----
 #' Map values to a diverging color scale centered on zero
 #'
-#' Centered on zero deliberately, and never on the data's own midpoint: the
-#' thing a reader is looking for is a coefficient changing **sign** between
-#' nodes, and that only reads as a color flip if zero is the pivot.
+#' Centered on zero, not on the data's midpoint, so a coefficient changing sign
+#' between nodes shows as a color flip.
 #'
 #' The range is taken across every value passed in, so one call must cover every
-#' table that will be shown together. Coloring each node's table against its
-#' own range would make the same coefficient a different color in each, which
-#' is precisely the comparison the plot exists to support.
+#' table that will be shown together; a coefficient then has the same color in
+#' every node's table.
 #'
 #' @param x Numeric vector: Values, from every table at once.
 #' @param lo_col Character: Color for the most negative value.
@@ -212,13 +209,12 @@ linad_node_rule <- function(frame, node) {
 # %% linad_layout ----
 #' Coordinates for a tree, guaranteeing no two nodes overlap
 #'
-#' vis.js's own hierarchical layout will not do this. Its `nodeSpacing` is
+#' vis.js's hierarchical layout does not guarantee this. Its `nodeSpacing` is
 #' applied to a nominal node size rather than to the rendered box, so a node
 #' whose label makes it wide overlaps its siblings regardless -- measured at 12
 #' overlapping pairs on a 23-node tree, unchanged by turning the layout's
 #' optimizations off and barely changed by raising `nodeSpacing` to 500.
-#' Computing the coordinates here and handing vis.js fixed positions makes
-#' overlap impossible.
+#' The coordinates are computed here and passed to vis.js as fixed positions.
 #'
 #' Separation is **per pair**, from the two nodes' own widths, so a narrow node
 #' sits close to its neighbors.
@@ -313,9 +309,8 @@ linad_layout <- function(
 #' `cap`, so the estimate is bounded above by the cap and cannot run away on a
 #' long feature name.
 #'
-#' Deliberately generous. Underestimating a width would let two boxes touch,
-#' which is the one outcome the layout exists to prevent; overestimating only
-#' costs a little whitespace.
+#' The estimate errs high: an underestimate lets two boxes touch, while an
+#' overestimate adds whitespace.
 #'
 #' @param labels Character vector: Node labels, newline-separated lines.
 #' @param font_size Numeric: Font size in pixels.
@@ -406,14 +401,11 @@ linad_term_marks <- function(model, shown) {
 #' coefficients in a table on hover.
 #'
 #' @details
-#' The coefficient tables are the point. A LINAD leaf's coefficients are the
-#' accumulated sum along its path, so the same feature can carry a different
-#' slope in each region of the data -- and sometimes a different **sign**. That
-#' is the model's central interpretive claim, and it is only visible by
-#' comparing the table at one node against the table at another. The color
-#' scale is therefore
-#' diverging and centered on zero, and computed once across every table, so a
-#' sign change reads as a color flip.
+#' A LINAD leaf's coefficients are the accumulated sum along its path, so the
+#' same feature can carry a different slope, and a different sign, in each
+#' region of the data. The coefficient tables show this when compared across
+#' nodes. The color scale is diverging, centered on zero, and computed once
+#' across every table, so a sign change shows as a color flip.
 #'
 #' Each node's label carries `node_value`, what the **tree alone** predicts
 #' there, while the table on hover carries what the **linear model** adds. The
@@ -587,11 +579,10 @@ draw_linad <- function(
   # Coefficient tables ----
   # Column 1 is dropped. It is not a fitted intercept -- the
   # node models are fitted without one, on a centered design -- but
-  # `constant - center'slopes`, the algebraic cost of re-expressing the fit in
-  # the uncentered form prediction needs. So it is the model's value at x = 0,
-  # which for features living near 0.4 is a long extrapolation and reads as
-  # nonsense beside an outcome it does not resemble. `node_value` is the level,
-  # and it is what the caption carries.
+  # `constant - center'slopes`, which re-expresses the fit in the uncentered
+  # form prediction needs. It is the model's value at x = 0, an extrapolation
+  # for features far from 0. `node_value` is the level, and the caption carries
+  # it.
   coefficients <- model@coefficients[shown, -1L, drop = FALSE]
   labels <- colnames(coefficients)
   # Where each coefficient came from: pinned globally, or set by this node.
@@ -632,9 +623,8 @@ draw_linad <- function(
     }
     data.frame(Term = terms, Coefficient = unname(values[index]))
   })
-  # One gradient across every table: the same coefficient must be the same
-  # color in every node, or the comparison the plot exists for is defeated
-  # silently.
+  # One gradient across every table, so the same coefficient has the same color
+  # in every node.
   slopes <- unlist(lapply(tables, function(tab) tab[["Coefficient"]]))
   slope_cols <- linad_diverging(slopes, lo_col, mid_col, hi_col)
   offsets <- cumsum(c(0L, vapply(tables, NROW, integer(1L))))

@@ -54,8 +54,8 @@ calibration_execution <- function(execution_config) {
 #' class.
 #'
 #' @details
-#' Important: The calibration model's training data should be different from the classification
-#' model's training data.
+#' The calibration model is trained on data other than the classification model's training
+#' data.
 #'
 #' @param x `Classification` object.
 #' @param predicted_probabilities Numeric vector \[0, 1\]: Predicted

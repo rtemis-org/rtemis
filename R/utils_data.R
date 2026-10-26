@@ -87,8 +87,8 @@ method(describe, class_factor) <- function(
 #' Find one or more cases from a `pool` data.frame that match cases in a target
 #' data.frame. Match exactly and/or by distance (sum of squared distances).
 #'
-#' @param target data.frame you are matching against.
-#' @param pool data.frame you are looking for matches from.
+#' @param target data.frame: Cases to match against.
+#' @param pool data.frame: Cases to draw matches from.
 #' @param n_matches Integer: Number of matches to return.
 #' @param target_id Character: Column name in `target` that holds unique
 #' cases IDs. If NULL, integer case numbers will be used.
@@ -348,8 +348,8 @@ names_by_class <- function(
 #' @details
 #' All data can be represented as a character string. A numeric variable may be read as
 #' a character variable if there are non-numeric characters in the data.
-#' It is important to be able to automatically detect such variables and convert them,
-#' which would mean introducing NA values.
+#' Such variables are detected so they can be converted to numeric, which
+#' introduces NA values.
 #'
 #' @param x Character or factor vector.
 #' @param xname Character: Name of input vector `x`.

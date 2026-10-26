@@ -3,7 +3,7 @@
 # 2026- EDG rtemis.org
 
 # Observability session: captures the execution graph of a train() run as a flat,
-# append-only list of node records. See specs/observability.md for the full design.
+# append-only list of node records.
 
 # %% SupervisedSession ----
 #' SupervisedSession Class
@@ -149,7 +149,7 @@ session_format_duration <- function(t_start, t_end) {
   secs <- as.numeric(difftime(t_end, t_start, units = "secs"))
   if (secs < 1) {
     ms <- secs * 1000
-    # A value that rounds to "0 ms" under %.0f was actually below 0.5 ms; say so.
+    # A value that rounds to "0 ms" under %.0f is below 0.5 ms and prints as such.
     if (ms < 1) "<0.5 ms" else sprintf("%.0f ms", ms)
   } else if (secs < 60) {
     sprintf("%.1f s", secs)
@@ -186,7 +186,7 @@ session_label_suffix <- function(rec) {
 # %% --- Ambient session lifecycle ----
 # The active session lives at a single fixed key `live[["session"]]` (a mutable
 # environment), so node_enter()/node_exit() and nested train() calls find "the current
-# session" with no arguments. See specs/observability.md section 3.
+# session" with no arguments.
 
 # %% session_start ----
 #' Start an observability session
@@ -497,7 +497,7 @@ session_current_node <- function() {
 session_render <- function(rec, phase, verbosity = 1L) {
   # Console rendering of the execution graph is diagnostic detail, off by default. The
   # recorder (graph) and the sink (wire) fire regardless; only this console path is gated,
-  # at verbosity >= 2. See specs/observability.md section 6.
+  # at verbosity >= 2.
   if (is.null(verbosity) || verbosity < 2L) {
     return(invisible(NULL))
   }
@@ -568,8 +568,8 @@ node_meta <- function(meta, node_id = NULL) {
 #'
 #' Records an already-finished node under the current stack top without pushing the stack.
 #' Used to reconstruct nodes for work that ran in daemons (e.g. grid cells), where the
-#' host knows the dispatched structure and fills status/meta from returned results. See
-#' specs/observability.md section 4. No-op when no session is active.
+#' host knows the dispatched structure and fills status/meta from returned results.
+#' No-op when no session is active.
 #'
 #' @param kind Character: Node kind.
 #' @param label Optional Character: Label.
@@ -624,8 +624,7 @@ session_add_node <- function(
 #'
 #' Merges the flat event log a worker produced -- an outer fold that ran in a daemon and
 #' therefore built its own session -- into the host session beneath `parent_id`. This is
-#' what keeps the execution graph of a parallel run identical to a sequential one; see
-#' `specs/observability.md` section 4.
+#' what keeps the execution graph of a parallel run identical to a sequential one.
 #'
 #' @details
 #' Node ids are per-session counters (`n1`, `n2`, ...), so ids from two workers collide by
@@ -634,8 +633,8 @@ session_add_node <- function(
 #'
 #' The worker's own root node is discarded and its children attached directly to
 #' `parent_id`. The host node already stands for that same `train()` call, so keeping both
-#' would give a parallel run one more level of nesting than a sequential one -- the
-#' opposite of the point. A log with no single root (which a session cannot produce) has
+#' would give a parallel run one more level of nesting than a sequential one. A log with
+#' no single root (which a session cannot produce) has
 #' every root attached instead, so nothing is silently dropped.
 #'
 #' Records are appended straight to the node table and never pushed onto `stack`: folds
@@ -785,8 +784,8 @@ method(session_timeline, SupervisedSession) <- function(x) {
   ) {
     to_ms(finished)
   } else if (all(is.na(starts_ms))) {
-    # Degenerate session (no finish time, no recorded starts): fall back to 0 so
-    # we never propagate -Inf (and its warning) into the bar geometry.
+    # Degenerate session (no finish time, no recorded starts): 0, so -Inf (and
+    # its warning) does not reach the bar geometry.
     0
   } else {
     max(starts_ms, na.rm = TRUE)
@@ -1058,7 +1057,7 @@ session_kind_colors <- function(kinds = NULL) {
 #'
 #' Derives all counts from the session graph and
 #' prints a structured summary: how many models were trained, broken out, with
-#' succeeded/failed and elapsed time. See specs/observability.md section 8.
+#' succeeded/failed and elapsed time.
 #'
 #' @param session `SupervisedSession` object or NULL.
 #' @param verbosity Integer: Verbosity.

@@ -177,7 +177,7 @@ test_that("a binary explanation is on the margin, not the probability", {
     as.numeric(probability[, "pos"]),
     tolerance = 1e-10
   )
-  # ...and without it they are simply different numbers.
+  # ...and without it they are different numbers.
   expect_false(
     isTRUE(all.equal(
       as.numeric(reconstructed),

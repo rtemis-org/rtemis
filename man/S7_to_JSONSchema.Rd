@@ -44,19 +44,14 @@ optional, so omitted fields fall back to their \verb{setup_*} defaults on read
 (matching \link{write_config}'s compaction). Ignored when \code{record} is TRUE.}
 
 \item{record}{Logical: If TRUE, emit the \strong{record} form of the schema: the
-same properties, but every one required. A record states what a run
-actually used, so nothing in it may fall back to a reader's defaults -- an
-unset value is written as an explicit \code{null}. The
-difference between an input schema and a record schema is exactly this;
-membership is identical.}
+same properties, but every one required. A record states what a run used,
+so every field is present, and an unset value is written as an explicit
+\code{null}. Input and record schemas have identical membership.}
 
 \item{asserted}{Logical: If TRUE, emit an \strong{assertion} schema: the input
-form, but with every property required. For a results class -- a document
-rtemis produces rather than one a caller authors, and which has no record
-sibling to carry the requirement. The config contract's reason for omitting
-\code{required} is that a config is a partial expression of intent; a results
-document asserts fact, so the record's rule applies to it and not the
-config's. Mutually exclusive with \code{record}.}
+form, but with every property required. For a results class: a document
+rtemis produces, with no record sibling. Mutually exclusive with
+\code{record}.}
 
 \item{provenance_url}{Character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{provenance} property referencing that schema. Only a top-level
@@ -65,8 +60,7 @@ record carries it; a nested one inherits its parent's.}
 \item{session_url}{Character or NULL: If set (and \code{record} is TRUE), adds a
 required, nullable \code{session} property referencing that schema -- the
 reference to the execution graph written beside the record. Nullable
-because a run can produce no session: a pipeline result records none, and a
-model fitted before sessions existed has none to write.}
+because a run can produce no session: a pipeline result records none.}
 
 \item{fold_refs}{Named character or NULL: If set (and \code{record} is TRUE), adds
 a required \code{folds} array whose entries reference these record schemas. Only
@@ -101,10 +95,8 @@ assembles a draft 2020-12 JSON Schema. Which properties take part is decided
 by their declared role (see \code{prop_role()}), not by a list kept here:
 \code{"config"} and \code{"state"} properties are generated from their spec, state
 being marked \code{readOnly}, while \code{"computed"} and \code{"r_only"} properties are
-omitted -- the first because everything it derives from is published, the
-second because it has no wire form at all. A spec-less property with no role
-is an error, so a class that drifts from the factory vocabulary fails schema
-generation.
+omitted: the first is derived from published fields, and the second has no
+wire form. A spec-less property with no role is an error.
 }
 \examples{
 \dontrun{

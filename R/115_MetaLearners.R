@@ -402,9 +402,8 @@ ModalityStackingHyperparameters <- schema_class(
 #' `data_bound = "feature_names"` covers membership, but two rules it cannot
 #' express are enforced here: that groups were supplied at all, and that they
 #' name the same learners as the library. Neither can go in the class
-#' `validator`, which fires at construction -- `setup_ModalityStacking()` has to
-#' construct with no arguments, and a config is in any case a partial expression
-#' of intent until it meets data.
+#' `validator`, which fires at construction: `setup_ModalityStacking()`
+#' constructs with no arguments.
 #'
 #' @param hyperparameters `ModalityStackingHyperparameters`: Hyperparameters to
 #' check.
@@ -458,7 +457,7 @@ method(
 #'
 #' @details
 #' With a wide `x` formed by concatenating modalities -- imaging, genomics, labs
-#' -- and few cases, one model per modality can beat one model over everything,
+#' -- and few cases, one model per modality can outperform one model over all features,
 #' and each modality can take the algorithm that suits it: SPLS for correlated
 #' blocks, LASSO for sparse ones, gradient boosting for interactions. Training is
 #' otherwise identical to [setup_SuperLearner]: cross-validated predictions from
@@ -468,8 +467,8 @@ method(
 #' a single `Hyperparameters` object as `base_learners` to use the same algorithm
 #' on every group.
 #'
-#' Whether this beats one model over the concatenated modalities is the empirical
-#' question it exists to answer, and two things decide it. Each base learner sees
+#' Two properties affect whether this outperforms one model over the
+#' concatenated modalities. Each base learner sees
 #' only its own group, so what every *other* modality contributes to the outcome
 #' is irreducible noise to it, which can hide a real signal in a weak modality
 #' behind a strong one. And the default meta learner returns a convex

@@ -363,8 +363,8 @@ glmnet_coefficients <- function(model) {
 #'
 #' The elastic net is linear on its link scale, so `phi_j = beta_j * (x_j -
 #' E[x_j])` is exact and closed-form. Regularization shrinks the coefficients
-#' and so shrinks the contributions with them, which is the intended reading: a
-#' feature the penalty zeroed contributed nothing to this prediction.
+#' and so shrinks the contributions with them: a feature the penalty zeroed
+#' contributes nothing to the prediction.
 #'
 #' `glmnet` builds its design with `model.matrix(~., newdata)`, as
 #' `predict_super()` does, so that expansion is undone here.

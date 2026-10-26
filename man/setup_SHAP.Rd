@@ -50,9 +50,9 @@ returned explanation, so explanations computed differently are told apart.
 dependence between features, attributing to what the model \emph{uses}: a feature
 the model ignores gets zero even if it predicts the outcome perfectly.
 \code{"conditional"} respects the joint distribution, attributing to what the
-case's features \emph{tell you}, so a correlated proxy for a used feature receives
-credit. Neither is the correct one -- debugging a model wants the first,
-reasoning about a subject wants the second.
+case's features carry information about, so a correlated proxy for a used
+feature receives credit. The first describes the model's computation; the
+second describes the case.
 
 \strong{\code{scale} decides whether the contributions add up.} They are additive on
 the scale they are computed on. For regression that is the outcome and there
@@ -60,7 +60,7 @@ is nothing to choose. For classification the model's additive scale is the
 margin, and probability is a nonlinear transform of it, so contributions on
 the probability scale do \strong{not} sum to the predicted probability.
 
-\strong{\code{estimator} is normally best left alone.} \code{"auto"} uses the exact
+\strong{\code{estimator} defaults to \code{"auto"},} which uses the exact
 estimator wherever the algorithm has one and the model-agnostic kernel
 estimator otherwise; \code{explanation_traits()} reports which applies where.
 

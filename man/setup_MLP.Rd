@@ -124,10 +124,9 @@ is an error. The generated profiles are
 AutoPyTorch. \code{shape_max_units} defaults to four times the encoded input
 width, clamped to [64, 512] and never below that width.
 
-The tabular deep-learning benchmarks tune and publish \emph{constant}-width MLPs,
-so \code{shape = "constant"} is what to compare against even though \code{funnel} is
-the better default before tuning on the small-n, wide-p data rtemis is usually
-pointed at.
+The published tabular deep-learning benchmarks tune constant-width MLPs;
+\code{shape = "constant"} reproduces that architecture. The default is
+\code{funnel}.
 
 \strong{Tuning.} \code{hidden_units} is tunable like any other hyperparameter, with one
 architecture per candidate:
@@ -161,8 +160,8 @@ torch optimizer applies, decoupled from the gradient under \code{adamw};
 \code{l1_penalty} has no torch equivalent and is accumulated over the linear
 weights and added to the loss.
 
-\strong{Batch normalization and dropout interact badly} when combined; both are
-off by default.
+\strong{Batch normalization and dropout} can degrade training when combined; both
+are off by default.
 
 \strong{The scheduler takes no settings of its own} -- each configures itself from
 the run's budget: \code{step} decays by 0.1 every \code{max_epochs / 3} epochs,

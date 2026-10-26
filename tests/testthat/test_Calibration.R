@@ -268,7 +268,7 @@ test_that("Unpenalized MonotonicHAL at order 0 approximates Isotonic", {
 test_that("MonotonicHAL calibration survives degenerate inputs", {
   skip_if_not_installed("hal9001")
   # None of these may hang or return NaN. They are the inputs a calibration
-  # set can genuinely take when a resample is small or a fold is unlucky.
+  # set can take when a resample is small or a fold is unlucky.
   fit_ok <- function(score, labels) {
     p <- tryCatch(
       calibrated_probs(
@@ -346,7 +346,7 @@ test_that("calibrate() defaults to Isotonic on ClassificationRes", {
 test_that("calibrate() honors an explicit MonotonicHAL request", {
   skip_if_not_installed("hal9001")
   # No substitution in either direction: the caller named an algorithm and the
-  # object must report the one that actually ran.
+  # object must report the one that ran.
   mod <- train(
     datc2_train,
     dat_test = datc2_test,

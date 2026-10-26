@@ -21,13 +21,13 @@ List with \code{steps} (a data.table of \code{feature}, \code{value} and
 \code{contribution}), \code{baseline}, \code{predicted}, \code{case} and \code{class}.
 }
 \description{
-The three things a per-case explanation is: where the prediction would have
-started, what each feature did to it, and where it ended.
+The three parts of a per-case explanation: the baseline, each feature's
+contribution, and the prediction.
 }
 \details{
 Shaped here, following \code{session_timeline()}: the
 table is the shared input for rtemis.draw's chart and for rtemislive, so both
-show the same thing, and it is useful on its own without either.
+show the same values.
 
 Features are ordered by the magnitude of their contribution, which is the
 order a waterfall reads in, and each carries the value it took for this case

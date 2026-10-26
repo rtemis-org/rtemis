@@ -13,22 +13,19 @@
 #' @param sep Character: Field delimiter/separator.
 #' @param header Logical: If TRUE, first line will be read as column names.
 #' @param quotechar Character: Quote character.
-#' @param ignore_errors Logical: If TRUE, ignore parsing errors (sometimes it's
-#' either this or no data, so).
+#' @param ignore_errors Logical: If TRUE, ignore parsing errors.
 #' @param make_unique Logical: If TRUE, keep only unique rows.
 #' @param select_columns Character vector: Column names to select.
 #' @param filter_column Character: Name of column to filter on, e.g. "ID".
 #' @param filter_vals Numeric or Character vector: Values in `filter_column` to keep.
-#' `filter_column` to keep.
 #' @param character2factor Logical: If TRUE, convert character columns to
 #' factors.
 #' @param collect Logical: If TRUE, collect data and return structure class
 #' as defined by `returnobj`.
-#' @param progress Logical: If TRUE, print progress (no indication this works).
+#' @param progress Logical: If TRUE, enable the DuckDB progress bar.
 #' @param returnobj Character: "data.frame" or "data.table" object class to
 #' return. If "data.table", data.frame object returned from
-#' `DBI::dbGetQuery` is passed to `data.table::setDT`; will add to
-#' execution time if very large, but then that's when you need a data.table.
+#' `DBI::dbGetQuery` is passed to `data.table::setDT`.
 #' @param data.table.key Character: If set, this corresponds to a column name in the
 #' dataset. This column will be set as key in the data.table output.
 #' @param clean_colnames Logical: If TRUE, clean colnames with

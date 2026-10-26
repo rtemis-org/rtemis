@@ -99,8 +99,8 @@ decomp <- function(
   # exactly those columns or the replay transforms a different matrix.
   # `x` is features-only here: there is no outcome column to exclude. Unset
   # means every numeric column, resolved here and written back so the fit, the
-  # record and the replay name the same columns -- what `train()` already does
-  # for the decomposition step it runs.
+  # record and the replay name the same columns, as `train()` does for the
+  # decomposition step it runs.
   x <- as.data.frame(x)
   if (is.null(config@features)) {
     config@features <- resolve_unsupervised_features(x, "Decomposition")
@@ -108,8 +108,7 @@ decomp <- function(
   # Against the frame as supplied, so that `features` is checked against every
   # column the caller has and a per-case setting against every row. Both
   # paths, because a bound that is not about the feature selection -- CMeans'
-  # per-case `weights` -- is wrong just as often when the selection was left
-  # to us.
+  # per-case `weights` -- applies whether or not the selection was supplied.
   check_data_bounds(config, x, has_outcome = FALSE)
   x <- x[, config@features, drop = FALSE]
 

@@ -25,7 +25,7 @@ quantiles and conformalizes the pair with the score
 amount. Adaptive width, same finite-sample guarantee.
 
 \strong{It needs a backend that answers a quantile query from the model already
-fitted.} Today that is Ranger trained with \code{setup_Ranger(quantreg = TRUE)}:
+fitted.} That is Ranger trained with \code{setup_Ranger(quantreg = TRUE)}:
 a quantile regression forest keeps the training outcomes at its terminal
 nodes, so one fit answers every level. A gradient booster on the \code{quantile}
 objective targets the single level it was trained for, so a pair of bounds

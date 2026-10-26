@@ -4,8 +4,7 @@
 
 # The clustering metric set, declared once. `clustering_metric_columns()` and
 # `clustering_status_columns()` are both generated from `CLUSTERING_MEASURES`,
-# so a measure cannot exist as a value without a status or the reverse, and the
-# two vocabularies cannot drift.
+# so every measure has both a value column and a status column.
 #
 # A status sits beside the value because `NA` alone conflates a measure that
 # was computed and came out undefined, one the result cannot support, one
@@ -223,7 +222,7 @@ ClusteringMetrics <- schema_class(
     role = "document",
     slug = "clusteringmetrics",
     title = "rtemis ClusteringMetrics",
-    description = "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column -- null alone cannot distinguish a measure that was computed and came out undefined from one nobody asked for.",
+    description = "Clustering metrics: a single-row table of measure values beside a row of statuses saying why each holds what it does. Every measure is declared for every algorithm, so one an algorithm cannot support is null with a status of \"unsupported\" rather than an absent column; null alone does not distinguish a measure that was computed and came out undefined from one not requested.",
     order = 9L,
     kind = "report"
   )

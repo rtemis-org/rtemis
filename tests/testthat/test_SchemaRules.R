@@ -75,8 +75,8 @@ test_that("parallel dispatch rules agree across R, JSON Schema, and reconstructi
 
 test_that("no clustering variant carries a cross-property rule", {
   # The spectral variants and the PAMK criterion are one class per shape, so
-  # what used to be four rules on one class is now structure. A rule coming
-  # back here means a shape defect: split the variant or nest the pair.
+  # the constraints are expressed by structure. A rule here means a shape
+  # defect: split the variant or nest the pair.
   for (leaf in schema_catalog()[["families"]][["clustering"]][["algorithms"]]) {
     cls <- leaf[["cls"]]
     expect_length(schema_rules(cls), 0L)

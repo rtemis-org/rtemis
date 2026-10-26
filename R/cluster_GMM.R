@@ -12,7 +12,7 @@
 #' `Mclust()` builds its own call and evaluates it in the caller's frame --
 #' `mc[[1]] <- as.name("mclustBIC")` -- so the name it constructs resolves
 #' through the search path rather than through the namespace. rtemis reaches
-#' every backend by `::`, which loads without attaching, and the call then dies
+#' every backend by `::`, which loads without attaching, and the call then fails
 #' with "could not find function 'mclustBIC'".
 #'
 #' Evaluating in an environment whose parent *is* the namespace puts those

@@ -15,8 +15,8 @@ setup_RandomPartition(train_p = 0.75, seed = NULL)
 \code{RandomPartitionConfig} object.
 }
 \description{
-A uniformly random split -- the right default when nothing about row order
-or grouping is meaningful.
+A uniformly random split. Row order and grouping play no part in the
+assignment.
 }
 \examples{
 setup_RandomPartition(train_p = 0.8, seed = 2026L)

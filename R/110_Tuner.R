@@ -16,10 +16,6 @@
 # `Tuner` class and subclasses create objects that store tuning results.
 # They are created by `tune()`.
 
-# Dev
-# Should both class constructors (e.g. GridSearch@constructor) and setup functions
-# (e.g. setup_GridSearch) perform type checking and validation?
-
 # %% TunerConfig ----
 #' TunerConfig
 #'

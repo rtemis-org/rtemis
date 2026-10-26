@@ -16,7 +16,7 @@ get_fitted_config(preprocessor)
 \verb{@config} holds what the user asked for and \verb{@values} what preprocessing
 learned, which keeps the input intact -- but re-applying to new data needs
 the two merged, and so does a run record, which must report the values
-actually used. One merge, so the two cannot disagree.
+used. One merge, so the two cannot disagree.
 }
 \details{
 The merged fields are settable inputs: supplying \code{scale_centers} makes

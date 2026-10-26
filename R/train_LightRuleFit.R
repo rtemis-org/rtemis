@@ -111,7 +111,8 @@ method(train_, LightRuleFitHyperparameters) <- function(
   nclasses <- if (type == "Classification") nlevels(x[[ncol(x)]]) else 1L
 
   # IFW for LightGBM ----
-  # See setup_LightRuleFit: You can choose to use IFW for both steps with `ifw = TRUE` OR control each steps individually using `ifw_lightgbm` and `ifw_glmnet`.
+  # See setup_LightRuleFit: `ifw = TRUE` applies IFW to both steps, and
+  # `ifw_lightgbm` and `ifw_glmnet` control each step individually.
   lightgbm_weights <- if (hyperparameters[["ifw_lightgbm"]]) {
     ifw(x[[ncol(x)]], verbosity = verbosity)
   } else {

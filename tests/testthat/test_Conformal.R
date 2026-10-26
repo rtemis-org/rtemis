@@ -40,7 +40,7 @@
 }
 
 
-# Three classes with genuinely overlapping conditional distributions, so the
+# Three classes with overlapping conditional distributions, so the
 # Bayes error is well away from zero and a prediction set has something to say.
 .conformal_clf <- function(n, seed = NULL) {
   if (!is.null(seed)) {
@@ -558,8 +558,8 @@ test_that("a validation split is not taken as calibration data", {
 
 test_that("a test split that fitted the probability calibrator is refused", {
   # `calibrate()` takes the probabilities to fit on as an argument, and the
-  # test split's are a natural thing to hand it. Where that happened, the split
-  # is no longer exchangeable with a fresh case.
+  # test split's are a common choice. Where that happened, the split is not
+  # exchangeable with a fresh case.
   x <- .conformal_clf(400L, seed = 21L)
   x[["y"]] <- factor(ifelse(x[["y"]] == "A", "yes", "no"))
   mod <- .split_model(x, 200L, 100L, setup_GLM())

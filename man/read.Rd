@@ -83,7 +83,7 @@ characters to factors
 \details{
 \code{read} is a convenience function to read:
 \itemize{
-\item \strong{Delimited} files using \code{data.table:fread()}, \code{arrow:read_delim_arrow()},
+\item \strong{Delimited} files using \code{data.table::fread()}, \code{arrow::read_delim_arrow()},
 \code{vroom::vroom()}, or \code{duckdb::duckdb_read_csv()}
 \item \strong{ARFF} files using \code{farff::readARFF()}
 \item \strong{Parquet} files using \code{nanoparquet::read_parquet} or \code{arrow::read_parquet()}

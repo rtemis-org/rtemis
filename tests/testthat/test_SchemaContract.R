@@ -354,7 +354,7 @@ test_that("setup formals agree with class-owned resolution defaults", {
 test_that("every setup_* export is classified", {
   skip_on_cran()
   # So a `setup_*` written years from now cannot escape the check above by
-  # simply not being listed: it must be paired with the class it builds, or
+  # not being listed: it must be paired with the class it builds, or
   # classified as a deprecated wrapper or declared to have no schema.
   setup_fns <- grep("^setup_", getNamespaceExports("rtemis"), value = TRUE)
   expect_gt(length(setup_fns), 0L)
@@ -816,8 +816,8 @@ test_that("a record carries exactly the keys its record schema requires", {
     setup <- get(entry[["setup"]], envir = asNamespace("rtemis"))
     # A bare call has a default for every formal (the whole contract's
     # premise), but a default is not always a *usable* one: `setup_Custom()`
-    # takes `resamples = NULL` and then rejects NULL, deliberately -- there is
-    # no meaningful empty Custom resampler, only a config that has not been
+    # takes `resamples = NULL` and then rejects NULL: there is no empty Custom
+    # resampler, only a config that has not been
     # told its resamples yet. That class's record shape is covered on its own
     # below, with real resamples.
     object <- tryCatch(setup(), error = function(e) NULL)
@@ -825,10 +825,9 @@ test_that("a record carries exactly the keys its record schema requires", {
       next
     }
     # A shared `setup_*`, where one exists, builds one variant of its family,
-    # so only the variant it actually builds is checked here; the others are
+    # so only the variant it builds is checked here; the others are
     # covered by the schema-shape tests above. Every resampler constructor is
-    # now dedicated to its own leaf, so this guard no longer excludes any of
-    # them.
+    # dedicated to its own leaf, so this guard excludes none of them.
     if (!S7_inherits(object, cls)) {
       next
     }

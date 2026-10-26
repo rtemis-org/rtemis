@@ -189,8 +189,8 @@ setup_DecomposeConfig <- function(
     }
   )
   # `execution_config`, `outdir` and `verbosity` carry non-NULL defaults in
-  # `setup_DecomposeConfig`; only override them when the config actually
-  # supplies a value, so a portable recipe that omits them keeps the defaults.
+  # `setup_DecomposeConfig`; only override them when the config supplies a
+  # value, so a portable recipe that omits them keeps the defaults.
   if (!is.null(x[["execution_config"]])) {
     args[["execution_config"]] <- .list_to_ExecutionConfig(
       x[["execution_config"]]

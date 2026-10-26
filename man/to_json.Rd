@@ -31,8 +31,8 @@ The default method walks the class's \emph{published} properties (see
 primitive properties as-is. A computed view or an R-only value is omitted:
 the first is recoverable from what is published, and the second has no wire
 form at all, so emitting either would put a value on the wire that no schema
-declares. Per-class methods override where the default isn't appropriate
-(e.g. where some props should be excluded for size or relevance reasons).
+declares. Per-class methods override the default, for example to exclude
+properties for size.
 }
 \examples{
 to_json(check_data(iris))

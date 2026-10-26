@@ -370,7 +370,7 @@ for (abandon_plan in c(
 # %% train() with parallel outer resampling ----
 # CART is not a parallelized learner and needs no tuning, so the worker ladder assigns
 # every worker to the outer folds -- the branch this file exercises. `xval` makes rpart's
-# pruning cross-validation draw from the RNG, so the run is genuinely seed-dependent.
+# pruning cross-validation draw from the RNG, so the run is seed-dependent.
 parallel_dat <- local({
   set.seed(2026L)
   n <- 120L

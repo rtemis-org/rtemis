@@ -71,7 +71,7 @@
   diags[[1L]]
 }
 
-# For the few shapes that genuinely trip two checks -- a column that is
+# For the few shapes that trip two checks -- a column that is
 # entirely missing is both un-imputable and non-varying -- pull out the one
 # under test. Reach for `.only()` first; a fixture that needs this should say
 # in a comment why both findings are right.

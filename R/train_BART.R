@@ -146,8 +146,8 @@ method(train_, BARTHyperparameters) <- function(
   variance_forest_num_trees <- hyperparameters[["variance_forest_num_trees"]]
   # The sampler holds the global error variance fixed under a non-identity
   # link and under a heteroskedastic model, and the leaf scale fixed under
-  # cloglog. Declaring that up front keeps it from warning about ignoring a
-  # request rtemis never intended to make.
+  # cloglog. Declaring that up front avoids the sampler's warning that it
+  # ignored a request rtemis does not make.
   sample_sigma2_global <- type == "Regression" &&
     variance_forest_num_trees == 0L
   max_depth <- hyperparameters[["max_depth"]]

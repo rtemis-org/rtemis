@@ -21,8 +21,8 @@
 #' By convention, the last column of the data is the outcome variable, and all other columns are
 #' predictors. Convenience function [set_outcome] can be used to move a specified column to the
 #' end of the data.
-#' Regression and Classification is performed using `train()`.
-#' This function allows you to preprocess, train, tune, and test models on multiple resamples.
+#' Regression and Classification is performed using `train()`, which preprocesses, trains,
+#' tunes, and tests models on multiple resamples.
 #' Use [available_supervised] to get a list of available algorithms
 #'
 #' @section Classification:
@@ -48,8 +48,8 @@
 #' @section Tabular Data:
 #' \pkg{rtemis} internally uses methods for efficient handling of tabular data, with support for
 #' `data.frame`, `data.table`, and `tibble`. If a function is documented as accepting
-#' "tabular data", it should work with any of these data structures. If a function is documented
-#' as accepting only one of these, then it should only be used with that structure.
+#' "tabular data", it accepts any of these data structures. A function documented as accepting
+#' only one of these accepts only that structure.
 #' For example, some optimized `data.table` operations that perform in-place modifications only
 #' work with `data.table` objects.
 #'
@@ -59,9 +59,9 @@
 #'
 #' @name rtemis-package
 #' @import stats methods graphics S7 data.table rtemis.core
-# rtemis.core exports `gray()` (colored text); exclude grDevices::gray() to
-# avoid masking it, matching the previous local definition. Use
-# `grDevices::gray()` explicitly where the grayscale palette is needed.
+# rtemis.core exports `gray()` (colored text); grDevices::gray() is excluded so
+# it does not mask it. `grDevices::gray()` is called explicitly where the
+# grayscale palette is needed.
 #' @importFrom utils tail
 #' @rawNamespace import(grDevices, except = gray)
 "_PACKAGE"

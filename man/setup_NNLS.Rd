@@ -20,13 +20,12 @@ NNLSHyperparameters object.
 Setup hyperparameters for non-negative least squares.
 }
 \details{
-NNLS fits \code{y ~ Xb} subject to \code{b >= 0}, with no intercept. It exists as the
+NNLS fits \code{y ~ Xb} subject to \code{b >= 0}, with no intercept. It is the
 default meta learner of the stacked meta learners (\link{setup_SuperLearner},
 \link{setup_ModalityStacking}), where the predictors are the base learners'
 cross-validated predictions and a non-negative, sum-to-one coefficient vector
-is the ensemble weighting. It is a poor general-purpose learner: with no
-intercept and a sign constraint it can only fit outcomes that the predictors
-already span.
+is the ensemble weighting. With no intercept and a sign constraint, it fits
+only outcomes in the cone the predictors span.
 
 With \code{normalize = TRUE} the coefficients are scaled to sum to 1, so the fit is
 a convex combination of the predictors. For classification the outcome is

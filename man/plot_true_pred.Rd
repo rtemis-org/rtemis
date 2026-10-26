@@ -37,8 +37,8 @@ when available, preserving the producer's class order. Otherwise it counts
 aligned reference/predicted pairs. An omitted \code{what} selects test, validation,
 then training for an ordinary classifier, or all available samples for a
 resampled classifier. Multiple samples share one widget and one export.
-Balanced accuracy in this view is macro recall; it is not the legacy
-multiclass average of one-versus-rest balanced accuracies. See
+Balanced accuracy in this view is macro recall, not the multiclass average
+of one-versus-rest balanced accuracies. See
 \link[rtemis.draw:ConfusionConfig]{rtemis.draw::ConfusionConfig} for zero-denominator and pooled-count semantics.
 }
 \examples{

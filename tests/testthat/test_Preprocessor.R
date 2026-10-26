@@ -491,7 +491,7 @@ test_that("preprocessed() returns data.tables the caller can modify by reference
 
 
 test_that("preprocess leaves the caller's object alone", {
-  # A data.table is the one that can actually be written through: `set()` and
+  # A data.table is the one that can be written through: `set()` and
   # `:=` bypass copy-on-modify, so the entry copy is what stops
   # `preprocess(dt, ...)` from rewriting the caller's table.
   dt <- data.table::as.data.table(pre_fixture)

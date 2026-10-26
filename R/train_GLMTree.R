@@ -261,8 +261,8 @@ method(predict_super, class_glmtree) <- function(
 #' constant-fit trees, and none for a model-based tree: `varimp()` has no
 #' `modelparty` method. Each leaf carries its own coefficients over the same
 #' regressors, and there is no accepted way to reduce a set of per-subgroup
-#' models to one number per feature -- a large coefficient in one leaf and its
-#' negative in another is a real effect, and averaging reports nothing.
+#' models to one number per feature: a large coefficient in one leaf and its
+#' negative in another is an effect that an average would cancel.
 #'
 #' The method therefore returns NULL, and `explain()` is the route to a
 #' per-feature measure: `get_varimp(explain(mod, newdata))`.

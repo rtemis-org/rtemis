@@ -263,7 +263,7 @@ method(varimp_super, class_spls) <- function(model) {
 #'
 #' The sparse PLS coefficients on the coded outcome, which is a single column
 #' for binary classification and one per class for multiclass. The latter is
-#' not yet supported as `VariableImportance`.
+#' not supported as `VariableImportance`.
 #'
 #' @param model `splsda` model.
 #'
@@ -354,8 +354,8 @@ method(explain_super, class_spls) <- function(
 #' constant, so there is no single margin per class to decompose.
 #'
 #' The margin is `qlogis()` of what `predict_super()` returns, so the
-#' contributions decompose the probability this package actually reports rather
-#' than a quantity read out of the fit's internals.
+#' contributions decompose the probability this package reports rather than a
+#' quantity read out of the fit's internals.
 #'
 #' @param model `splsda` object.
 #' @param newdata tabular data: Cases to explain.

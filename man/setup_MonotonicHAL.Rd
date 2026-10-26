@@ -47,22 +47,19 @@ binomial one; \code{hal9001} has no multinomial family, so multiclass
 classification is not supported.
 
 The intended use is probability calibration, where the single feature is a
-classifier's score. Monotonicity is what makes that safe: a calibration map
-that reorders scores changes the ranking and so changes AUC, and a
-non-decreasing map cannot. Pass it to \link{calibrate} to use it instead of the
+classifier's score. A non-decreasing calibration map preserves the ranking
+of scores, and so AUC. Pass it to \link{calibrate} to use it instead of the
 default calibrator, \link{setup_Isotonic}.
 
 Relative to \code{Isotonic}, which is the other monotonic calibrator, this fits on
-the logit scale, so it does not saturate at 0 and 1 the way the boundary
-bins of isotonic regression do -- it can still round to an endpoint in
-double precision
-when the input scores are themselves extreme. At \code{smoothness_orders = 1} it
+the logit scale, so it does not saturate at 0 and 1 as the boundary bins of
+isotonic regression do; it can round to an endpoint in double precision
+when the input scores are extreme. At \code{smoothness_orders = 1} it
 is strictly increasing rather than a step function, so it introduces no ties
 and leaves AUC unchanged.
 
-\code{smoothness_orders} is the one substantive choice. 0 fits indicator basis
-functions and recovers a step function; 1 fits piecewise linear splines and
-yields a continuous map.
+\code{smoothness_orders} 0 fits indicator basis functions and yields a step
+function; 1 fits piecewise linear splines and yields a continuous map.
 
 \code{penalized = FALSE} removes the lasso penalty, giving the non-parametric
 maximum likelihood estimate over the monotonic class. Combined with
@@ -71,12 +68,12 @@ parameterization.
 
 \code{lambda} is selected by cross-validation inside the fit and is not a search
 dimension. \code{seed} fixes that cross-validation's fold assignment; \code{nfolds}
-and \code{use_min} control it. Calibration sets are often small, so \code{nfolds} is
-an upper bound: training backs off to as many folds as the data supports at
-three cases each, and says so at \code{verbosity >= 1}.
+and \code{use_min} control it. \code{nfolds} is an upper bound: training uses at most
+as many folds as the data supports at three cases each, and reports the
+number at \code{verbosity >= 1}.
 
 \code{get_varimp()} reports the same two measures as \code{setup_HAL}, \code{importance}
-and \code{max_coefficient}. Both are of limited use at a single feature.
+and \code{max_coefficient}.
 }
 \examples{
 monotonichal_hyperparams <- setup_MonotonicHAL(smoothness_orders = 0L)
