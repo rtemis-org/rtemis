@@ -73,14 +73,7 @@ method(cluster_, PAMConfig) <- function(
 #' @author EDG
 #' @keywords internal
 #' @noRd
-clustpredict_PAM <- function(clust, newdata = NULL) {
-  # `cluster` exposes no predict method for a `pam` fit.
-  if (!is.null(newdata)) {
-    rtemis.core::abort(
-      "PAM cannot assign new data to fitted clusters.",
-      class = c("rtemis_unsupported_error", "rtemis_error")
-    )
-  }
+clustpredict_PAM <- function(clust) {
   partition_clusters(clust)
 } # /rtemis::clustpredict_PAM
 
@@ -159,13 +152,6 @@ method(cluster_k, PAMKConfig) <- function(config, clust) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-clustpredict_PAMK <- function(clust, newdata = NULL) {
-  # Neither `pam` nor `clara` exposes a predict method.
-  if (!is.null(newdata)) {
-    rtemis.core::abort(
-      "PAMK cannot assign new data to fitted clusters.",
-      class = c("rtemis_unsupported_error", "rtemis_error")
-    )
-  }
+clustpredict_PAMK <- function(clust) {
   partition_clusters(clust[["pamobject"]])
 } # /rtemis::clustpredict_PAMK

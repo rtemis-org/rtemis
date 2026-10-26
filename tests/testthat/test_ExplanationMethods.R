@@ -9,7 +9,7 @@
 # a model by the wrong method rather than failing, so the table's agreement with
 # the rest of the package is asserted here in both directions.
 
-methods_table <- explanation_methods()
+methods_table <- explanation_traits()
 
 
 # %% Table shape ----
@@ -85,15 +85,15 @@ test_that("every registered algorithm has exactly one row, and no others do", {
 })
 
 
-test_that("explanation_methods() returns the whole table or one row", {
-  expect_identical(nrow(explanation_methods("Ranger")), 1L)
+test_that("explanation_traits() returns the whole table or one row", {
+  expect_identical(nrow(explanation_traits("Ranger")), 1L)
   # Matched case-insensitively, like every other algorithm name in the API.
   expect_identical(
-    explanation_methods("ranger"),
-    explanation_methods("Ranger")
+    explanation_traits("ranger"),
+    explanation_traits("Ranger")
   )
   expect_error(
-    explanation_methods("NoSuchAlgorithm"),
+    explanation_traits("NoSuchAlgorithm"),
     class = "rtemis_value_error"
   )
 })
@@ -116,8 +116,8 @@ test_that("the exact tier is the algorithms with additive structure to read", {
   # HAL default to a search that allows one; a multiclass GAM has one linear
   # predictor per non-reference class.
   expect_true(all(is.na(
-    explanation_methods()[["exact"]][
-      explanation_methods()[["name"]] %in%
+    explanation_traits()[["exact"]][
+      explanation_traits()[["name"]] %in%
         c("MARS", "HAL", "MonotonicHAL", "GAM")
     ]
   )))
@@ -130,11 +130,11 @@ test_that("the two SVMs get different estimators despite one backend class", {
   # The reason the table dispatches rather than the fitted object's class:
   # both are `e1071::svm`, and `explain_super.class_svm` is one method.
   expect_identical(
-    explanation_methods("LinearSVM")[["estimator"]],
+    explanation_traits("LinearSVM")[["estimator"]],
     "LinearSHAP"
   )
   expect_identical(
-    explanation_methods("RadialSVM")[["estimator"]],
+    explanation_traits("RadialSVM")[["estimator"]],
     "KernelSHAP"
   )
 })

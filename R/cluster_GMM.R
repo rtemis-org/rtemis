@@ -105,15 +105,7 @@ method(cluster_membership, GMMConfig) <- function(config, clust) {
 #' @author EDG
 #' @keywords internal
 #' @noRd
-clustpredict_GMM <- function(clust, newdata = NULL) {
-  # New data is refused. Assigning it would call `predict.Mclust()`, which
-  # needs the same namespace handling as the fit.
-  if (!is.null(newdata)) {
-    rtemis.core::abort(
-      "GMM cannot assign new data to fitted clusters.",
-      class = c("rtemis_unsupported_error", "rtemis_error")
-    )
-  }
+clustpredict_GMM <- function(clust) {
   # `$classification` is the argmax of `$z`, already 1:G, but stored as double.
   as.integer(clust[["classification"]])
 } # /rtemis::clustpredict_GMM

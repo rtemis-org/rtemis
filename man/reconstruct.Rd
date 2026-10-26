@@ -13,7 +13,7 @@ reconstruct(decom, x, execution_config = NULL, verbosity = 1L)
 reconstruct. Its columns must match those \code{decom} was fitted on.}
 
 \item{execution_config}{Optional \code{ExecutionConfig} object: Threads for
-encoding \code{x}, as in \link{apply_decomp}. \code{NULL} uses the host's default worker
+encoding \code{x}, as in \code{\link[=apply_decomposition]{apply_decomposition()}}. \code{NULL} uses the host's default worker
 count.}
 
 \item{verbosity}{Integer: Verbosity level.}
@@ -27,7 +27,7 @@ Encode data with a fitted decomposition and decode it back, giving the
 rank-\code{k} approximation of the input in its original units and column layout.
 }
 \details{
-The round trip \link{apply_decomp} leaves half-done. The reconstruction is \code{x}
+The round trip \code{\link[=apply_decomposition]{apply_decomposition()}} leaves half-done. The reconstruction is \code{x}
 with everything outside the first \code{k} components removed, i.e. a denoised
 \code{x}. The residual, \code{x - reconstruct(decom, x)}, is what the decomposition
 could not represent: \code{rowMeans(residual^2)} scores how anomalous each case

@@ -34,11 +34,11 @@ Decomposition <- new_class(
     # `decomp()`.
     decompose_config = NULL | DecomposeConfig,
     # Identity of the data fitted, assigned by `decomp()`. Read by
-    # `provenance_of()` for the run record, and by `decomp_metrics()` to tell
+    # `provenance_of()` for the run record, and by `decomposition_metrics()` to tell
     # whether the `x` it was handed is that data.
     data_fingerprint = NULL | DataFingerprint,
     # Metrics for the training data, assigned by `decomp()`. Out-of-sample
-    # metrics need a second data matrix and so belong to `decomp_metrics()`.
+    # metrics need a second data matrix and so belong to `decomposition_metrics()`.
     metrics = NULL | DecompositionMetrics
   )
 ) # /rtemis::Decomposition
@@ -62,6 +62,12 @@ method(`[[`, Decomposition) <- function(x, name) {
 }
 
 
+# %% transformed.Decomposition ----
+method(transformed, Decomposition) <- function(x) {
+  data.table::as.data.table(x@transformed)
+} # /rtemis::transformed.Decomposition
+
+
 # %% get_metrics.Decomposition ----
 method(get_metrics, Decomposition) <- function(
   x,
@@ -72,7 +78,7 @@ method(get_metrics, Decomposition) <- function(
     x,
     sample = sample,
     calibrated = calibrated,
-    new_data_hint = " Use decomp_metrics() to compute the metrics of new data."
+    new_data_hint = " Use decomposition_metrics() to compute the metrics of new data."
   )
 } # /rtemis::get_metrics.Decomposition
 
@@ -156,7 +162,7 @@ split_decomp_features <- function(decom, new_data) {
 #'
 #' Everything that has to agree about "the data this decomposition saw" goes
 #' through here -- the fingerprint `decomp()` stores, the fingerprint
-#' `decomp_metrics()` compares against it, and the matrix the metrics are
+#' `decomposition_metrics()` compares against it, and the matrix the metrics are
 #' computed from. The matrix form is what makes the two fingerprints comparable:
 #' an "object" hash is taken over serialized bytes, and a data.frame and the
 #' data.table it came from carry their attributes in a different order, so they
@@ -176,18 +182,18 @@ decomp_matrix <- function(decom, data) {
 } # /rtemis::decomp_matrix
 
 
-# %% apply_decomp.Decomposition ----
-#' Apply Decomposition to New Data
+# %% apply_decomposition ----
+#' Apply a Decomposition to New Data
 #'
 #' Apply a fitted decomposition to new data for algorithms that support this.
 #'
-#' @param decom Decomposition object.
+#' @param decom `Decomposition` object.
 #' @param new_data Tabular data (data.frame, data.table, or tibble): New data to which the
 #'   decomposition will be applied.
 #' @param execution_config Optional `ExecutionConfig` object: Threads for an
 #'   algorithm whose `threaded` trait is TRUE are its `n_workers_algorithm`, or
 #'   its worker count. `NULL` uses the host's default worker count.
-#' @param verbosity Integer: Verbosity level
+#' @param verbosity Integer: Verbosity level.
 #'
 #' @details
 #' A fit is learned on the columns `decom@config@features` names, so only those
@@ -198,45 +204,18 @@ decomp_matrix <- function(decom, data) {
 #' them. A `Decomposition` assembled by hand with no `features` transforms
 #' every column of `new_data` and returns only the components.
 #'
+#' Available for algorithms whose `can_apply` trait is TRUE; see
+#' [decomposition_traits]. [transformed()] returns the components of the data
+#' the decomposition was fitted on.
+#'
 #' @return A data.frame of the learned components for `new_data`, preceded by any
 #' feature columns that were not decomposed.
+#'
 #' @author EDG
 #' @export
 #' @examples
 #' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
-#' apply_decomp(iris_pca, exc(iris, "Species"))
-apply_decomp <- function(
-  decom,
-  new_data,
-  execution_config = NULL,
-  verbosity = 1L
-) {
-  apply_decomposition(
-    decom,
-    new_data,
-    execution_config = execution_config,
-    verbosity = verbosity
-  )
-} # /rtemis::apply_decomp
-
-
-# %% apply_decomposition ----
-#' Apply a fitted decomposition
-#'
-#' The internal half of `apply_decomp()`, for callers that hold the pipeline's
-#' own execution config: `train()` and `predict()`.
-#'
-#' @param decom `Decomposition` object.
-#' @param new_data Tabular data.
-#' @param execution_config Optional `ExecutionConfig`: Where the fit is
-#' applied; NULL means the host's defaults.
-#' @param verbosity Integer: Verbosity level.
-#'
-#' @return data.frame, as `apply_decomp()`.
-#'
-#' @author EDG
-#' @keywords internal
-#' @noRd
+#' apply_decomposition(iris_pca, exc(iris, "Species"))
 apply_decomposition <- function(
   decom,
   new_data,
@@ -273,6 +252,41 @@ apply_decomposition <- function(
 } # /rtemis::apply_decomposition
 
 
+# %% apply_decomp ----
+#' Apply Decomposition to New Data (Deprecated)
+#'
+#' `apply_decomp()` is deprecated. Use [apply_decomposition()], which takes the
+#' same arguments.
+#'
+#' @inheritParams apply_decomposition
+#'
+#' @return As [apply_decomposition()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' suppressWarnings(apply_decomp(iris_pca, exc(iris, "Species")))
+apply_decomp <- function(
+  decom,
+  new_data,
+  execution_config = NULL,
+  verbosity = 1L
+) {
+  base::.Deprecated(
+    new = "apply_decomposition",
+    package = "rtemis",
+    old = "apply_decomp"
+  )
+  apply_decomposition(
+    decom,
+    new_data,
+    execution_config = execution_config,
+    verbosity = verbosity
+  )
+} # /rtemis::apply_decomp
+
+
 # %% reconstruct.Decomposition ----
 #' Reconstruct Data from a Decomposition
 #'
@@ -280,7 +294,7 @@ apply_decomposition <- function(
 #' rank-`k` approximation of the input in its original units and column layout.
 #'
 #' @details
-#' The round trip [apply_decomp] leaves half-done. The reconstruction is `x`
+#' The round trip [apply_decomposition()] leaves half-done. The reconstruction is `x`
 #' with everything outside the first `k` components removed, i.e. a denoised
 #' `x`. The residual, `x - reconstruct(decom, x)`, is what the decomposition
 #' could not represent: `rowMeans(residual^2)` scores how anomalous each case
@@ -301,7 +315,7 @@ apply_decomposition <- function(
 #' @param x Tabular data (data.frame, data.table, or tibble): Data to
 #' reconstruct. Its columns must match those `decom` was fitted on.
 #' @param execution_config Optional `ExecutionConfig` object: Threads for
-#' encoding `x`, as in [apply_decomp]. `NULL` uses the host's default worker
+#' encoding `x`, as in [apply_decomposition()]. `NULL` uses the host's default worker
 #' count.
 #' @param verbosity Integer: Verbosity level.
 #'

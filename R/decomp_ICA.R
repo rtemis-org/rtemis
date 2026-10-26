@@ -74,7 +74,7 @@ method(decomp_, ICAConfig) <- function(
   )
   check_inherits(decom, "list")
   # Store the column means used by fastICA for centering so the same projection
-  # (S = X_centered %*% K %*% W) can be applied to new data via apply_decomp().
+  # (S = X_centered %*% K %*% W) can be applied to new data via apply_decomposition().
   decom[["rtemis_center"]] <- colMeans(xm)
   transformed <- decom[["S"]]
   colnames(transformed) <- paste0("ICA_", seq_len(NCOL(transformed)))

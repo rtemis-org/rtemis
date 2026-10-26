@@ -4,10 +4,11 @@
 \alias{session_timeline}
 \title{Session Execution Timeline Table}
 \usage{
-session_timeline(session)
+session_timeline(x)
 }
 \arguments{
-\item{session}{\code{SupervisedSession}: Session object, e.g. \code{model@session}.}
+\item{x}{\code{Supervised} or \code{SupervisedRes} model, or the \code{SupervisedSession}
+it carries.}
 }
 \value{
 \code{data.table} with one row per node in depth-first order and columns:
@@ -36,12 +37,13 @@ timeline renderers. \code{rtemis.server} consumes it for the \code{job.result}
 
 Nodes that never closed (status \code{"running"} or \code{"aborted"} with no end time)
 are drawn up to the session finish time when known, else to the latest
-recorded node start.
+recorded node start. A session that recorded no nodes, and a model that
+carries no session, have a timeline of zero rows.
 }
 \examples{
 mod <- train(iris, hyperparameters = setup_CART())
 # One row per recorded node, depth-first: the run, then the steps under it.
-session_timeline(mod@session)
+session_timeline(mod)
 }
 \author{
 EDG

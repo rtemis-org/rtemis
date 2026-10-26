@@ -27,5 +27,7 @@ method(decomp_, IsomapConfig) <- function(
     path = config[["path"]]
   )
   check_inherits(decom, "isomap")
-  list(decom = decom, transformed = decom[["points"]])
+  transformed <- decom[["points"]]
+  colnames(transformed) <- paste0("Isomap_", seq_len(NCOL(transformed)))
+  list(decom = decom, transformed = transformed)
 } # /rtemis::decomp_.IsomapConfig

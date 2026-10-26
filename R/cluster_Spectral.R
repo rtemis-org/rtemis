@@ -164,13 +164,7 @@ method(cluster_, SpectralLocalConfig) <- function(
 #'
 #' @keywords internal
 #' @noRd
-clustpredict_SpectralRBF <- function(clust, newdata = NULL) {
-  if (!is.null(newdata)) {
-    rtemis.core::abort(
-      "Spectral clustering cannot assign new data to fitted clusters.",
-      class = c("rtemis_unsupported_error", "rtemis_error")
-    )
-  }
+clustpredict_SpectralRBF <- function(clust) {
   check_inherits(clust, "specc")
   # `specc` holds the k-means assignment over the embedding in its `.Data`
   # part, already 1:k. It carries the input's row names, which are not data.

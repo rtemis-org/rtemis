@@ -698,7 +698,7 @@ method(train_, MLPHyperparameters) <- function(
     config = mlp_preprocessor_config(embeddings),
     verbosity = verbosity - 1L
   )
-  dat <- as.data.frame(preprocessed(prp))
+  dat <- as.data.frame(prp@preprocessed)
   categorical_features <- names(prp@values[["factor2integer_levels"]]) %||%
     character()
   numeric_features <- setdiff(names(dat), categorical_features)

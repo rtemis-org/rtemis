@@ -5,8 +5,8 @@
 x <- exc(iris, "Species")
 
 # Derivation ----
-test_that("applicable_metrics() is derived from the traits table", {
-  matrix_form <- applicable_metrics()
+test_that("decomposition_metric_traits() is derived from the traits table", {
+  matrix_form <- decomposition_metric_traits()
   expect_identical(matrix_form[["name"]], decom_metrics[["name"]])
   for (algorithm in decom_algorithms[["name"]]) {
     traits <- decomposition_traits(algorithm)
@@ -22,23 +22,25 @@ test_that("applicable_metrics() is derived from the traits table", {
 })
 
 
-test_that("applicable_metrics() reflects what each trait buys", {
+test_that("decomposition_metric_traits() reflects what each trait buys", {
   # Reconstruction needs an inverse; component metrics need nothing.
   expect_true(all(
     c("explained_variance_ratio", "reconstruction_rmse") %in%
-      applicable_metrics("PCA")[["name"]]
+      decomposition_metric_traits("PCA")[["name"]]
   ))
   expect_false(any(
     c("explained_variance_ratio", "reconstruction_rmse") %in%
-      applicable_metrics("UMAP")[["name"]]
+      decomposition_metric_traits("UMAP")[["name"]]
   ))
   expect_true(
-    "max_abs_component_correlation" %in% applicable_metrics("tSNE")[["name"]]
+    "max_abs_component_correlation" %in%
+      decomposition_metric_traits("tSNE")[["name"]]
   )
   # UMAP applies to new data but does not invert, so it gets no out-of-sample
   # reconstruction either.
   expect_false(
-    "oos_explained_variance_ratio" %in% applicable_metrics("UMAP")[["name"]]
+    "oos_explained_variance_ratio" %in%
+      decomposition_metric_traits("UMAP")[["name"]]
   )
 })
 
@@ -54,7 +56,7 @@ test_that("the metrics computed are exactly the metrics derived as applicable", 
     } else {
       decomp(x, algorithm = algorithm, verbosity = 0L)
     }
-    applicable <- applicable_metrics(algorithm)
+    applicable <- decomposition_metric_traits(algorithm)
     expected <- applicable[["name"]][!applicable[["needs_new_data"]]]
     populated <- names(decom@metrics@metrics)[
       !is.na(unlist(decom@metrics@metrics))
@@ -214,7 +216,7 @@ test_that("component metrics are defined for a non-invertible embedding", {
 
 
 # Out of sample ----
-test_that("decomp_metrics() adds out-of-sample metrics only with new_data", {
+test_that("decomposition_metrics() adds out-of-sample metrics only with new_data", {
   train <- x[1:100, ]
   test <- x[101:150, ]
   decom <- decomp(
@@ -224,7 +226,7 @@ test_that("decomp_metrics() adds out-of-sample metrics only with new_data", {
     verbosity = 0L
   )
 
-  in_sample <- decomp_metrics(decom, train, verbosity = 0L)
+  in_sample <- decomposition_metrics(decom, train, verbosity = 0L)
   expect_s7_class(in_sample, DecompositionMetrics)
   expect_true(is.na(in_sample[["oos_explained_variance_ratio"]]))
   expect_true(is.na(in_sample[["reconstruction_gap"]]))
@@ -234,7 +236,12 @@ test_that("decomp_metrics() adds out-of-sample metrics only with new_data", {
     decom@metrics[["relative_reconstruction_error"]]
   )
 
-  out_of_sample <- decomp_metrics(decom, train, new_data = test, verbosity = 0L)
+  out_of_sample <- decomposition_metrics(
+    decom,
+    train,
+    new_data = test,
+    verbosity = 0L
+  )
   expect_false(is.na(out_of_sample[["oos_explained_variance_ratio"]]))
   expect_equal(
     out_of_sample[["reconstruction_gap"]],
@@ -246,7 +253,7 @@ test_that("decomp_metrics() adds out-of-sample metrics only with new_data", {
 })
 
 
-test_that("decomp_metrics() refuses new_data for an algorithm that cannot use it", {
+test_that("decomposition_metrics() refuses new_data for an algorithm that cannot use it", {
   skip_if_not_installed("Rtsne")
   # tSNE has no out-of-sample extension, so there is nothing to project.
   deduplicated <- preprocess(
@@ -256,7 +263,7 @@ test_that("decomp_metrics() refuses new_data for an algorithm that cannot use it
   )@preprocessed
   decom <- decomp(deduplicated, algorithm = "tSNE", verbosity = 0L)
   expect_error(
-    decomp_metrics(
+    decomposition_metrics(
       decom,
       deduplicated,
       new_data = deduplicated,
@@ -279,8 +286,8 @@ test_that("metrics read only the features the decomposition was fitted on", {
     config = setup_PCA(k = 1L, features = features),
     verbosity = 0L
   )
-  full <- decomp_metrics(decom, x, verbosity = 0L)
-  subset_only <- decomp_metrics(decom, x[, features], verbosity = 0L)
+  full <- decomposition_metrics(decom, x, verbosity = 0L)
+  subset_only <- decomposition_metrics(decom, x[, features], verbosity = 0L)
   expect_equal(
     full[["relative_reconstruction_error"]],
     subset_only[["relative_reconstruction_error"]]
@@ -290,12 +297,17 @@ test_that("metrics read only the features the decomposition was fitted on", {
     decom@metrics[["relative_reconstruction_error"]]
   )
   # `new_data` carries the extra columns too and is subset the same way.
-  oos <- decomp_metrics(decom, x, new_data = x[101:150, ], verbosity = 0L)
+  oos <- decomposition_metrics(
+    decom,
+    x,
+    new_data = x[101:150, ],
+    verbosity = 0L
+  )
   expect_false(is.na(oos[["oos_relative_reconstruction_error"]]))
 })
 
 
-test_that("decomp_metrics() rejects an `x` that is not the fitted data", {
+test_that("decomposition_metrics() rejects an `x` that is not the fitted data", {
   # The stored components are the fit's own, so they describe the fitted cases
   # and nothing else. A case count that cannot be theirs says so.
   decom <- decomp(
@@ -305,12 +317,12 @@ test_that("decomp_metrics() rejects an `x` that is not the fitted data", {
     verbosity = 0L
   )
   expect_error(
-    decomp_metrics(decom, x, verbosity = 0L),
+    decomposition_metrics(decom, x, verbosity = 0L),
     class = "rtemis_dim_error"
   )
   # And it aborts without first hashing to say the same thing less precisely.
   expect_error(
-    expect_no_message(decomp_metrics(decom, x, verbosity = 1L)),
+    expect_no_message(decomposition_metrics(decom, x, verbosity = 1L)),
     class = "rtemis_dim_error"
   )
 })
@@ -330,7 +342,7 @@ test_that("a same-shape, same-names, different-values `x` is caught", {
   expect_identical(dim(first), dim(second))
   expect_identical(names(first), names(second))
   expect_message(
-    decomp_metrics(decom, second, verbosity = 1L),
+    decomposition_metrics(decom, second, verbosity = 1L),
     "same shape and column names, different values"
   )
 })
@@ -348,7 +360,7 @@ test_that("decomp() fingerprints the features it decomposed", {
   expect_s7_class(decom@data_fingerprint, DataFingerprint)
   # The columns it did not decompose are not data it used.
   expect_identical(decom@data_fingerprint@column_names, features)
-  expect_true(same_data(
+  expect_true(is_same_data(
     decom@data_fingerprint,
     data_fingerprint(as.matrix(as.data.frame(x)[, features, drop = FALSE]))
   ))
@@ -365,11 +377,11 @@ test_that("the fingerprint survives the container the data arrived in", {
     algorithm = "PCA",
     verbosity = 0L
   )
-  expect_true(same_data(from_df@data_fingerprint, from_dt@data_fingerprint))
+  expect_true(is_same_data(from_df@data_fingerprint, from_dt@data_fingerprint))
 })
 
 
-test_that("decomp_metrics() reports an `x` of the right shape and wrong data", {
+test_that("decomposition_metrics() reports an `x` of the right shape and wrong data", {
   decom <- decomp(
     x,
     algorithm = "PCA",
@@ -381,13 +393,13 @@ test_that("decomp_metrics() reports an `x` of the right shape and wrong data", {
   # A notice, not a condition to catch: the metrics are still returned, because
   # scoring a fit against an altered copy of its input is a legitimate thing.
   expect_message(
-    metrics <- decomp_metrics(decom, altered, verbosity = 1L),
+    metrics <- decomposition_metrics(decom, altered, verbosity = 1L),
     "same shape and column names, different values"
   )
   expect_s7_class(metrics, DecompositionMetrics)
   # The fitted data itself is silent, and `verbosity = 0L` silences the notice.
-  expect_silent(decomp_metrics(decom, x, verbosity = 1L))
-  expect_silent(decomp_metrics(decom, altered, verbosity = 0L))
+  expect_silent(decomposition_metrics(decom, x, verbosity = 1L))
+  expect_silent(decomposition_metrics(decom, altered, verbosity = 0L))
 })
 
 
@@ -413,7 +425,7 @@ test_that("decomp() and cluster() fingerprint one dataset identically", {
     algorithm = "KMeans",
     verbosity = 0L
   )
-  expect_true(same_data(decom@data_fingerprint, clust@data_fingerprint))
+  expect_true(is_same_data(decom@data_fingerprint, clust@data_fingerprint))
 })
 
 

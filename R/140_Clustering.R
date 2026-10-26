@@ -17,7 +17,7 @@
 #' @field k Integer: Number of clusters fitted, excluding a noise label and
 #' including any cluster that won no case. Not in general the number of
 #' distinct labels in `clusters`.
-#' @field clusters List: Cluster assignment.
+#' @field clusters Integer: Cluster label per case, 0 for noise.
 #' @field config ClusteringConfig: Algorithm-specific config.
 #' @field cluster_config Optional ClusterConfig: The run's input.
 #' @field data_fingerprint Optional DataFingerprint: Identity of the data the
@@ -34,7 +34,7 @@ Clustering <- new_class(
     algorithm = class_character,
     clust = class_any,
     k = class_integer,
-    clusters = class_integer | class_list,
+    clusters = class_integer,
     config = ClusteringConfig,
     # See `Decomposition@decompose_config`: the run's input, which `@config`
     # alone cannot supply. Assigned by `cluster()`.
@@ -100,9 +100,6 @@ SoftClustering <- new_class(
     }
     if (any(m < 0) || any(m > 1)) {
       return("@membership values must be in [0, 1].")
-    }
-    if (!is.integer(self@clusters)) {
-      return("@clusters must be an integer vector for a soft clustering.")
     }
     if (nrow(m) != length(self@clusters)) {
       return(paste0(
@@ -172,6 +169,34 @@ method(`.DollarNames`, Clustering) <- function(x, pattern = "") {
 method(`[[`, Clustering) <- function(x, name) {
   prop_by_name(x, name)
 }
+
+
+# %% clusters.Clustering ----
+method(clusters, Clustering) <- function(x) {
+  x@clusters
+} # /rtemis::clusters.Clustering
+
+
+# %% get_membership.SoftClustering ----
+method(get_membership, SoftClustering) <- function(x) {
+  out <- data.table::as.data.table(x@membership)
+  # Named by cluster label: column j is label j for every backend.
+  data.table::setnames(out, as.character(seq_len(ncol(out))))
+  out
+} # /rtemis::get_membership.SoftClustering
+
+
+# %% get_membership.HardClustering ----
+method(get_membership, HardClustering) <- function(x) {
+  rtemis.core::abort(
+    x@algorithm,
+    " produces a hard clustering, which assigns each case to one cluster with ",
+    "no membership weights. Use `clusters()` for its assignments, or cluster ",
+    "with a soft clustering algorithm, such as CMeans or GMM, for a membership ",
+    "matrix.",
+    class = c("rtemis_unsupported_error", "rtemis_error")
+  )
+} # /rtemis::get_membership.HardClustering
 
 
 # %% get_metrics.Clustering ----

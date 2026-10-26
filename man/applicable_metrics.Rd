@@ -2,7 +2,7 @@
 % Please edit documentation in R/decomp_metrics.R
 \name{applicable_metrics}
 \alias{applicable_metrics}
-\title{Which Decomposition Metrics Apply to Which Algorithm}
+\title{applicable_metrics() (Deprecated)}
 \usage{
 applicable_metrics(algorithm = NULL)
 }
@@ -11,28 +11,13 @@ applicable_metrics(algorithm = NULL)
 matched case-insensitively. \code{NULL} returns the full derived matrix.}
 }
 \value{
-data.frame. With \code{algorithm}, the registry rows that apply to it:
-one row per metric, with its group, requirements, whether it needs new data,
-direction and range. With \code{NULL}, one row per metric and one logical column
-per algorithm.
+As \code{\link[=decomposition_metric_traits]{decomposition_metric_traits()}}.
 }
 \description{
-Derived from \link{decomposition_traits} and the metric registry: a metric applies
-to an algorithm when every trait it requires is TRUE for that algorithm.
-}
-\details{
-Nothing here is maintained per algorithm. \code{reconstruction_rmse} requires
-\code{invertible}, so it is defined for PCA, ICA and NMF and undefined for tSNE,
-UMAP and Isomap; \code{max_abs_component_correlation} requires nothing, so it is
-defined everywhere. An algorithm added to \code{decom_algorithms} with a correct
-traits row inherits the right metric set without any edit to the metrics
-code.
+\code{applicable_metrics()} is deprecated. Use \code{\link[=decomposition_metric_traits]{decomposition_metric_traits()}}, which takes the same arguments.
 }
 \examples{
-# Every metric, and which algorithms support it
-applicable_metrics()
-# What can be computed for a UMAP embedding, which does not invert
-applicable_metrics("UMAP")
+suppressWarnings(applicable_metrics("UMAP"))
 }
 \author{
 EDG

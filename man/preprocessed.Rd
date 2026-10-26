@@ -10,12 +10,23 @@ preprocessed(x)
 \item{x}{\code{Preprocessor}: A \code{Preprocessor} object.}
 }
 \value{
-data.frame: The preprocessed data.
+The preprocessed data, as a data.frame, data.table, or tibble,
+matching the data passed to \code{\link[=preprocess]{preprocess()}}. When validation or test data were
+also preprocessed, a named list with elements \code{training}, \code{validation}, and
+\code{test}, as supplied.
 }
 \description{
 Returns the preprocessed data from a \code{Preprocessor} object.
 }
+\details{
+A data.table is returned as a copy made with \code{\link[data.table:copy]{data.table::copy()}}, so
+modifying the result by reference, with \verb{:=} or \code{set()}, leaves \code{x}
+unchanged.
+}
 \examples{
 prp <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
 preprocessed(prp)
+}
+\author{
+EDG
 }

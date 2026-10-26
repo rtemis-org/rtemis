@@ -708,7 +708,7 @@ model_matrix_shap <- function(
 #' @keywords internal
 #' @noRd
 resolve_shap_estimator <- function(requested, algorithm) {
-  row <- explanation_methods(algorithm)
+  row <- explanation_traits(algorithm)
   default <- row[["estimator"]]
   if (requested == "auto") {
     return(default)
@@ -725,7 +725,7 @@ resolve_shap_estimator <- function(requested, algorithm) {
       "No exact explanation estimator for ",
       algorithm,
       ".\n",
-      "`explanation_methods(\"",
+      "`explanation_traits(\"",
       algorithm,
       "\")` reports: ",
       row[["rationale"]],
@@ -1145,7 +1145,7 @@ resolve_shap_scale <- function(requested, type, estimator) {
         "KernelSHAP cannot explain a classification on the margin: it sees ",
         "only what `predict()` returns, which is the probability.\n",
         "Leave `scale` NULL, or use an exact estimator where the algorithm ",
-        "has one -- `explanation_methods()` reports which do.",
+        "has one -- `explanation_traits()` reports which do.",
         class = c("rtemis_unsupported_error", "rtemis_input_error")
       )
     }

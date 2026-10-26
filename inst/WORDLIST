@@ -44,6 +44,7 @@ conformalized
 conformalizes
 CQR
 DataRef
+DBSCAN
 DBSCAN's
 DBSCANConfig
 DeLong
@@ -92,6 +93,7 @@ GMMConfig
 Gower's
 GPUs
 Harabasz
+HardCL
 Holford
 HyperparametersSet
 goss
@@ -106,6 +108,7 @@ Hothorn
 Bioconductor
 jaccard
 Kemper
+KMeans
 Kruskal's
 kulczynski
 libtorch's
@@ -183,6 +186,7 @@ Multilayer
 multiasw
 natively
 NCOL
+NeuralGas
 Ng
 NMF
 NMFConfig

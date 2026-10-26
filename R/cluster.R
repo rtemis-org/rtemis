@@ -244,3 +244,62 @@ cluster <- function(
   }
   out
 } # /rtemis::cluster
+
+
+# %% assign_clusters ----
+#' Assign New Cases to Fitted Clusters
+#'
+#' Assigns each case of `newdata` to one of the clusters of a fitted
+#' clustering, by the algorithm's own assignment rule.
+#'
+#' @details
+#' The clustering was fitted on the columns `clust@config@features` names, so
+#' only those columns of `newdata` are read; `newdata` must hold every one of
+#' them, numeric and free of missing values. KMeans, HardCL, and NeuralGas
+#' assign a case to the cluster with the closest centroid under the distance
+#' the fit used. An algorithm with no rule for cases it was not fitted on
+#' raises an `rtemis_unsupported_error` naming the algorithms that have one.
+#' [clusters()] returns the assignments of the data the clustering was fitted
+#' on.
+#'
+#' @param clust `Clustering` object.
+#' @param newdata Tabular data (data.frame, data.table, or tibble): Cases to
+#' assign.
+#' @param verbosity Integer: Verbosity level.
+#'
+#' @return Integer vector: One cluster label per row of `newdata`.
+#'
+#' @author EDG
+#' @export
+#' @examplesIf requireNamespace("flexclust", quietly = TRUE)
+#' x <- exc(iris, "Species")
+#' iris_km <- cluster(x[1:100, ], algorithm = "KMeans", verbosity = 0L)
+#' assign_clusters(iris_km, x[101:150, ], verbosity = 0L)
+assign_clusters <- function(clust, newdata, verbosity = 1L) {
+  check_is_S7(clust, Clustering)
+  newdata <- as.data.frame(newdata)
+  features <- clust@config@features
+  missing_cols <- setdiff(features, names(newdata))
+  if (length(missing_cols) > 0L) {
+    rtemis.core::abort(
+      "New data is missing ",
+      length(missing_cols),
+      " column(s) the clustering was fitted on.\n",
+      "Missing: ",
+      paste(missing_cols, collapse = ", "),
+      ".",
+      class = c("rtemis_dim_error", "rtemis_data_error")
+    )
+  }
+  # `cluster()` always records `features`; a hand-assembled clustering that
+  # names none reads every column, as `apply_decomposition()` does.
+  if (!is.null(features)) {
+    newdata <- newdata[, features, drop = FALSE]
+  }
+  check_unsupervised_data(newdata, allow_missing = FALSE, verbosity = verbosity)
+  assign_clusters_(
+    config = clust@config,
+    clust = clust@clust,
+    newdata = newdata
+  )
+} # /rtemis::assign_clusters

@@ -166,7 +166,7 @@ test_that("supplied imputation values replace the computed ones", {
 })
 
 test_that("imputation values survive the config's wire form", {
-  fitted <- fitted_config(impute_pre)
+  fitted <- get_fitted_config(impute_pre)
   wire <- jsonlite::fromJSON(
     jsonlite::toJSON(
       list(
@@ -460,6 +460,33 @@ test_that("preprocess returns the structure it was given", {
   ))
   expect_s3_class(as_tibble, "tbl_df")
   expect_equal(as.data.frame(as_tibble), as_frame)
+})
+
+
+test_that("preprocessed() returns data.tables the caller can modify by reference", {
+  dt <- data.table::as.data.table(pre_fixture)
+  prp <- preprocess(dt, pre_full_config(), verbosity = 0L)
+  # The stored data.table is a reference: `:=` on it changes the Preprocessor.
+  stored <- prp@preprocessed
+  stored[, stored_marker := 1]
+  expect_true("stored_marker" %in% names(prp@preprocessed))
+
+  out <- preprocessed(prp)
+  out[, returned_marker := 1]
+  expect_false("returned_marker" %in% names(prp@preprocessed))
+
+  # The same holds for each data set of a training and test pair.
+  half <- seq_len(NROW(dt) %/% 2L)
+  prp_split <- preprocess(
+    dt[half],
+    pre_full_config(),
+    dat_test = dt[-half],
+    verbosity = 0L
+  )
+  out_split <- preprocessed(prp_split)
+  expect_named(out_split, c("training", "test"))
+  out_split[["test"]][, returned_marker := 1]
+  expect_false("returned_marker" %in% names(prp_split@preprocessed[["test"]]))
 })
 
 

@@ -32,21 +32,21 @@ x <- iris[, -5]
 # derived from the registered methods: deriving it would conceal the omission
 # the roster exists to catch.
 .clust_capabilities <- list(
-  KMeans = list(soft = FALSE, prescribes_k = TRUE),
-  HardCL = list(soft = FALSE, prescribes_k = TRUE),
-  NeuralGas = list(soft = FALSE, prescribes_k = TRUE),
-  CMeans = list(soft = TRUE, prescribes_k = TRUE),
-  DBSCAN = list(soft = FALSE, prescribes_k = FALSE),
+  KMeans = list(soft = FALSE, prescribes_k = TRUE, assigns = TRUE),
+  HardCL = list(soft = FALSE, prescribes_k = TRUE, assigns = TRUE),
+  NeuralGas = list(soft = FALSE, prescribes_k = TRUE, assigns = TRUE),
+  CMeans = list(soft = TRUE, prescribes_k = TRUE, assigns = FALSE),
+  DBSCAN = list(soft = FALSE, prescribes_k = FALSE, assigns = FALSE),
   # The hybrid: `k` is nullable, so unset means BIC selects it and GMM must
   # register `cluster_k()`. `prescribes_k` asks whether the config *always*
   # prescribes one, and GMM does not.
-  GMM = list(soft = TRUE, prescribes_k = FALSE),
-  HOPACH = list(soft = FALSE, prescribes_k = FALSE),
-  PAM = list(soft = FALSE, prescribes_k = TRUE),
-  PAMK = list(soft = FALSE, prescribes_k = FALSE),
-  SpectralRBF = list(soft = FALSE, prescribes_k = TRUE),
-  SpectralLaplace = list(soft = FALSE, prescribes_k = TRUE),
-  SpectralLocal = list(soft = FALSE, prescribes_k = TRUE)
+  GMM = list(soft = TRUE, prescribes_k = FALSE, assigns = FALSE),
+  HOPACH = list(soft = FALSE, prescribes_k = FALSE, assigns = FALSE),
+  PAM = list(soft = FALSE, prescribes_k = TRUE, assigns = FALSE),
+  PAMK = list(soft = FALSE, prescribes_k = FALSE, assigns = FALSE),
+  SpectralRBF = list(soft = FALSE, prescribes_k = TRUE, assigns = FALSE),
+  SpectralLaplace = list(soft = FALSE, prescribes_k = TRUE, assigns = FALSE),
+  SpectralLocal = list(soft = FALSE, prescribes_k = TRUE, assigns = FALSE)
 )
 
 test_that("the capability roster covers every registered algorithm", {
@@ -54,12 +54,13 @@ test_that("the capability roster covers every registered algorithm", {
   expect_false(anyDuplicated(names(.clust_capabilities)) > 0L)
 })
 
-test_that("membership and k methods are registered exactly where expected", {
+test_that("membership, k, and assignment methods are registered exactly where expected", {
   # `S7::method()` performs dispatch and therefore inherits, so "a method
   # resolves" is true for every class once a default exists. Specialization is
   # the resolved method differing from the base fallback.
   fallback_membership <- method(cluster_membership, ClusteringConfig)
   fallback_k <- method(cluster_k, ClusteringConfig)
+  fallback_assign <- method(assign_clusters_, ClusteringConfig)
   expect_null(fallback_membership(setup_KMeans(), list()))
 
   for (nm in names(.clust_capabilities)) {
@@ -77,6 +78,12 @@ test_that("membership and k methods are registered exactly where expected", {
     # register one; a discovering algorithm must.
     specialized_k <- !identical(method(cluster_k, cls), fallback_k)
     expect_identical(specialized_k, !caps[["prescribes_k"]], info = nm)
+
+    specialized_assign <- !identical(
+      method(assign_clusters_, cls),
+      fallback_assign
+    )
+    expect_identical(specialized_assign, caps[["assigns"]], info = nm)
   }
 })
 
@@ -327,11 +334,11 @@ test_that("cluster_HOPACH() succeeds", {
 })
 
 # HOPACH refuses new data ----
-test_that("clustpredict_HOPACH() refuses newdata", {
+test_that("assign_clusters() refuses a HOPACH clustering", {
   skip_if_not_installed("hopach")
   iris_hopach <- .hopach_fit()
   expect_error(
-    clustpredict_HOPACH(iris_hopach@clust, newdata = x),
+    assign_clusters(iris_hopach, x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
 })
@@ -455,7 +462,7 @@ test_that("cluster_PAMK() accepts the CLARA fit that use_pam = FALSE produces", 
 })
 
 # PAM family refuses new data ----
-test_that("clustpredict_PAM() and clustpredict_PAMK() refuse newdata", {
+test_that("assign_clusters() refuses PAM and PAMK clusterings", {
   skip_if_not_installed("fpc")
   iris_pam <- cluster(
     x,
@@ -470,11 +477,11 @@ test_that("clustpredict_PAM() and clustpredict_PAMK() refuse newdata", {
     verbosity = 0L
   )
   expect_error(
-    clustpredict_PAM(iris_pam@clust, newdata = x),
+    assign_clusters(iris_pam, x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
   expect_error(
-    clustpredict_PAMK(iris_pamk@clust, newdata = x),
+    assign_clusters(iris_pamk, x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
 })
@@ -575,7 +582,7 @@ test_that("every spectral variant reaches its kernel", {
 })
 
 # Spectral refuses new data ----
-test_that("clustpredict_Spectral*() refuses newdata", {
+test_that("assign_clusters() refuses a Spectral clustering", {
   skip_if_not_installed("kernlab")
   iris_spectral <- cluster(
     x,
@@ -583,7 +590,7 @@ test_that("clustpredict_Spectral*() refuses newdata", {
     verbosity = 0L
   )
   expect_error(
-    clustpredict_SpectralLocal(iris_spectral@clust, newdata = x),
+    assign_clusters(iris_spectral, x, verbosity = 0L),
     class = "rtemis_unsupported_error"
   )
 })
@@ -692,6 +699,124 @@ test_that("SoftClustering rejects a permuted membership matrix", {
   bad_na <- m
   bad_na[1L, 1L] <- NA_real_
   expect_error(build(bad_na))
+  # Labels are integers; a list or a double vector is not a Clustering.
+  expect_error(SoftClustering(
+    algorithm = "CMeans",
+    clust = cl@clust,
+    k = cl@k,
+    clusters = as.list(cl@clusters),
+    config = cl@config,
+    membership = m
+  ))
+  expect_error(HardClustering(
+    algorithm = "CMeans",
+    clust = cl@clust,
+    k = cl@k,
+    clusters = as.double(cl@clusters),
+    config = cl@config
+  ))
+})
+
+
+# %% Accessors ----
+
+test_that("clusters() and get_membership() return a soft clustering's assignments", {
+  skip_if_not_installed("e1071")
+  cl <- cluster(
+    x,
+    algorithm = "CMeans",
+    config = setup_CMeans(k = 3L),
+    verbosity = 0L
+  )
+  labels <- clusters(cl)
+  expect_type(labels, "integer")
+  expect_identical(labels, cl@clusters)
+
+  m <- get_membership(cl)
+  expect_true(data.table::is.data.table(m))
+  expect_identical(dim(m), c(NROW(x), cl@k))
+  expect_identical(names(m), as.character(seq_len(cl@k)))
+  expect_equal(rowSums(m), rep(1, NROW(x)), tolerance = 1e-8)
+  # Column j is cluster label j: each case's label attains its row maximum.
+  expect_identical(
+    as.integer(max.col(as.matrix(m), ties.method = "first")),
+    labels
+  )
+  # Each call returns a new table; modifying it leaves the clustering intact.
+  m[, marker := 1]
+  expect_identical(NCOL(cl@membership), cl@k)
+})
+
+
+test_that("get_membership() names columns by cluster label for every backend", {
+  # mclust stores its posterior matrix without column names, e1071 with them.
+  skip_if_not_installed("mclust")
+  cl <- cluster(
+    x,
+    algorithm = "GMM",
+    config = setup_GMM(k = 3L),
+    verbosity = 0L
+  )
+  expect_null(colnames(cl@membership))
+  expect_identical(names(get_membership(cl)), c("1", "2", "3"))
+})
+
+
+test_that("get_membership() refuses a hard clustering", {
+  skip_if_not_installed("flexclust")
+  cl <- cluster(
+    x,
+    algorithm = "KMeans",
+    config = setup_KMeans(k = 3L),
+    verbosity = 0L
+  )
+  expect_s7_class(cl, HardClustering)
+  expect_identical(clusters(cl), cl@clusters)
+  expect_error(get_membership(cl), class = "rtemis_unsupported_error")
+})
+
+
+test_that("assign_clusters() reproduces KMeans assignments and reads only the fitted features", {
+  skip_if_not_installed("flexclust")
+  features <- c("Sepal.Length", "Petal.Length")
+  cl <- cluster(
+    iris,
+    config = setup_KMeans(k = 3L, features = features),
+    verbosity = 0L
+  )
+  # Converged k-means assigns each training case to its closest centroid, so
+  # the rule applied to the training data returns the fitted labels.
+  expect_identical(assign_clusters(cl, iris, verbosity = 0L), clusters(cl))
+  # Column order and extra columns do not change the assignment.
+  shuffled <- iris[, rev(names(iris))]
+  expect_identical(assign_clusters(cl, shuffled, verbosity = 0L), clusters(cl))
+  expect_error(
+    assign_clusters(cl, iris[, "Sepal.Length", drop = FALSE], verbosity = 0L),
+    "Petal.Length",
+    class = "rtemis_dim_error"
+  )
+  holey <- iris
+  holey[1L, "Petal.Length"] <- NA
+  expect_error(
+    assign_clusters(cl, holey, verbosity = 0L),
+    class = "rtemis_missing_data"
+  )
+})
+
+
+test_that("assign_clusters() names the algorithms that can assign", {
+  skip_if_not_installed("e1071")
+  cl <- cluster(x, config = setup_CMeans(k = 3L), verbosity = 0L)
+  err <- expect_error(
+    assign_clusters(cl, x, verbosity = 0L),
+    class = "rtemis_unsupported_error"
+  )
+  # The names come from the registered methods, in registry order.
+  listed <- sub(".*Algorithms that can: (.*)\\.$", "\\1", conditionMessage(err))
+  expect_setequal(
+    strsplit(listed, ", ")[[1L]],
+    c("KMeans", "HardCL", "NeuralGas")
+  )
 })
 
 
@@ -757,6 +882,119 @@ test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
   )
   expect_gt(cl@metrics@metrics[["noise_fraction"]], 0)
   expect_identical(cl@metrics@metrics[["n_clusters"]], cl@k)
+})
+
+
+# clustering_metrics ----
+test_that("cluster() reports the mean silhouette as not requested", {
+  cl <- cluster(x, config = setup_KMeans(k = 3L), verbosity = 0L)
+  expect_identical(cl@metrics@status[["mean_silhouette"]], "not_requested")
+  expect_true(is.na(cl@metrics@metrics[["mean_silhouette"]]))
+  # The printed metrics show computed values and the reason for each absent one.
+  printed <- capture.output(print(cl@metrics, output_type = "plain"))
+  expect_true(any(grepl("Noise Fraction", printed, fixed = TRUE)))
+  expect_true(any(grepl(
+    "mean_silhouette (not_requested)",
+    printed,
+    fixed = TRUE
+  )))
+})
+
+test_that("mean_silhouette() agrees with cluster::silhouette()", {
+  skip_if_not_installed("cluster")
+  xm <- as.matrix(x)
+  d <- stats::dist(xm)
+  reference <- function(labels) {
+    mean(cluster::silhouette(labels, d)[, "sil_width"])
+  }
+  labels <- stats::cutree(stats::hclust(d), k = 4L)
+  expect_equal(mean_silhouette(xm, labels), reference(labels))
+  # A cluster of one case has width zero in both.
+  labels[1L] <- 5L
+  expect_equal(mean_silhouette(xm, labels), reference(labels))
+  # Noise is excluded as a case and as a cluster.
+  noisy <- labels
+  noisy[c(2L, 60L, 120L)] <- 0L
+  keep <- noisy != 0L
+  expect_equal(
+    mean_silhouette(xm, noisy),
+    mean(cluster::silhouette(noisy[keep], stats::dist(xm[keep, ]))[,
+      "sil_width"
+    ])
+  )
+  # Fewer than two clusters holding a case: no silhouette.
+  expect_true(is.na(mean_silhouette(xm, rep(1L, nrow(xm)))))
+  expect_true(is.na(mean_silhouette(xm, c(1L, rep(0L, nrow(xm) - 1L)))))
+})
+
+test_that("clustering_metrics() adds the mean silhouette to the stored measures", {
+  skip_if_not_installed("cluster")
+  features <- c("Sepal.Length", "Petal.Length")
+  cl <- cluster(
+    iris,
+    config = setup_KMeans(k = 3L, features = features),
+    verbosity = 0L
+  )
+  out <- clustering_metrics(cl, iris, verbosity = 0L)
+  expect_s7_class(out, ClusteringMetrics)
+  expect_identical(out@sample, "Training")
+  expect_identical(out@status[["mean_silhouette"]], "computed")
+  xm <- as.matrix(iris[, features])
+  expect_equal(
+    out@metrics[["mean_silhouette"]],
+    mean(cluster::silhouette(cl@clusters, stats::dist(xm))[, "sil_width"])
+  )
+  stored <- setdiff(names(out@metrics), "mean_silhouette")
+  expect_identical(out@metrics[stored], cl@metrics@metrics[stored])
+})
+
+test_that("clustering_metrics() reports a silhouette with one cluster as not applicable", {
+  skip_if_not_installed("dbscan")
+  # Every case is noise, so no cluster holds a case.
+  cl <- cluster(
+    x,
+    config = setup_DBSCAN(eps = 0.01, min_points = 5L),
+    verbosity = 0L
+  )
+  out <- clustering_metrics(cl, x, verbosity = 0L)
+  expect_identical(out@status[["mean_silhouette"]], "not_applicable")
+  expect_true(is.na(out@metrics[["mean_silhouette"]]))
+})
+
+test_that("clustering_metrics() requires the data the clustering was fitted on", {
+  cl <- cluster(x, config = setup_KMeans(k = 3L), verbosity = 0L)
+  expect_error(
+    clustering_metrics(cl, x[1:100, ], verbosity = 0L),
+    class = "rtemis_dim_error"
+  )
+  altered <- x
+  altered[1L, 1L] <- altered[1L, 1L] + 1
+  expect_error(
+    clustering_metrics(cl, altered, verbosity = 0L),
+    class = "rtemis_data_error"
+  )
+  # The fitted data held as a data.table is the same data.
+  expect_s7_class(
+    clustering_metrics(cl, data.table::as.data.table(x), verbosity = 0L),
+    ClusteringMetrics
+  )
+})
+
+test_that("ClusteringMetrics() takes a status only for a measure not supplied", {
+  ok <- ClusteringMetrics(
+    n_cases = 10L,
+    status = list(mean_silhouette = "not_requested"),
+    sample = "Training"
+  )
+  expect_identical(ok@status[["mean_silhouette"]], "not_requested")
+  expect_error(
+    ClusteringMetrics(n_cases = 10L, status = list(n_cases = "not_requested")),
+    class = "rtemis_value_error"
+  )
+  expect_error(
+    ClusteringMetrics(status = list(mean_silhouette = "computed")),
+    class = "rtemis_value_error"
+  )
 })
 
 

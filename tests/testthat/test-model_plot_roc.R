@@ -218,3 +218,66 @@ test_that("empirical ROC agrees with the existing rtemis statistical engine", {
   new <- rtemis.draw::roc_vertices(rtemis.draw::roc_probabilities(y, p))
   expect_equal(new[c("class", "fpr", "tpr", "auc")], old)
 })
+
+test_that("roc_table() returns the curves plot_roc() draws", {
+  mod <- roc_model_fixture(TRUE)
+  curves <- roc_table(mod)
+  expect_true(data.table::is.data.table(curves))
+  expect_identical(
+    names(curves),
+    c("sample", "class", "fpr", "tpr", "auc", "omitted")
+  )
+  expect_identical(
+    unique(curves[["sample"]]),
+    c("training", "validation", "test")
+  )
+  plotted <- roc_plot_data(mod, labelify = FALSE)
+  expect_equal(curves[["fpr"]], plotted[["fpr"]])
+  expect_equal(curves[["auc"]], plotted[["auc"]])
+  expect_identical(unique(roc_table(mod, "test")[["sample"]]), "test")
+  expect_error(
+    roc_table(mod, variant = "per_resample"),
+    class = "rtemis_value_error"
+  )
+  expect_error(roc_table(1L), class = "rtemis_type_error")
+})
+
+test_that("roc_table() labels per-resample curves and pools the aggregate", {
+  mod <- roc_res_model_fixture()
+  y <- factor(c("no", "yes"), levels = c("no", "yes"))
+  mod@y_training <- list(Fold1 = y, Fold2 = y)
+  mod@predicted_prob_training <- list(
+    Fold1 = matrix(c(.1, .2), 2),
+    Fold2 = matrix(c(.8, .9), 2)
+  )
+  pooled <- roc_table(mod, "training")
+  expect_false("resample" %in% names(pooled))
+  expect_equal(unique(pooled[["auc"]]), .75)
+  folds <- roc_table(mod, "training", variant = "per_resample")
+  expect_identical(names(folds)[1:3], c("sample", "resample", "class"))
+  expect_identical(unique(folds[["resample"]]), c("Fold1", "Fold2"))
+  expect_equal(unique(folds[["auc"]]), 1)
+})
+
+test_that("roc_table() caps the vertices of each curve and keeps its ends", {
+  set.seed(2026)
+  y <- factor(
+    sample(c("no", "yes"), 200, replace = TRUE),
+    levels = c("no", "yes")
+  )
+  p <- matrix(stats::runif(200), ncol = 1, dimnames = list(NULL, "yes"))
+  mod <- S7::set_props(
+    roc_model_fixture(),
+    y_training = y,
+    predicted_training = y,
+    predicted_prob_training = p
+  )
+  full <- roc_table(mod, "training")
+  capped <- roc_table(mod, "training", max_points = 10L)
+  expect_lte(NROW(capped), 10L)
+  expect_equal(
+    capped[["fpr"]][c(1L, NROW(capped))],
+    full[["fpr"]][c(1L, NROW(full))]
+  )
+  expect_error(roc_table(mod, max_points = 1L), class = "rtemis_value_error")
+})

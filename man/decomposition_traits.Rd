@@ -27,7 +27,7 @@ The columns:
 \item{\code{linear}}{The data is modeled as the components times a loadings
 matrix, which \link{get_loadings} returns.}
 \item{\code{can_apply}}{A fitted result can be applied to new data with
-\link{apply_decomp}.}
+\code{\link[=apply_decomposition]{apply_decomposition()}}.}
 \item{\code{invertible}}{There is an inverse map from component space back to
 input space, so reconstruction error is defined.}
 \item{\code{orthogonal}}{Components are mutually orthogonal.}
@@ -48,7 +48,7 @@ Like \code{can_apply}, it states what rtemis implements.}
 \code{can_apply} states what rtemis implements, not what is mathematically
 possible. Parametric tSNE exists and Isomap admits a Nystrom-style
 out-of-sample extension; neither is implemented here, so both are \code{FALSE}.
-The column's contract is that \link{apply_decomp} on a fitted result of this
+The column's contract is that \code{\link[=apply_decomposition]{apply_decomposition()}} on a fitted result of this
 algorithm returns components.
 }
 \examples{

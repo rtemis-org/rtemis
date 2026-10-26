@@ -96,6 +96,29 @@ method(cluster_membership, ClusteringConfig) <- function(config, clust) {
 } # /rtemis::cluster_membership.ClusteringConfig
 
 
+# %% assign_clusters_.ClusteringConfig ----
+# The default: the algorithm defines no rule for assigning a case it was not
+# fitted on. The message names the algorithms that register one, found by the
+# same comparison the roster test makes: a method differing from this default.
+method(assign_clusters_, ClusteringConfig) <- function(config, clust, newdata) {
+  fallback <- method(assign_clusters_, ClusteringConfig)
+  assigning <- Filter(
+    function(nm) {
+      cls <- S7_class(get_default_clusterparams(nm))
+      !identical(method(assign_clusters_, cls), fallback)
+    },
+    clust_algorithms[, 1]
+  )
+  rtemis.core::abort(
+    config@algorithm,
+    " cannot assign new data to its fitted clusters. Algorithms that can: ",
+    paste(assigning, collapse = ", "),
+    ".",
+    class = c("rtemis_unsupported_error", "rtemis_error")
+  )
+} # /rtemis::assign_clusters_.ClusteringConfig
+
+
 # %% cluster_k.ClusteringConfig ----
 # Deliberately an abort, not a label count. Counting distinct labels is right
 # only where a backend's non-noise labels enumerate its fitted clusters; it

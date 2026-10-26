@@ -2,7 +2,7 @@
 % Please edit documentation in R/030_init.R
 \name{get_factor_names}
 \alias{get_factor_names}
-\title{Get factor names}
+\title{Get factor names (Deprecated)}
 \usage{
 get_factor_names(x)
 }
@@ -10,18 +10,14 @@ get_factor_names(x)
 \item{x}{tabular data.}
 }
 \value{
-Character vector of factor names.
+Character vector of the names of the factor columns of \code{x}.
 }
 \description{
-Get factor names
-}
-\details{
-This applied to tabular datasets used for supervised learning in rtemis,
-where, by convention, the last column is the outcome variable and all other columns
-are features.
+\code{get_factor_names()} is deprecated. Use \code{\link[=getfactornames]{getfactornames()}}, which returns the
+names of every factor column of \code{x}.
 }
 \examples{
-get_factor_names(iris)
+suppressWarnings(get_factor_names(iris))
 }
 \author{
 EDG

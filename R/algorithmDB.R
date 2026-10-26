@@ -462,7 +462,7 @@ explanation_algorithms[["perturbation"]] <- unname(
 )
 
 
-# %% explanation_methods ----
+# %% explanation_traits ----
 #' Explanation Methods per Algorithm
 #'
 #' What [explain] does to a model fitted by each supervised algorithm: which
@@ -500,12 +500,12 @@ explanation_algorithms[["perturbation"]] <- unname(
 #' @author EDG
 #' @export
 #' @examples
-#' explanation_methods()
-#' explanation_methods("Ranger")
+#' explanation_traits()
+#' explanation_traits("Ranger")
 #' # Which algorithms have an exact estimator?
-#' em <- explanation_methods()
+#' em <- explanation_traits()
 #' em[["name"]][!is.na(em[["exact"]]) & em[["exact"]]]
-explanation_methods <- function(algorithm = NULL) {
+explanation_traits <- function(algorithm = NULL) {
   if (is.null(algorithm)) {
     return(explanation_algorithms)
   }
@@ -516,6 +516,29 @@ explanation_methods <- function(algorithm = NULL) {
   ]
   rownames(methods) <- NULL
   methods
+} # /rtemis::explanation_traits
+
+
+# %% explanation_methods ----
+#' explanation_methods() (Deprecated)
+#'
+#' `explanation_methods()` is deprecated. Use [explanation_traits()], which takes the same arguments.
+#'
+#' @inheritParams explanation_traits
+#'
+#' @return As [explanation_traits()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' suppressWarnings(explanation_methods("Ranger"))
+explanation_methods <- function(algorithm = NULL) {
+  base::.Deprecated(
+    new = "explanation_traits",
+    package = "rtemis",
+    old = "explanation_methods"
+  )
+  explanation_traits(algorithm = algorithm)
 } # /rtemis::explanation_methods
 
 
@@ -944,7 +967,7 @@ get_decom_setup_fn <- function(algorithm) {
 #'   \item{`linear`}{The data is modeled as the components times a loadings
 #'     matrix, which [get_loadings] returns.}
 #'   \item{`can_apply`}{A fitted result can be applied to new data with
-#'     [apply_decomp].}
+#'     [apply_decomposition()].}
 #'   \item{`invertible`}{There is an inverse map from component space back to
 #'     input space, so reconstruction error is defined.}
 #'   \item{`orthogonal`}{Components are mutually orthogonal.}
@@ -965,7 +988,7 @@ get_decom_setup_fn <- function(algorithm) {
 #' `can_apply` states what rtemis implements, not what is mathematically
 #' possible. Parametric tSNE exists and Isomap admits a Nystrom-style
 #' out-of-sample extension; neither is implemented here, so both are `FALSE`.
-#' The column's contract is that [apply_decomp] on a fitted result of this
+#' The column's contract is that [apply_decomposition()] on a fitted result of this
 #' algorithm returns components.
 #'
 #' @param algorithm Optional Character: Name of a decomposition algorithm,

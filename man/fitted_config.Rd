@@ -2,7 +2,7 @@
 % Please edit documentation in R/preprocess.R
 \name{fitted_config}
 \alias{fitted_config}
-\title{A \code{Preprocessor}'s config with its learned values filled in}
+\title{fitted_config() (Deprecated)}
 \usage{
 fitted_config(preprocessor)
 }
@@ -10,28 +10,14 @@ fitted_config(preprocessor)
 \item{preprocessor}{\code{Preprocessor} object.}
 }
 \value{
-\code{PreprocessorConfig} with the learned values applied.
+As \code{\link[=get_fitted_config]{get_fitted_config()}}.
 }
 \description{
-\verb{@config} holds what the user asked for and \verb{@values} what preprocessing
-learned, which keeps the input intact -- but re-applying to new data needs
-the two merged, and so does a run record, which must report the values
-actually used. One merge, so the two cannot disagree.
-}
-\details{
-The merged fields are settable inputs: supplying \code{scale_centers} makes
-\code{preprocess()} use it instead of computing one. That is why the merge is
-\verb{@values} over \verb{@config} and not the reverse -- a learned value only fills a
-slot the user left empty.
+\code{fitted_config()} is deprecated. Use \code{\link[=get_fitted_config]{get_fitted_config()}}, which takes the same arguments.
 }
 \examples{
-iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE, center = TRUE))
-# The config as supplied carries no centers; the fitted one carries the
-# centers `preprocess()` computed.
-fitted_config(iris_pre)@scale_centers
-}
-\seealso{
-\link{apply_preprocessor}, \link{setup_Preprocessor}
+iris_pre <- preprocess(iris, setup_Preprocessor(scale = TRUE), verbosity = 0L)
+suppressWarnings(fitted_config(iris_pre))
 }
 \author{
 EDG

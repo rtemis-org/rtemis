@@ -108,7 +108,7 @@ test_that("two implementations' 'object' hashes are not comparable", {
     data_structure = "DataFrame"
   )
   expect_identical(foreign@method, r_fp@method)
-  expect_false(same_data(r_fp, foreign))
+  expect_false(is_same_data(r_fp, foreign))
   expect_match(fingerprint_diff(r_fp, foreign), "not comparable")
   expect_match(fingerprint_diff(r_fp, foreign), "python-pickle-v5")
 })
@@ -181,7 +181,7 @@ test_that("a foreign fingerprint keeps the values its writer recorded", {
   expect_identical(foreign@language, "Julia")
   expect_identical(foreign@data_structure, "DataFrame")
   # And it is still not comparable with anything this build writes.
-  expect_false(same_data(foreign, data_fingerprint(iris)))
+  expect_false(is_same_data(foreign, data_fingerprint(iris)))
 })
 
 
@@ -213,7 +213,7 @@ test_that("'object' hashes R representation, not just logical content", {
   # table in a different container differs.
   dt <- data.table::as.data.table(iris)
   expect_false(
-    same_data(data_fingerprint(iris), data_fingerprint(dt))
+    is_same_data(data_fingerprint(iris), data_fingerprint(dt))
   )
 })
 
@@ -222,7 +222,7 @@ test_that("'object' detects a changed value", {
   changed <- iris
   changed[["Sepal.Length"]][[1L]] <- 99
   expect_false(
-    same_data(data_fingerprint(iris), data_fingerprint(changed))
+    is_same_data(data_fingerprint(iris), data_fingerprint(changed))
   )
 })
 
@@ -288,10 +288,10 @@ test_that("'object' sees ALTREP where 'table' does not", {
   eager <- lazy
   eager[["i"]][[1L]] <- 1L
   expect_true(identical(lazy, eager))
-  expect_false(same_data(data_fingerprint(lazy), data_fingerprint(eager)))
+  expect_false(is_same_data(data_fingerprint(lazy), data_fingerprint(eager)))
   skip_if_not_installed("arrow")
   expect_true(
-    same_data(
+    is_same_data(
       data_fingerprint(lazy, method = "table"),
       data_fingerprint(eager, method = "table")
     )
@@ -305,7 +305,7 @@ test_that("'object' does not survive the container, and says so", {
   a <- as.data.frame(iris[, 1:4])
   b <- as.data.frame(data.table::as.data.table(iris[, 1:4]))
   expect_true(identical(a, b))
-  expect_false(same_data(data_fingerprint(a), data_fingerprint(b)))
+  expect_false(is_same_data(data_fingerprint(a), data_fingerprint(b)))
 })
 
 
@@ -314,7 +314,7 @@ test_that("'table' still detects a changed value", {
   changed <- iris
   changed[["Sepal.Length"]][[1L]] <- 99
   expect_false(
-    same_data(
+    is_same_data(
       data_fingerprint(iris, method = "table"),
       data_fingerprint(changed, method = "table")
     )
@@ -360,19 +360,19 @@ test_that("'object' hashes exclude the serialization header", {
 })
 
 
-# %% same_data ----
-test_that("same_data() refuses to compare incomparable fingerprints", {
+# %% is_same_data ----
+test_that("is_same_data() refuses to compare incomparable fingerprints", {
   skip_if_not_installed("arrow")
   # Different methods measure different things; reporting them as unequal
   # would be as wrong as reporting them equal.
   expect_false(
-    same_data(
+    is_same_data(
       data_fingerprint(iris, method = "object"),
       data_fingerprint(iris, method = "table")
     )
   )
   expect_false(
-    same_data(
+    is_same_data(
       data_fingerprint(iris),
       data_fingerprint(iris, algorithm = "md5")
     )
@@ -380,9 +380,9 @@ test_that("same_data() refuses to compare incomparable fingerprints", {
 })
 
 
-test_that("same_data() type-checks its arguments", {
+test_that("is_same_data() type-checks its arguments", {
   expect_error(
-    same_data(data_fingerprint(iris), "x"),
+    is_same_data(data_fingerprint(iris), "x"),
     class = "rtemis_type_error"
   )
 })
@@ -512,14 +512,14 @@ test_that("train() attaches a fingerprint of the training data", {
   expect_identical(mod@data_fingerprint@n_rows, 150L)
   expect_identical(mod@data_fingerprint@n_cols, 5L)
   # It is the fingerprint of the data as supplied.
-  expect_true(same_data(mod@data_fingerprint, data_fingerprint(iris)))
+  expect_true(is_same_data(mod@data_fingerprint, data_fingerprint(iris)))
 })
 
 
 test_that("two models on the same data share a fingerprint", {
   m1 <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
   m2 <- train(iris, hyperparameters = setup_LightCART(), verbosity = 0L)
-  expect_true(same_data(m1@data_fingerprint, m2@data_fingerprint))
+  expect_true(is_same_data(m1@data_fingerprint, m2@data_fingerprint))
 })
 
 

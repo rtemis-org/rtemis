@@ -55,11 +55,7 @@ method(cluster_k, DBSCANConfig) <- function(config, clust) {
 
 
 # %% clustpredict_DBSCAN ----
-clustpredict_DBSCAN <- function(clust, dat_train = NULL, newdata = NULL) {
+clustpredict_DBSCAN <- function(clust) {
   check_inherits(clust, "dbscan")
-  if (is.null(newdata)) {
-    return(clust[["cluster"]])
-  } else {
-    predict(clust, newdata = newdata, data = dat_train)
-  }
+  as.integer(clust[["cluster"]])
 } # /rtemis::clustpredict_DBSCAN

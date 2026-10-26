@@ -33,7 +33,7 @@ mars_design_matrix <- function(x, verbosity = 0L) {
       config = setup_Preprocessor(one_hot = TRUE),
       verbosity = verbosity
     )
-    x <- preprocessed(prp)
+    x <- prp@preprocessed
   } else {
     prp <- NULL
   }

@@ -119,7 +119,7 @@ test_that("the derived architecture follows its documented bounds", {
 
 
 # Fit and apply are one map ----
-test_that("apply_decomp() on training data reproduces the fitted components", {
+test_that("apply_decomposition() on training data reproduces the fitted components", {
   skip_if_no_torch()
   # With denoising on, too: the corruption is training-only.
   for (config in list(
@@ -134,7 +134,7 @@ test_that("apply_decomp() on training data reproduces the fitted components", {
       verbosity = 0L
     )
     expect_identical(
-      as.matrix(apply_decomp(decom, x, verbosity = 0L)),
+      as.matrix(apply_decomposition(decom, x, verbosity = 0L)),
       decom@transformed,
       ignore_attr = TRUE
     )
@@ -142,7 +142,7 @@ test_that("apply_decomp() on training data reproduces the fitted components", {
 })
 
 
-test_that("apply_decomp() refuses missing features and missing values by name", {
+test_that("apply_decomposition() refuses missing features and missing values by name", {
   skip_if_no_torch()
   decom <- decomp(
     x,
@@ -153,7 +153,7 @@ test_that("apply_decomp() refuses missing features and missing values by name", 
   holey <- x
   holey[3L, "Petal.Width"] <- NA
   expect_error(
-    apply_decomp(decom, holey, verbosity = 0L),
+    apply_decomposition(decom, holey, verbosity = 0L),
     "Petal.Width",
     class = "rtemis_value_error"
   )
@@ -332,7 +332,7 @@ test_that("a fitted autoencoder survives saveRDS() and applies after readRDS()",
   reloaded <- readRDS(file)
   expect_type(reloaded@decom@state, "raw")
   expect_identical(
-    as.matrix(apply_decomp(reloaded, x, verbosity = 0L)),
+    as.matrix(apply_decomposition(reloaded, x, verbosity = 0L)),
     decom@transformed,
     ignore_attr = TRUE
   )
@@ -394,7 +394,7 @@ test_that("the fit uses the execution config's threads and apply the applier's",
   )
   # The fit and the metrics' reconstruction, both on the run's threads.
   expect_identical(requested, c(2L, 2L))
-  apply_decomp(
+  apply_decomposition(
     decom,
     x,
     execution_config = setup_SerialExecution(n_workers_algorithm = 1L),
@@ -554,7 +554,7 @@ test_that("a variational fit applies, reconstructs and reloads deterministically
   )
   # The components are the latent means: no sampling outside training.
   expect_identical(
-    as.matrix(apply_decomp(decom, x, verbosity = 0L)),
+    as.matrix(apply_decomposition(decom, x, verbosity = 0L)),
     decom@transformed,
     ignore_attr = TRUE
   )
@@ -570,7 +570,7 @@ test_that("a variational fit applies, reconstructs and reloads deterministically
   file <- withr::local_tempfile(fileext = ".rds")
   saveRDS(decom, file)
   expect_identical(
-    as.matrix(apply_decomp(readRDS(file), x, verbosity = 0L)),
+    as.matrix(apply_decomposition(readRDS(file), x, verbosity = 0L)),
     decom@transformed,
     ignore_attr = TRUE
   )

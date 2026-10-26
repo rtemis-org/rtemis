@@ -23,6 +23,23 @@
 # dataset is small, and would invite someone to point it at one that is not.
 # Each case names its file and records the sha256 a consumer must verify --
 # the same shape as the wasm module's manifest.
+#
+# The Parquet files under `inst/profile/fixtures/` are the source of the
+# fixture's bytes, and consumers verify those bytes by sha256. They are written
+# by nanoparquet, which records no version of itself in the file and writes
+# the same data to the same bytes; arrow records its version in the footer, so
+# its files change with every arrow release. Generation copies the shipped
+# files and verifies that they hold the declared cases; only `--refresh`
+# writes them, and only where nanoparquet's output differs from the shipped
+# bytes.
+#
+# Usage:
+#   Rscript data-raw/generate_profile_fixture.R <out_dir>
+#     Writes `<out_dir>/profile/v1/fixture.json` and copies the shipped Parquet
+#     files beside it. Fails when a shipped file does not hold its case.
+#   Rscript data-raw/generate_profile_fixture.R --refresh
+#     Rewrites `inst/profile/fixture.json`, and the Parquet file of each case
+#     whose shipped bytes differ from what nanoparquet writes for it.
 
 suppressMessages(pkgload::load_all(
   rprojroot::find_package_root_file(),
@@ -30,9 +47,15 @@ suppressMessages(pkgload::load_all(
 ))
 check_dependencies("arrow")
 
-out_dir <- commandArgs(trailingOnly = TRUE)[[1L]]
+args <- commandArgs(trailingOnly = TRUE)
+refresh <- identical(args, "--refresh")
+if (!refresh && length(args) != 1L) {
+  stop("Usage: generate_profile_fixture.R <out_dir> | --refresh", call. = FALSE)
+}
+out_dir <- if (refresh) NULL else args[[1L]]
 base_url <- "https://schema.rtemis.org"
 rel_dir <- file.path("profile", "v1", "fixtures")
+inst_dir <- rprojroot::find_package_root_file("inst", "profile")
 
 # %% The cases ----
 
@@ -81,7 +104,7 @@ cases <- list(
   )
 )
 
-# %% Write and measure ----
+# %% Shipped files ----
 
 sha256 <- function(path) {
   paste(
@@ -90,11 +113,61 @@ sha256 <- function(path) {
   )
 }
 
-dir.create(file.path(out_dir, rel_dir), recursive = TRUE, showWarnings = FALSE)
+# The case as a reader sees it, without row names, which carry no data.
+read_case <- function(path) {
+  out <- as.data.frame(arrow::read_parquet(path))
+  rownames(out) <- NULL
+  out
+}
+
+holds_case <- function(path, case) {
+  if (!file.exists(path)) {
+    return(FALSE)
+  }
+  declared <- case[["data"]]
+  rownames(declared) <- NULL
+  isTRUE(all.equal(read_case(path), declared))
+}
+
+shipped_path <- function(case) {
+  file.path(inst_dir, "fixtures", case[["file"]])
+}
+
+if (refresh) {
+  dir.create(
+    file.path(inst_dir, "fixtures"),
+    recursive = TRUE,
+    showWarnings = FALSE
+  )
+  for (case in cases) {
+    written <- tempfile(fileext = ".parquet")
+    nanoparquet::write_parquet(case[["data"]], written)
+    shipped <- shipped_path(case)
+    if (!file.exists(shipped) || !identical(sha256(written), sha256(shipped))) {
+      file.copy(written, shipped, overwrite = TRUE)
+      cat(sprintf("profile fixture  rewrote %s\n", case[["file"]]))
+    }
+    unlink(written)
+  }
+} else {
+  for (case in cases) {
+    if (!holds_case(shipped_path(case), case)) {
+      stop(
+        "inst/profile/fixtures/",
+        case[["file"]],
+        " does not hold the case declared for it. Run `just checks-refresh` ",
+        "and review the diff.",
+        call. = FALSE
+      )
+    }
+  }
+}
+
+
+# %% Measure ----
 
 measure <- function(case) {
-  path <- file.path(out_dir, rel_dir, case[["file"]])
-  arrow::write_parquet(case[["data"]], path)
+  path <- shipped_path(case)
   list(
     id = case[["id"]],
     # Registry-relative, which is what a consumer knows a document by.
@@ -126,29 +199,38 @@ json <- jsonlite::toJSON(
   na = "null",
   null = "null"
 )
-writeLines(json, file.path(out_dir, "profile", "v1", "fixture.json"))
 
-# Also written to `inst/`, so the package carries the artifacts it publishes:
-# `data-raw/` is in `.Rbuildignore`, and the test that reproduces the fixture
-# has to read them on CRAN.
-inst_dir <- rprojroot::find_package_root_file("inst", "profile")
-dir.create(
-  file.path(inst_dir, "fixtures"),
-  recursive = TRUE,
-  showWarnings = FALSE
-)
-writeLines(json, file.path(inst_dir, "fixture.json"))
-for (case in cases) {
-  file.copy(
-    file.path(out_dir, rel_dir, case[["file"]]),
-    file.path(inst_dir, "fixtures", case[["file"]]),
-    overwrite = TRUE
+
+# %% Write ----
+
+if (refresh) {
+  # `inst/` carries the artifacts the package publishes: `data-raw/` is in
+  # `.Rbuildignore`, and the test that reproduces the fixture reads them on
+  # CRAN.
+  writeLines(json, file.path(inst_dir, "fixture.json"))
+  cat(sprintf(
+    "profile fixture  %d cases -> %s\n",
+    length(cases),
+    file.path(inst_dir, "fixture.json")
+  ))
+} else {
+  dir.create(
+    file.path(out_dir, rel_dir),
+    recursive = TRUE,
+    showWarnings = FALSE
   )
+  writeLines(json, file.path(out_dir, "profile", "v1", "fixture.json"))
+  for (case in cases) {
+    file.copy(
+      shipped_path(case),
+      file.path(out_dir, rel_dir, case[["file"]]),
+      overwrite = TRUE
+    )
+  }
+  cat(sprintf(
+    "profile fixture  %d cases + %d parquet -> %s\n",
+    length(cases),
+    length(cases),
+    file.path(out_dir, "profile", "v1", "fixture.json")
+  ))
 }
-
-cat(sprintf(
-  "profile fixture  %d cases + %d parquet -> %s\n",
-  length(cases),
-  length(cases),
-  file.path(out_dir, "profile", "v1", "fixture.json")
-))

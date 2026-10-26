@@ -711,9 +711,11 @@ session_graft <- function(events, parent_id, prefix) {
 #'
 #' Nodes that never closed (status `"running"` or `"aborted"` with no end time)
 #' are drawn up to the session finish time when known, else to the latest
-#' recorded node start.
+#' recorded node start. A session that recorded no nodes, and a model that
+#' carries no session, have a timeline of zero rows.
 #'
-#' @param session `SupervisedSession`: Session object, e.g. `model@session`.
+#' @param x `Supervised` or `SupervisedRes` model, or the `SupervisedSession`
+#'   it carries.
 #'
 #' @return `data.table` with one row per node in depth-first order and columns:
 #' - `label` Character: Unique display label, indented two spaces per tree
@@ -730,20 +732,39 @@ session_graft <- function(events, parent_id, prefix) {
 #' @examples
 #' mod <- train(iris, hyperparameters = setup_CART())
 #' # One row per recorded node, depth-first: the run, then the steps under it.
-#' session_timeline(mod@session)
-session_timeline <- function(session) {
-  if (!S7_inherits(session, SupervisedSession)) {
-    rtemis.core::abort(
-      "`session` must be a SupervisedSession, e.g. `model@session`.",
-      class = c("rtemis_type_error", "rtemis_input_error")
-    )
-  }
+#' session_timeline(mod)
+session_timeline <- new_generic("session_timeline", "x", function(x) {
+  S7_dispatch()
+}) # /rtemis::session_timeline
+
+
+# %% empty_session_timeline ----
+#' The timeline of a session that recorded no nodes
+#'
+#' @return Zero-row `data.table` with the columns of `session_timeline()`.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+empty_session_timeline <- function() {
+  data.table(
+    label = character(),
+    start = numeric(),
+    end = numeric(),
+    kind = character(),
+    status = character(),
+    failed = logical(),
+    tip = character()
+  )
+} # /rtemis::empty_session_timeline
+
+
+# %% session_timeline.SupervisedSession ----
+method(session_timeline, SupervisedSession) <- function(x) {
+  session <- x
   events <- session@events
   if (length(events) == 0L) {
-    rtemis.core::abort(
-      "This SupervisedSession has no recorded events.",
-      class = c("rtemis_value_error", "rtemis_input_error")
-    )
+    return(empty_session_timeline())
   }
   started <- session@started
 
@@ -880,7 +901,7 @@ session_timeline <- function(session) {
     failed = status %in% c("error", "aborted"),
     tip = tip
   )
-} # /rtemis::session_timeline
+} # /rtemis::session_timeline.SupervisedSession
 
 
 # %% session_nodes ----

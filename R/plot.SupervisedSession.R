@@ -43,6 +43,12 @@ draw_supervised_session <- function(
   # One row per node, DFS order, ms offsets, unique indented labels, tooltip
   # text, and a `failed` flag -- all computed by the shared rtemis helper.
   tasks <- session_timeline(x)
+  if (NROW(tasks) == 0L) {
+    rtemis.core::abort(
+      "This SupervisedSession has no recorded events.",
+      class = c("rtemis_value_error", "rtemis_input_error")
+    )
+  }
 
   # Color by event KIND so the legend filters by type and the fill is identical
   # for like events, making same-color overlap read as a parallel process.

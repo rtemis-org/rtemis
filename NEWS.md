@@ -2,6 +2,17 @@
 
 ## 1.4.3
 
+- `transformed()` returns a decomposition's components for the data it was fitted on, `clusters()` the cluster label of each case, and `get_membership()` the membership matrix of a soft clustering (CMeans, GMM); `transformed()` and `get_membership()` return a data.table.
+- `get_predictions()` returns the true and predicted values and class probabilities a supervised model stores for each sample, and each outer resample of a resampled model.
+- `roc_table()` returns the ROC curves of a classification model for each stored sample, pooled or per outer resample: the data `plot_roc()` draws.
+- `session_timeline()` takes a model as well as its session, and returns zero rows for a session that recorded no events or a model that carries none.
+- `assign_clusters()` assigns new cases to the clusters of a fitted KMeans, HardCL, or NeuralGas clustering.
+- `clustering_metrics()` computes the metrics of a clustering on the data it was fitted on, adding the mean silhouette width, a `ClusteringMetrics` measure that `cluster()` reports as not requested.
+- `apply_decomposition()` replaces `apply_decomp()`, `decomposition_metrics()` replaces `decomp_metrics()`, and `mode_value()` replaces `get_mode()`, `get_fitted_config()` replaces `fitted_config()`, `explanation_traits()` replaces `explanation_methods()`, `decomposition_metric_traits()` replaces `applicable_metrics()`, and `is_same_data()` replaces `same_data()`; `get_factor_names()` is deprecated in favor of `getfactornames()`. The old names remain and signal a deprecation warning.
+- tSNE, UMAP, and Isomap name their components `tSNE_1`, `UMAP_1`, `Isomap_1`, ..., as the other decompositions do; the output of `apply_decomposition()` and the predictors of a model trained with a UMAP decomposition carry these names.
+- Printed `ClusteringMetrics` show each computed value and the status of each measure not computed.
+- CMeans prints the iteration log of 'e1071' only at `verbosity` above 1.
+- `preprocessed()` returns a copy of a data.table, so modifying the result by reference leaves the `Preprocessor` unchanged.
 - `get_loadings()` returns the loadings of a linear decomposition, features by components: the rotation for PCA, the transposed mixing matrix for ICA, and the basis for NMF. It returns NULL for the other algorithms; the `linear` column of `decomposition_traits()` states which algorithms have loadings.
 - `varimp_ranking()` returns a model's variable importance in rank order for every measure: each variable's score per resample, its mean across resamples, and its rank, ranked as the measure's direction declares. `plot_varimp()` draws the same ranking.
 - CART and the LightGBM-based learners report importance zero for predictors in no split, so resampled importance averages over every resample; `plot_varimp()` drops the `absent` argument.

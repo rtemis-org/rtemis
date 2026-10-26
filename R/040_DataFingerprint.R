@@ -545,7 +545,7 @@ data_fingerprint <- function(
 } # /rtemis::.hash_table
 
 
-# %% same_data ----
+# %% is_same_data ----
 #' Do two fingerprints identify the same dataset?
 #'
 #' Two fingerprints are comparable only if they were produced the same way, so
@@ -558,8 +558,8 @@ data_fingerprint <- function(
 #' @author EDG
 #' @export
 #' @examples
-#' same_data(data_fingerprint(iris), data_fingerprint(iris))
-same_data <- function(x, y) {
+#' is_same_data(data_fingerprint(iris), data_fingerprint(iris))
+is_same_data <- function(x, y) {
   if (!S7_inherits(x, DataFingerprint) || !S7_inherits(y, DataFingerprint)) {
     rtemis.core::abort(
       "`x` and `y` must be DataFingerprint objects.",
@@ -572,6 +572,25 @@ same_data <- function(x, y) {
   identical(x@encoding, y@encoding) &&
     identical(x@algorithm, y@algorithm) &&
     identical(x@hash, y@hash)
+} # /rtemis::is_same_data
+
+
+# %% same_data ----
+#' same_data() (Deprecated)
+#'
+#' `same_data()` is deprecated. Use [is_same_data()], which takes the same arguments.
+#'
+#' @inheritParams is_same_data
+#'
+#' @return As [is_same_data()].
+#'
+#' @author EDG
+#' @export
+#' @examples
+#' suppressWarnings(same_data(data_fingerprint(iris), data_fingerprint(iris)))
+same_data <- function(x, y) {
+  base::.Deprecated(new = "is_same_data", package = "rtemis", old = "same_data")
+  is_same_data(x, y)
 } # /rtemis::same_data
 
 
@@ -590,7 +609,7 @@ same_data <- function(x, y) {
 #' @keywords internal
 #' @noRd
 fingerprint_diff <- function(x, y) {
-  if (same_data(x, y)) {
+  if (is_same_data(x, y)) {
     return(NULL)
   }
   if (

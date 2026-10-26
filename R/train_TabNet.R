@@ -79,12 +79,12 @@ method(train_, TabNetHyperparameters) <- function(
   # tabnet resolves unset widths into the fitted network's configuration.
   # `importance_sample_size` stays unset where unset: its count follows the
   # number of training cases.
-  fitted_config <- model[["fit"]][["config"]]
+  get_fitted_config <- model[["fit"]][["config"]]
   hyperparameters <- record_backend_values(
     hyperparameters,
     list(
-      decision_width = as.integer(fitted_config[["n_d"]]),
-      attention_width = as.integer(fitted_config[["n_a"]])
+      decision_width = as.integer(get_fitted_config[["n_d"]]),
+      attention_width = as.integer(get_fitted_config[["n_a"]])
     )
   )
   list(model = model, preprocessor = prp, hyperparameters = hyperparameters)

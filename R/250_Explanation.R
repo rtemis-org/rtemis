@@ -23,7 +23,7 @@
 EXPLANATION_TYPES <- c("SHAP")
 
 # What the user asks for. "auto" reads the algorithm's default from
-# `explanation_methods()`; the concrete estimator that ran is recorded on the
+# `explanation_traits()`; the concrete estimator that ran is recorded on the
 # result, so asked and resolved are never confused.
 SHAP_ESTIMATORS <- c("auto", "exact", "kernel")
 
@@ -311,7 +311,7 @@ method(desc, ExplanationConfig) <- function(x) {
 #'
 #' **`estimator` is normally best left alone.** `"auto"` uses the exact
 #' estimator wherever the algorithm has one and the model-agnostic kernel
-#' estimator otherwise; `explanation_methods()` reports which applies where.
+#' estimator otherwise; `explanation_traits()` reports which applies where.
 #'
 #' `approach` and `n_coalitions` apply only to the kernel estimator, and
 #' `approach` only when `perturbation` is `"conditional"` -- the interventional

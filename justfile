@@ -143,9 +143,10 @@ schema-defaults out:
 schema-defaults-check artifacts report:
     python3 tools/schema-defaults-check.py "{{ artifacts }}" "{{ report }}"
 
-[doc("Refresh the checks and traits artifacts shipped with the package")]
+[doc("Refresh the checks, traits, and profile fixture artifacts shipped with the package")]
 checks-refresh:
     {{ rscript }} data-raw/generate_checks.R inst
+    {{ rscript }} data-raw/generate_profile_fixture.R --refresh
 
 [doc("Audit property reconstruction from an existing generated artifact corpus")]
 schema-roundtrip artifacts report:
@@ -176,9 +177,10 @@ schemas-check:
         just schema-artifacts "$dir" && \
         just schema-defaults-check "$dir" "$dir/defaults-check.json" && \
         { diff -u inst/checks/v1/checks.json "$dir/checks/v1/checks.json" && \
-          diff -u inst/traits/v1/traits.json "$dir/traits/v1/traits.json"; } || { \
+          diff -u inst/traits/v1/traits.json "$dir/traits/v1/traits.json" && \
+          diff -u inst/profile/fixture.json "$dir/profile/v1/fixture.json"; } || { \
             echo "   Generation or artifact comparison failed; inspect the diagnostics above."; \
-            echo "   For shipped checks/traits drift, run 'just checks-refresh' and review the diff."; \
+            echo "   For shipped checks/traits/profile drift, run 'just checks-refresh' and review the diff."; \
             exit 1; \
         }
     @just _msg "Done"

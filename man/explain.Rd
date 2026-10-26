@@ -52,7 +52,7 @@ result carries a fingerprint of the background it used.
 \strong{\code{config} chooses the method}, built by \link{setup_SHAP}:
 \code{setup_SHAP(perturbation = "conditional")} picks the value function,
 \code{setup_SHAP(estimator = "kernel")} overrides the estimator the algorithm
-would otherwise get. \link{explanation_methods} reports which estimator applies to
+would otherwise get. \link{explanation_traits} reports which estimator applies to
 which algorithm, whether it is exact, and why.
 
 A \code{SupervisedRes} additionally takes \code{type}: \code{"avg"} (the default) averages
