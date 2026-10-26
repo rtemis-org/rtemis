@@ -380,7 +380,7 @@ download_url <- function(url, verbosity = 1L) {
     add = TRUE
   )
   msg0(
-    bold(highlight("▶")),
+    bold(highlight("\u25b6")),
     " Downloading ",
     highlight(name),
     "...",

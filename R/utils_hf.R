@@ -268,7 +268,7 @@ resolve_hf <- function(path, verbosity = 1L) {
   sibling <- siblings[[idx]]
   lfs <- sibling[["lfs"]]
   msg0(
-    bold(highlight("▶")),
+    bold(highlight("\u25b6")),
     " Resolved ",
     highlight(ref[["repo"]]),
     "@",
