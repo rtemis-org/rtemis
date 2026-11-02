@@ -691,25 +691,71 @@ review_sample_line <- function(x) {
 
 # %% review_text_table ----
 # Left-align the first column and right-align the rest (every column with
-# `align_left`), two spaces apart.
-review_text_table <- function(table, indent, align_left = FALSE) {
+# `align_left`), two spaces apart. With `width`, the widest columns are capped
+# so that a line fits in `width` characters, and a longer cell wraps onto
+# continuation lines within its column (`wrap_cell()`). Returns one string per
+# line.
+review_text_table <- function(table, indent, align_left = FALSE, width = NULL) {
   widths <- apply(table, 2L, function(col) max(nchar(col)))
-  apply(table, 1L, function(row) {
-    cells <- vapply(
-      seq_along(row)[-1L],
-      function(k) {
-        formatC(row[[k]], width = if (align_left) -widths[[k]] else widths[[k]])
+  caps <- widths
+  if (!is.null(width)) {
+    available <- width - nchar(indent) - 2L * ncol(table)
+    cap <- max(widths)
+    while (cap > 12L && sum(pmin(widths, cap)) > available) {
+      cap <- cap - 1L
+    }
+    caps <- pmin(widths, cap)
+  }
+  cells <- lapply(seq_len(ncol(table)), function(k) {
+    lapply(table[, k], function(cell) {
+      if (nchar(cell) > caps[[k]]) wrap_cell(cell, caps[[k]]) else cell
+    })
+  })
+  widths <- vapply(cells, function(col) max(nchar(unlist(col))), integer(1L))
+  unlist(lapply(seq_len(nrow(table)), function(i) {
+    n_lines <- max(vapply(cells, function(col) length(col[[i]]), integer(1L)))
+    vapply(
+      seq_len(n_lines),
+      function(j) {
+        line <- vapply(
+          seq_along(cells),
+          function(k) {
+            text <- cells[[k]][[i]][j]
+            formatC(
+              if (is.na(text)) "" else text,
+              width = if (k == 1L || align_left) -widths[[k]] else widths[[k]]
+            )
+          },
+          character(1L)
+        )
+        sub("\\s+$", "", paste0(indent, "  ", paste(line, collapse = "  ")))
       },
       character(1L)
     )
-    paste0(
-      indent,
-      "  ",
-      formatC(row[[1L]], width = -widths[[1L]]),
-      paste0("  ", cells, collapse = "")
-    )
-  })
+  }))
 } # /rtemis::review_text_table
+
+
+# %% wrap_cell ----
+# Lines of at most `width` characters where words allow: the cell's "; "-
+# separated items are packed whole, and an item longer than `width` wraps at
+# its spaces.
+wrap_cell <- function(cell, width) {
+  items <- strsplit(cell, "(?<=;) ", perl = TRUE)[[1L]]
+  pieces <- unlist(lapply(items, function(item) {
+    if (nchar(item) > width) strwrap(item, width = width + 1L) else item
+  }))
+  lines <- pieces[[1L]]
+  for (piece in pieces[-1L]) {
+    last <- lines[[length(lines)]]
+    if (nchar(last) + 1L + nchar(piece) <= width) {
+      lines[[length(lines)]] <- paste(last, piece)
+    } else {
+      lines <- c(lines, piece)
+    }
+  }
+  lines
+} # /rtemis::wrap_cell
 
 
 # %% review_performance_rows ----

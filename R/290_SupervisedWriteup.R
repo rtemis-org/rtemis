@@ -21,7 +21,9 @@ WRITEUP_PARTS <- c("methods", "results")
 # How a value is formatted in text:
 # - "count"    whole number of cases or items, with thousands separators
 # - "integer"  whole-number setting, written in full
-# - "exact"    real-valued setting, written in full (15 significant digits)
+# - "setting"  real-valued setting, three significant digits, or more where
+#              values listed together would otherwise read the same; below
+#              1e-4 in scientific notation
 # - "metric"   performance metric, three decimals
 # - "quantity" other real number, three significant digits
 # - "p_value"  "p = 0.012", or "p < 0.001"
@@ -31,7 +33,7 @@ WRITEUP_PARTS <- c("methods", "results")
 WRITEUP_VALUE_KINDS <- c(
   "count",
   "integer",
-  "exact",
+  "setting",
   "metric",
   "quantity",
   "p_value",
@@ -191,7 +193,7 @@ SupervisedWriteup <- schema_class(
         ),
         kind = prop_string(
           enum = WRITEUP_VALUE_KINDS,
-          description = "How the value is formatted: 'count' a whole number with thousands separators; 'integer' a whole-number setting in full; 'exact' a real-valued setting in full, to 15 significant digits; 'metric' three decimals; 'quantity' three significant digits; 'p_value' as 'p = 0.012' or 'p < 0.001'; 'percent' a proportion as a percentage with at most one decimal; 'text' a value that is text, such as a software version, an outcome level or a hyperparameter setting."
+          description = "How the value is formatted: 'count' a whole number with thousands separators; 'integer' a whole-number setting in full; 'setting' a real-valued setting to three significant digits, or more where values listed together would otherwise read the same, in scientific notation below 1e-4; the number itself is in 'value'; 'metric' three decimals; 'quantity' three significant digits; 'p_value' as 'p = 0.012' or 'p < 0.001'; 'percent' a proportion as a percentage with at most one decimal; 'text' a value that is text, such as a software version, an outcome level or a hyperparameter setting."
         ),
         text = prop_string(
           description = "The value as it appears in the text."
@@ -303,18 +305,23 @@ SupervisedWriteup <- schema_class(
 #'
 #' @param value Numeric scalar, or Character for kind "text".
 #' @param kind Character: One of `WRITEUP_VALUE_KINDS`.
+#' @param digits Integer \[3, 15\]: Significant digits of kind "setting".
 #'
 #' @return Character scalar.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-fmt_writeup_value <- function(value, kind) {
+fmt_writeup_value <- function(value, kind, digits = 3L) {
   switch(
     kind,
     count = formatC(value, format = "d", big.mark = ","),
     integer = formatC(value, format = "d"),
-    exact = trimws(formatC(value, digits = 15L, format = "g")),
+    setting = if (value != 0 && abs(value) < 1e-4) {
+      trimws(formatC(value, digits = digits, format = "g"))
+    } else {
+      trimws(formatC(signif(value, digits), digits = digits, format = "fg"))
+    },
     metric = sprintf("%.3f", value),
     quantity = trimws(formatC(signif(value, 3L), digits = 3L, format = "fg")),
     p_value = if (value < 0.001) "p < 0.001" else sprintf("p = %.3f", value),
@@ -740,7 +747,12 @@ method(repr, SupervisedWriteup) <- function(x, pad = 0L, output_type = NULL) {
       "\n",
       wrap(writeup_hp_table_caption(x, main), "    "),
       paste(
-        review_text_table(rows, paste0(indent, "  "), align_left = TRUE),
+        review_text_table(
+          rows,
+          paste0(indent, "  "),
+          align_left = TRUE,
+          width = width + nchar(indent) + 2L
+        ),
         collapse = "\n"
       ),
       "\n",
@@ -779,7 +791,11 @@ method(repr, SupervisedWriteup) <- function(x, pad = 0L, output_type = NULL) {
         "\n",
         wrap(writeup_table_caption(x), "    "),
         paste(
-          review_text_table(writeup_table_rows(x), paste0(indent, "  ")),
+          review_text_table(
+            writeup_table_rows(x),
+            paste0(indent, "  "),
+            width = width + nchar(indent) + 2L
+          ),
           collapse = "\n"
         ),
         "\n"

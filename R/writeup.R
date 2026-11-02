@@ -128,13 +128,14 @@ writeup_collector <- function() {
 #' @param kind Character: One of `WRITEUP_VALUE_KINDS`.
 #' @param source Character: Where the value was read from. A value computed
 #'   from fields starts with "derived:".
+#' @param digits Integer \[3, 15\]: Significant digits of kind "setting".
 #'
 #' @return Character: The token, `{key}`.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-writeup_value <- function(w, key, value, kind, source) {
+writeup_value <- function(w, key, value, kind, source, digits = 3L) {
   if (!grepl("^[a-z][a-z0-9_]*$", key)) {
     rtemis.core::abort(
       "Writeup value key '",
@@ -143,7 +144,7 @@ writeup_value <- function(w, key, value, kind, source) {
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
-  text <- fmt_writeup_value(value, kind)
+  text <- fmt_writeup_value(value, kind, digits)
   previous <- w[["values"]][[key]]
   if (!is.null(previous) && !identical(previous[["text"]], text)) {
     rtemis.core::abort(

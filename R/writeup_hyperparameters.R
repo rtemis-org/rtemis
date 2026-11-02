@@ -261,27 +261,30 @@ writeup_hp_object_origin <- function(input, value, name) {
 # %% writeup_hp_tokens ----
 #' Record a hyperparameter value and return its cell template
 #'
-#' A number is written in full (kind "exact" or "integer"), a vector element by
-#' element, and any other value as compact JSON text.
+#' An integer is written in full (kind "integer"), a real number to `digits`
+#' significant digits (kind "setting"), a vector element by element, and any
+#' other value as compact JSON text.
 #'
 #' @param w Collector.
 #' @param key Character: Base token name.
 #' @param value Wire value, or Character scalar for an object summary.
 #' @param source Character: Path of the field.
+#' @param digits Integer \[3, 15\]: Significant digits of a real number, from
+#'   `writeup_hp_digits()`.
 #'
 #' @return Character: Template.
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-writeup_hp_tokens <- function(w, key, value, source) {
+writeup_hp_tokens <- function(w, key, value, source, digits = 3L) {
   scalar_token <- function(k, v, s) {
     if (is.logical(v)) {
       writeup_value(w, k, if (isTRUE(v)) "true" else "false", "text", s)
     } else if (is.integer(v)) {
       writeup_value(w, k, v, "integer", s)
     } else if (is.numeric(v)) {
-      writeup_value(w, k, v, "exact", s)
+      writeup_value(w, k, v, "setting", s, digits = digits)
     } else {
       writeup_value(w, k, as.character(v), "text", s)
     }
@@ -334,6 +337,43 @@ writeup_hp_identity <- function(value) {
   }
   as.character(jsonlite::toJSON(value, null = "null", digits = NA))
 } # /rtemis::writeup_hp_identity
+
+
+# %% writeup_hp_digits ----
+#' Significant digits for the real numbers of one table cell
+#'
+#' Three, or the fewest from four to 15 at which every distinct real number
+#' in the cell reads differently.
+#'
+#' @param values List of wire values; NULL and non-atomic values carry no
+#'   real numbers.
+#'
+#' @return Integer scalar.
+#'
+#' @author EDG
+#' @keywords internal
+#' @noRd
+writeup_hp_digits <- function(values) {
+  reals <- unique(unlist(
+    lapply(values, function(v) {
+      if (is.double(v)) v[is.finite(v)] else NULL
+    }),
+    use.names = FALSE
+  ))
+  for (digits in 3:14) {
+    texts <- vapply(
+      reals,
+      fmt_writeup_value,
+      character(1L),
+      kind = "setting",
+      digits = digits
+    )
+    if (!anyDuplicated(texts)) {
+      return(digits)
+    }
+  }
+  15L
+} # /rtemis::writeup_hp_digits
 
 
 # %% writeup_hp_summaries ----
@@ -392,6 +432,12 @@ writeup_hp_tried <- function(ctx, name) {
       next
     }
     if (name %in% names(grid)) {
+      # A grid column of a hyperparameter not searched holds the values each
+      # cell's fit selected internally (`writeup_selection()`), not values
+      # tuning evaluated.
+      if (!name %in% writeup_searched(ctx)) {
+        next
+      }
       column <- grid[[name]]
       for (v in if (is.list(column)) column else as.list(column)) {
         values <- c(values, list(if (length(v) == 1L && is.na(v)) NULL else v))
@@ -520,6 +566,7 @@ writeup_hyperparameters <- function(ctx, w, include = NULL) {
       summaries <- if (object_valued) {
         writeup_hp_summaries(tried[["values"]], tried[["identities"]])
       }
+      digits <- writeup_hp_digits(tried[["values"]])
       paste(
         vapply(
           seq_along(tried[["values"]]),
@@ -550,7 +597,8 @@ writeup_hyperparameters <- function(ctx, w, include = NULL) {
                 w,
                 k,
                 S7_to_list(wire_value(v, prop_def)),
-                tried[["sources"]][[j]]
+                tried[["sources"]][[j]],
+                digits = digits
               )
             }
           },
@@ -637,6 +685,7 @@ writeup_hp_cell <- function(
       vapply(entries, `[[`, character(1L), "identity")
     )
   }
+  digits <- writeup_hp_digits(lapply(entries, `[[`, "value"))
   one <- function(i, k) {
     e <- entries[[i]]
     if (is.null(e[["value"]])) {
@@ -653,7 +702,7 @@ writeup_hp_cell <- function(
     } else if (object_valued) {
       writeup_value(w, k, summaries[[i]], "text", path)
     } else {
-      writeup_hp_tokens(w, k, e[["value"]], path)
+      writeup_hp_tokens(w, k, e[["value"]], path, digits = digits)
     }
   }
   if (length(entries) == 1L && all(applies)) {
