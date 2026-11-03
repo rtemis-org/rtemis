@@ -583,7 +583,8 @@ test_that("every generated class clause satisfies the config contract", {
 
 # %% .validator_classes ----
 # Every class in `cls`'s S7 ancestry that declares a validator, `S7_object`'s
-# stock one excluded. The leaf's own validator is not the whole story:
+# stock one excluded. `S7_object` is matched by name: the copy a class holds
+# is not `identical()` to `S7::S7_object` under S7 releases after 0.2.2. The leaf's own validator is not the whole story:
 # `MetaLearnerHyperparameters` sits between `SuperLearnerHyperparameters` and
 # `Hyperparameters`, and the properties it constrains are exactly the ones the
 # leaf's schema declares.
@@ -591,7 +592,8 @@ test_that("every generated class clause satisfies the config contract", {
   out <- list()
   while (inherits(cls, "S7_class")) {
     if (
-      !identical(cls, S7::S7_object) && !is.null(schema_native_validator(cls))
+      !identical(cls@name, "S7_object") &&
+        !is.null(schema_native_validator(cls))
     ) {
       out <- c(out, list(cls))
     }

@@ -404,6 +404,9 @@ schema_class <- function(
     validate_reference_discriminators(cls)
   }
   metadata[["publication"]] <- S7::props(publication)
+  # Lazy loading restores the environment lock of a namespace class but not
+  # its binding locks: an installed class refuses new fields, and no code
+  # writes its fields after this function returns.
   lockEnvironment(metadata, bindings = TRUE)
   cls
 }

@@ -69,15 +69,12 @@ test_that("the class of an instance carries the metadata of its declaration", {
     schema_reporting(S7::S7_class(lightgbm)),
     schema_reporting(LightGBMHyperparameters)
   )
-  # The metadata environment is locked once the class is declared.
-  expect_error(
-    assign(
-      "publication",
-      NULL,
-      envir = class_metadata_store(CARTHyperparameters)
-    ),
-    "locked"
-  )
+  # The metadata environment is locked once the class is declared. Lazy
+  # loading restores the environment lock but not the binding locks, so the
+  # test adds a field rather than reassigning one.
+  store <- class_metadata_store(CARTHyperparameters)
+  expect_true(environmentIsLocked(store))
+  expect_error(assign("undeclared_field", NULL, envir = store), "locked")
 })
 
 
