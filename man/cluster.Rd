@@ -6,7 +6,6 @@
 \usage{
 cluster(
   x,
-  algorithm = "KMeans",
   config = NULL,
   execution_config = setup_FutureExecution(),
   outdir = NULL,
@@ -19,14 +18,12 @@ are cases to be clustered), or a \code{ClusterConfig} recipe (from
 \link{setup_ClusterConfig}) carrying the data path, algorithm config, and output
 directory.}
 
-\item{algorithm}{Character: Clustering algorithm. Not needed when \code{config} is
-supplied, which names its own; an explicit \code{algorithm} that disagrees with
-\code{config} is an error.}
-
-\item{config}{\code{ClusteringConfig}, optional: Algorithm-specific config from a
-clustering \verb{setup_*} function. Its \code{features} selects the columns to cluster
-on; \code{NULL} selects every numeric column of \code{x}, since a clustering backend
-reads numbers. The returned object's config carries the resolved names.}
+\item{config}{Optional \code{ClusteringConfig}: Config from a clustering \verb{setup_*}
+function, which names the algorithm and its settings. \code{NULL} runs
+\link{setup_KMeans} with its defaults. Its \code{features} selects the columns to
+cluster on; \code{NULL} selects every numeric column of \code{x}, since a clustering
+backend reads numbers. The returned object's config carries the resolved
+names.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Execution settings, e.g.
 \link{setup_FutureExecution} or \link{setup_SerialExecution}. A clustering dispatches
@@ -50,7 +47,7 @@ Perform clustering on the rows (usually cases) of a dataset.
 See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 }
 \examples{
-iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
+iris_km <- cluster(exc(iris, "Species"), config = setup_KMeans())
 }
 \author{
 EDG

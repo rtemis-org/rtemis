@@ -46,7 +46,7 @@ preserved, so the result lines up cell for cell with \code{x}.
 }
 \examples{
 x <- exc(iris, "Species")
-iris_pca <- decomp(x, algorithm = "PCA", config = setup_PCA(k = 2L))
+iris_pca <- decomp(x, config = setup_PCA(k = 2L))
 reconstructed <- reconstruct(iris_pca, x)
 # What the two components could not represent, per case:
 head(rowMeans((as.matrix(x) - as.matrix(reconstructed))^2))

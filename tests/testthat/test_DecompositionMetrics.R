@@ -54,7 +54,11 @@ test_that("the metrics computed are exactly the metrics derived as applicable", 
     decom <- if (algorithm %in% c("NMF", "UMAP")) {
       shared_decomposition(algorithm)
     } else {
-      decomp(x, algorithm = algorithm, verbosity = 0L)
+      decomp(
+        x,
+        config = do.call(paste0("setup_", algorithm), list()),
+        verbosity = 0L
+      )
     }
     applicable <- decomposition_metric_traits(algorithm)
     expected <- applicable[["name"]][!applicable[["needs_new_data"]]]
@@ -71,7 +75,6 @@ test_that("PCA explained_variance_ratio matches prcomp's variance proportion", {
   k <- 3L
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = k, center = TRUE, scale = FALSE),
     verbosity = 0L
   )
@@ -91,7 +94,6 @@ test_that("reconstruction metrics are in input units, not the scaled space", {
   k <- 3L
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = k, center = TRUE, scale = TRUE),
     verbosity = 0L
   )
@@ -109,7 +111,6 @@ test_that("reconstruction metrics are in input units, not the scaled space", {
 test_that("a full-rank PCA reconstructs perfectly", {
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = ncol(x)),
     verbosity = 0L
   )
@@ -125,7 +126,6 @@ test_that("PCA reconstruction error decreases monotonically in k", {
     function(k) {
       decomp(
         x,
-        algorithm = "PCA",
         config = setup_PCA(k = k),
         verbosity = 0L
       )@metrics[["relative_reconstruction_error"]]
@@ -139,7 +139,6 @@ test_that("PCA reconstruction error decreases monotonically in k", {
 test_that("PCA components are uncorrelated and NMF's are not required to be", {
   pca <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = 3L),
     verbosity = 0L
   )
@@ -221,7 +220,6 @@ test_that("decomposition_metrics() adds out-of-sample metrics only with new_data
   test <- x[101:150, ]
   decom <- decomp(
     train,
-    algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -261,7 +259,7 @@ test_that("decomposition_metrics() refuses new_data for an algorithm that cannot
     setup_Preprocessor(remove_duplicates = TRUE),
     verbosity = 0L
   )@preprocessed
-  decom <- decomp(deduplicated, algorithm = "tSNE", verbosity = 0L)
+  decom <- decomp(deduplicated, config = setup_tSNE(), verbosity = 0L)
   expect_error(
     decomposition_metrics(
       decom,
@@ -282,7 +280,6 @@ test_that("metrics read only the features the decomposition was fitted on", {
   features <- c("Sepal.Length", "Sepal.Width")
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = 1L, features = features),
     verbosity = 0L
   )
@@ -312,7 +309,6 @@ test_that("decomposition_metrics() rejects an `x` that is not the fitted data", 
   # and nothing else. A case count that cannot be theirs says so.
   decom <- decomp(
     x[1:100, ],
-    algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -335,7 +331,6 @@ test_that("a same-shape, same-names, different-values `x` is caught", {
   second <- x[76:150, ]
   decom <- decomp(
     first,
-    algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -353,7 +348,6 @@ test_that("decomp() fingerprints the features it decomposed", {
   features <- c("Sepal.Length", "Sepal.Width")
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = 1L, features = features),
     verbosity = 0L
   )
@@ -371,10 +365,10 @@ test_that("the fingerprint survives the container the data arrived in", {
   # An "object" hash is taken over serialized bytes, and a data.frame and the
   # data.table it came from order their attributes differently -- so they hash
   # differently while being `identical()`. Reducing to a matrix drops that.
-  from_df <- decomp(as.data.frame(x), algorithm = "PCA", verbosity = 0L)
+  from_df <- decomp(as.data.frame(x), config = setup_PCA(), verbosity = 0L)
   from_dt <- decomp(
     data.table::as.data.table(x),
-    algorithm = "PCA",
+    config = setup_PCA(),
     verbosity = 0L
   )
   expect_true(is_same_data(from_df@data_fingerprint, from_dt@data_fingerprint))
@@ -384,7 +378,6 @@ test_that("the fingerprint survives the container the data arrived in", {
 test_that("decomposition_metrics() reports an `x` of the right shape and wrong data", {
   decom <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -404,7 +397,7 @@ test_that("decomposition_metrics() reports an `x` of the right shape and wrong d
 
 
 test_that("decomp() records the data it used in the run record", {
-  decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
+  decom <- decomp(x, config = setup_PCA(), verbosity = 0L)
   provenance <- record(decom)[["provenance"]]
   expect_false(is.null(provenance[["data_training"]]))
   expect_identical(
@@ -419,10 +412,10 @@ test_that("decomp() and cluster() fingerprint one dataset identically", {
   # Comparing runs across a batch is what a fingerprint is for, so two families
   # given one dataset must record one hash for it -- including when they were
   # handed different containers.
-  decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
+  decom <- decomp(x, config = setup_PCA(), verbosity = 0L)
   clust <- cluster(
     data.table::as.data.table(x),
-    algorithm = "KMeans",
+    config = setup_KMeans(),
     verbosity = 0L
   )
   expect_true(is_same_data(decom@data_fingerprint, clust@data_fingerprint))
@@ -431,7 +424,7 @@ test_that("decomp() and cluster() fingerprint one dataset identically", {
 
 test_that("cluster() records the data it used in the run record", {
   skip_if_not_installed("flexclust")
-  clust <- cluster(x, algorithm = "KMeans", verbosity = 0L)
+  clust <- cluster(x, config = setup_KMeans(), verbosity = 0L)
   expect_s7_class(clust@data_fingerprint, DataFingerprint)
   expect_identical(
     record(clust)[["provenance"]][["data_training"]][["hash"]],
@@ -441,7 +434,7 @@ test_that("cluster() records the data it used in the run record", {
 
 
 test_that("decomp() stores metrics on its result", {
-  decom <- decomp(x, algorithm = "PCA", verbosity = 0L)
+  decom <- decomp(x, config = setup_PCA(), verbosity = 0L)
   expect_s7_class(decom@metrics, DecompositionMetrics)
   expect_identical(decom@metrics@sample, "Training")
   expect_identical(nrow(decom@metrics@metrics), 1L)

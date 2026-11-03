@@ -22,7 +22,7 @@ whether it inverts, and what its objective preserves.
 The columns:
 
 \describe{
-\item{\code{name}}{The name used by \verb{setup_<name>()} and \code{decomp(algorithm =)}.}
+\item{\code{name}}{The name used by \verb{setup_<name>()}.}
 \item{\code{description}}{Full name of the algorithm.}
 \item{\code{linear}}{The data is modeled as the components times a loadings
 matrix, which \link{get_loadings} returns.}

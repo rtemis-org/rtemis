@@ -6,7 +6,6 @@
 \usage{
 decomp(
   x,
-  algorithm = "ICA",
   config = NULL,
   execution_config = setup_FutureExecution(),
   outdir = NULL,
@@ -18,14 +17,12 @@ decomp(
 \code{DecomposeConfig} recipe (from \link{setup_DecomposeConfig}) carrying the data
 path, algorithm config, and output directory.}
 
-\item{algorithm}{Character: Decomposition algorithm. Not needed when \code{config}
-is supplied, which names its own; an explicit \code{algorithm} that disagrees
-with \code{config} is an error.}
-
-\item{config}{DecompositionConfig: Algorithm-specific config. Its \code{features}
-selects the columns of \code{x} to decompose; \code{NULL} selects every numeric column,
-since a decomposition reads a numeric matrix. The returned object's config
-carries the resolved names, and \code{apply_decomposition()} replays that selection.}
+\item{config}{Optional \code{DecompositionConfig}: Config from a decomposition
+\verb{setup_*} function, which names the algorithm and its settings. \code{NULL} runs
+\link{setup_ICA} with its defaults. Its \code{features} selects the columns of \code{x} to
+decompose; \code{NULL} selects every numeric column, since a decomposition reads
+a numeric matrix. The returned object's config carries the resolved names,
+and \code{apply_decomposition()} replays that selection.}
 
 \item{execution_config}{\code{ExecutionConfig} object: Execution settings, e.g.
 \link{setup_FutureExecution} or \link{setup_SerialExecution}. A decomposition dispatches
@@ -53,7 +50,7 @@ Perform linear or non-linear decomposition of numeric data.
 See \href{https://docs.rtemis.org/r/}{docs.rtemis.org/r} for detailed documentation.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA())
 }
 \author{
 EDG

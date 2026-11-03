@@ -414,7 +414,7 @@ mean_silhouette <- function(xm, labels) {
 #' @export
 #' @examplesIf requireNamespace("flexclust", quietly = TRUE)
 #' x <- exc(iris, "Species")
-#' iris_km <- cluster(x, algorithm = "KMeans", verbosity = 0L)
+#' iris_km <- cluster(x, config = setup_KMeans(), verbosity = 0L)
 #' clustering_metrics(iris_km, x, verbosity = 0L)
 clustering_metrics <- function(clust, x, verbosity = 1L) {
   check_is_S7(clust, Clustering)

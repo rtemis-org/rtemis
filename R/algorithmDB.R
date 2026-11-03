@@ -941,10 +941,6 @@ get_decom_desc <- function(algorithm) {
   decomdesc
 } # /rtemis::get_decom_desc
 
-get_default_decomparams <- function(algorithm) {
-  do.call(paste0("setup_", .get_decom_name(algorithm)), list())
-} # /rtemis::get_default_decomparams
-
 get_decom_setup_fn <- function(algorithm) {
   paste0("setup_", .get_decom_name(algorithm))
 } # /rtemis::get_decom_setup_fn
@@ -961,7 +957,7 @@ get_decom_setup_fn <- function(algorithm) {
 #' The columns:
 #'
 #' \describe{
-#'   \item{`name`}{The name used by `setup_<name>()` and `decomp(algorithm =)`.}
+#'   \item{`name`}{The name used by `setup_<name>()`.}
 #'   \item{`description`}{Full name of the algorithm.}
 #'   \item{`linear`}{The data is modeled as the components times a loadings
 #'     matrix, which [get_loadings] returns.}

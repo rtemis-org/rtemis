@@ -14,13 +14,12 @@
 #' are cases to be clustered), or a `ClusterConfig` recipe (from
 #' [setup_ClusterConfig]) carrying the data path, algorithm config, and output
 #' directory.
-#' @param algorithm Character: Clustering algorithm. Not needed when `config` is
-#' supplied, which names its own; an explicit `algorithm` that disagrees with
-#' `config` is an error.
-#' @param config `ClusteringConfig`, optional: Algorithm-specific config from a
-#' clustering `setup_*` function. Its `features` selects the columns to cluster
-#' on; `NULL` selects every numeric column of `x`, since a clustering backend
-#' reads numbers. The returned object's config carries the resolved names.
+#' @param config Optional `ClusteringConfig`: Config from a clustering `setup_*`
+#' function, which names the algorithm and its settings. `NULL` runs
+#' [setup_KMeans] with its defaults. Its `features` selects the columns to
+#' cluster on; `NULL` selects every numeric column of `x`, since a clustering
+#' backend reads numbers. The returned object's config carries the resolved
+#' names.
 #' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
 #' [setup_FutureExecution] or [setup_SerialExecution]. A clustering dispatches
 #' no work to other processes and no registered algorithm threads, so the fit
@@ -36,10 +35,9 @@
 #' @author EDG
 #' @export
 #' @examples
-#' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans")
+#' iris_km <- cluster(exc(iris, "Species"), config = setup_KMeans())
 cluster <- function(
   x,
-  algorithm = "KMeans",
   config = NULL,
   execution_config = setup_FutureExecution(),
   outdir = NULL,
@@ -57,7 +55,7 @@ cluster <- function(
       )
     }
     # The document names the algorithm in one place, its `clustering_config`;
-    # with none, the formal default below applies.
+    # with none, the default below applies.
     return(cluster(
       x = read(x@dat_path),
       config = x@clustering_config,
@@ -68,25 +66,12 @@ cluster <- function(
   } # / cluster.ClusterConfig
 
   # Checks ----
-  # A supplied config names its algorithm; `algorithm` then serves only to catch
-  # a caller naming a different one.
   if (is.null(config)) {
-    config <- get_default_clusterparams(algorithm)
-  } else {
-    check_is_S7(config, ClusteringConfig)
-    if (!missing(algorithm) && .get_clust_name(algorithm) != config@algorithm) {
-      rtemis.core::abort(
-        "`algorithm` is \"",
-        algorithm,
-        "\" but `config` is a ",
-        config@algorithm,
-        " config; pass one or the other.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    algorithm <- config@algorithm
+    config <- setup_KMeans()
   }
+  check_is_S7(config, ClusteringConfig)
   check_is_S7(execution_config, ExecutionConfig)
+  algorithm <- config@algorithm
 
   # Feature selection ----
   # The config's `features` is the record's account of which columns were
@@ -116,7 +101,6 @@ cluster <- function(
   # Resources ----
   # Nothing is dispatched and no clustering backend threads, so the algorithm
   # runs on one thread whatever the config allows; the line states both.
-  algorithm <- .get_clust_name(algorithm)
   msg_resources(
     backend = execution_backend_label(execution_config),
     n_workers = execution_n_workers(execution_config),
@@ -270,7 +254,7 @@ cluster <- function(
 #' @export
 #' @examplesIf requireNamespace("flexclust", quietly = TRUE)
 #' x <- exc(iris, "Species")
-#' iris_km <- cluster(x[1:100, ], algorithm = "KMeans", verbosity = 0L)
+#' iris_km <- cluster(x[1:100, ], config = setup_KMeans(), verbosity = 0L)
 #' assign_clusters(iris_km, x[101:150, ], verbosity = 0L)
 assign_clusters <- function(clust, newdata, verbosity = 1L) {
   check_is_S7(clust, Clustering)

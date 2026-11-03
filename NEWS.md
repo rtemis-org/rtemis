@@ -1,5 +1,9 @@
 # rtemis news
 
+## 1.4.4
+
+- `decomp()` and `cluster()` take the algorithm from `config` alone, as in `decomp(x, config = setup_PCA())`; the `algorithm` argument is removed and `config` is the second argument.
+
 ## 1.4.3
 
 - `transformed()` returns a decomposition's components for the data it was fitted on, `clusters()` the cluster label of each case, and `get_membership()` the membership matrix of a soft clustering (CMeans, GMM); `transformed()` and `get_membership()` return a data.table.

@@ -60,7 +60,7 @@ test_that("setup_PCA() succeeds", {
 })
 
 test_that("decomp() PCA succeeds", {
-  iris_pca <- decomp(x, algorithm = "pca", config = setup_PCA())
+  iris_pca <- decomp(x, config = setup_PCA())
   iris_pca
   expect_s7_class(iris_pca, Decomposition)
 })
@@ -73,7 +73,7 @@ test_that("setup_ICA() succeeds", {
 
 test_that("decomp() ICA succeeds", {
   skip_if_not_installed("fastICA")
-  iris_ica <- decomp(x, algorithm = "ica", config = setup_ICA())
+  iris_ica <- decomp(x, config = setup_ICA())
   expect_s7_class(iris_ica, Decomposition)
 })
 
@@ -134,7 +134,6 @@ test_that("NMF rejects more components than the basis can identify", {
   expect_error(
     decomp(
       x,
-      algorithm = "nmf",
       config = setup_NMF(k = ncol(x) + 2L),
       verbosity = 0L
     ),
@@ -176,7 +175,6 @@ test_that("PCA reconstructs in input units for every center/scale setting", {
       # A full-rank fit loses nothing, so the reconstruction is the input.
       decom <- decomp(
         x,
-        algorithm = "pca",
         config = setup_PCA(k = ncol(x), center = center, scale = scale),
         verbosity = 0L
       )
@@ -194,7 +192,6 @@ test_that("PCA reconstructs in input units for every center/scale setting", {
 test_that("PCA reconstruction degrades gracefully below full rank", {
   decom <- decomp(
     x,
-    algorithm = "pca",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -210,7 +207,6 @@ test_that("ICA reconstructs in input units for both row_norm settings", {
     k <- if (row_norm) ncol(x) - 1L else ncol(x)
     decom <- decomp(
       x,
-      algorithm = "ica",
       config = setup_ICA(k = k, row_norm = row_norm),
       verbosity = 0L
     )
@@ -228,7 +224,6 @@ test_that("ICA reconstruction rejects a mismatched number of cases", {
   skip_if_not_installed("fastICA")
   decom <- decomp(
     x,
-    algorithm = "ica",
     config = setup_ICA(k = 2L, row_norm = TRUE),
     verbosity = 0L
   )
@@ -267,7 +262,6 @@ test_that("reconstruct() round-trips in input units and preserves layout", {
 test_that("reconstruct() below full rank approximates rather than reproduces", {
   decom <- decomp(
     x,
-    algorithm = "pca",
     config = setup_PCA(k = 1L),
     verbosity = 0L
   )
@@ -284,7 +278,6 @@ test_that("reconstruct() passes through columns the fit did not decompose", {
   features <- c("Sepal.Length", "Sepal.Width")
   decom <- decomp(
     x,
-    algorithm = "pca",
     config = setup_PCA(k = 2L, features = features),
     verbosity = 0L
   )
@@ -367,7 +360,6 @@ test_that("reconstruct() agrees with the metrics' own reconstruction", {
   # error would not describe what `reconstruct()` returns.
   decom <- decomp(
     x,
-    algorithm = "pca",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -474,14 +466,14 @@ test_that("the default thread resolution is at most two under a CRAN check", {
 })
 
 test_that("decomp() prints one resources line, with threads only for a threaded algorithm", {
-  resources <- function(algorithm) {
+  resources <- function(config) {
     paste(
       gsub(
         "\\033\\[[0-9;]*m",
         "",
         testthat::capture_messages(decomp(
           x,
-          algorithm = algorithm,
+          config = config,
           execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
           verbosity = 1L
         ))
@@ -490,13 +482,13 @@ test_that("decomp() prints one resources line, with threads only for a threaded 
     )
   }
   expect_match(
-    resources("PCA"),
+    resources(setup_PCA()),
     "// CPU | serial | 1 worker: algorithm 1 thread",
     fixed = TRUE
   )
   skip_if_not_installed("uwot")
   expect_match(
-    resources("UMAP"),
+    resources(setup_UMAP()),
     "// CPU | serial | 1 worker: algorithm 2 threads (as set)",
     fixed = TRUE
   )
@@ -507,7 +499,7 @@ test_that("decomp() seeds the fit from the execution config and restores the cal
   fit <- function(seed) {
     decomp(
       x,
-      algorithm = "ICA",
+      config = setup_ICA(),
       execution_config = setup_SerialExecution(seed = seed),
       verbosity = 0L
     )@transformed
@@ -524,7 +516,7 @@ test_that("decomp() seeds the fit from the execution config and restores the cal
 test_that("the run's input records the execution config it ran under", {
   decom <- decomp(
     x,
-    algorithm = "PCA",
+    config = setup_PCA(),
     execution_config = setup_SerialExecution(seed = 11L),
     verbosity = 0L
   )
@@ -547,7 +539,7 @@ test_that("decomp() t-SNE fails with duplicates", {
   # The backend's own message must survive `do_call()`'s error handling, which
   # is what makes the failure actionable; asserting only that it errors let a
   # broken handler report "cannot coerce type 'closure'" instead.
-  expect_error(decomp(x, algorithm = "tsne"), "Remove duplicates")
+  expect_error(decomp(x, config = setup_tSNE()), "Remove duplicates")
 })
 
 # Test that t-SNE works after removing duplicates
@@ -556,7 +548,6 @@ test_that("decomp() t-SNE succeeds after removing duplicates", {
   xp <- preprocess(x, setup_Preprocessor(remove_duplicates = TRUE))
   iris_tsne <- decomp(
     xp@preprocessed,
-    algorithm = "tsne",
     config = setup_tSNE()
   )
   expect_s7_class(iris_tsne, Decomposition)
@@ -570,7 +561,7 @@ test_that("setup_Isomap() succeeds", {
 
 test_that("decomp() Isomap succeeds", {
   skip_if_not_installed("vegan")
-  iris_isomap <- decomp(x, algorithm = "isomap", config = setup_Isomap())
+  iris_isomap <- decomp(x, config = setup_Isomap())
   expect_s7_class(iris_isomap, Decomposition)
 })
 
@@ -771,7 +762,7 @@ test_that("MDS warns when the best start reaches max_iter", {
 # features selection ----
 test_that("decomp() fits on config@features, so apply_decomposition() replays it", {
   config <- setup_PCA(k = 2L, features = c("Sepal.Length", "Sepal.Width"))
-  fit <- decomp(x, algorithm = "PCA", config = config, verbosity = 0L)
+  fit <- decomp(x, config = config, verbosity = 0L)
   # Fitted on the two selected columns only: applying to the same data must
   # work, and the undecomposed columns come back alongside the components.
   applied <- apply_decomposition(fit, x, verbosity = 0L)
@@ -787,7 +778,6 @@ test_that("decomp() validates config@features against the data", {
   expect_error(
     decomp(
       iris,
-      algorithm = "PCA",
       config = setup_PCA(k = 2L, features = c("Sepal.Length", "Species")),
       verbosity = 0L
     ),
@@ -796,7 +786,6 @@ test_that("decomp() validates config@features against the data", {
   expect_error(
     decomp(
       x,
-      algorithm = "PCA",
       config = setup_PCA(k = 2L, features = c("Sepal.Length", "nope")),
       verbosity = 0L
     ),
@@ -809,7 +798,6 @@ test_that("an unset features decomposes every numeric column, resolved onto the 
   # the replay transforms the same matrix and the run record states what ran.
   fit <- decomp(
     x,
-    algorithm = "PCA",
     config = setup_PCA(k = 2L),
     verbosity = 0L
   )
@@ -831,28 +819,27 @@ test_that("an unset features decomposes every numeric column, resolved onto the 
 
 
 # one place for the algorithm ----
-test_that("decomp() takes the algorithm from config and refuses a disagreeing label", {
-  fit <- decomp(x, config = setup_PCA(k = 2L), verbosity = 0L)
+test_that("decomp() takes the algorithm from config alone", {
+  fit <- decomp(x, setup_PCA(k = 2L), verbosity = 0L)
   expect_identical(fit@algorithm, "PCA")
+  expect_identical(decomp(x, verbosity = 0L)@algorithm, "ICA")
   expect_error(
-    decomp(x, algorithm = "ICA", config = setup_PCA(k = 2L), verbosity = 0L),
-    "pass one or the other",
-    class = "rtemis_value_error"
+    decomp(x, algorithm = "PCA", verbosity = 0L),
+    "unused argument"
   )
-  fit2 <- decomp(
-    x,
-    algorithm = "pca",
-    config = setup_PCA(k = 2L),
-    verbosity = 0L
+  expect_error(
+    decomp(x, "PCA", verbosity = 0L),
+    "`config` must be a `DecompositionConfig` object",
+    fixed = TRUE,
+    class = "rtemis_type_error"
   )
-  expect_identical(fit2@algorithm, "PCA")
 })
 
 
 test_that("the run record states the execution config once, with origins only for flat fields", {
   decom <- decomp(
     x,
-    algorithm = "PCA",
+    config = setup_PCA(),
     execution_config = setup_SerialExecution(seed = 3L),
     verbosity = 0L
   )

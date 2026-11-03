@@ -23,7 +23,7 @@ only, named as in the output of \code{\link[=apply_decomposition]{apply_decompos
 components of new data.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 transformed(iris_pca)
 }
 \author{

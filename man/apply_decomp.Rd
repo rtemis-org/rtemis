@@ -26,7 +26,7 @@ As \code{\link[=apply_decomposition]{apply_decomposition()}}.
 same arguments.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 suppressWarnings(apply_decomp(iris_pca, exc(iris, "Species")))
 }
 \author{

@@ -34,7 +34,7 @@ on.
 \examples{
 \dontshow{if (requireNamespace("flexclust", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 x <- exc(iris, "Species")
-iris_km <- cluster(x[1:100, ], algorithm = "KMeans", verbosity = 0L)
+iris_km <- cluster(x[1:100, ], config = setup_KMeans(), verbosity = 0L)
 assign_clusters(iris_km, x[101:150, ], verbosity = 0L)
 \dontshow{\}) # examplesIf}
 }

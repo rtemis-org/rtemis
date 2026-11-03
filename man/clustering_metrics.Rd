@@ -41,7 +41,7 @@ differs from the one \code{cluster()} recorded raises an error.
 \examples{
 \dontshow{if (requireNamespace("flexclust", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 x <- exc(iris, "Species")
-iris_km <- cluster(x, algorithm = "KMeans", verbosity = 0L)
+iris_km <- cluster(x, config = setup_KMeans(), verbosity = 0L)
 clustering_metrics(iris_km, x, verbosity = 0L)
 \dontshow{\}) # examplesIf}
 }

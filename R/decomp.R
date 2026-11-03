@@ -13,13 +13,12 @@
 #' @param x Matrix, data frame, or `DecomposeConfig` object: Input data, or a
 #' `DecomposeConfig` recipe (from [setup_DecomposeConfig]) carrying the data
 #' path, algorithm config, and output directory.
-#' @param algorithm Character: Decomposition algorithm. Not needed when `config`
-#' is supplied, which names its own; an explicit `algorithm` that disagrees
-#' with `config` is an error.
-#' @param config DecompositionConfig: Algorithm-specific config. Its `features`
-#' selects the columns of `x` to decompose; `NULL` selects every numeric column,
-#' since a decomposition reads a numeric matrix. The returned object's config
-#' carries the resolved names, and `apply_decomposition()` replays that selection.
+#' @param config Optional `DecompositionConfig`: Config from a decomposition
+#' `setup_*` function, which names the algorithm and its settings. `NULL` runs
+#' [setup_ICA] with its defaults. Its `features` selects the columns of `x` to
+#' decompose; `NULL` selects every numeric column, since a decomposition reads
+#' a numeric matrix. The returned object's config carries the resolved names,
+#' and `apply_decomposition()` replays that selection.
 #' @param execution_config `ExecutionConfig` object: Execution settings, e.g.
 #' [setup_FutureExecution] or [setup_SerialExecution]. A decomposition dispatches
 #' no work to other processes: an algorithm whose `threaded` trait is TRUE (see
@@ -39,10 +38,9 @@
 #' @author EDG
 #' @export
 #' @examples
-#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+#' iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA())
 decomp <- function(
   x,
-  algorithm = "ICA",
   config = NULL,
   execution_config = setup_FutureExecution(),
   outdir = NULL,
@@ -60,7 +58,7 @@ decomp <- function(
       )
     }
     # The document names the algorithm in one place, its `decomposition_config`;
-    # with none, the formal default below applies.
+    # with none, the default below applies.
     return(decomp(
       x = read(x@dat_path),
       config = x@decomposition_config,
@@ -71,25 +69,12 @@ decomp <- function(
   } # / decomp.DecomposeConfig
 
   # Checks ----
-  # A supplied config names its algorithm; `algorithm` then serves only to catch
-  # a caller naming a different one.
   if (is.null(config)) {
-    config <- get_default_decomparams(algorithm)
-  } else {
-    check_is_S7(config, DecompositionConfig)
-    if (!missing(algorithm) && .get_decom_name(algorithm) != config@algorithm) {
-      rtemis.core::abort(
-        "`algorithm` is \"",
-        algorithm,
-        "\" but `config` is a ",
-        config@algorithm,
-        " config; pass one or the other.",
-        class = c("rtemis_value_error", "rtemis_input_error")
-      )
-    }
-    algorithm <- config@algorithm
+    config <- setup_ICA()
   }
+  check_is_S7(config, DecompositionConfig)
   check_is_S7(execution_config, ExecutionConfig)
+  algorithm <- config@algorithm
   # The config as given, for the run's input: what the run resolves from the
   # data (`features`, an autoencoder's widths) is then reported as derived.
   given_config <- config
@@ -124,7 +109,6 @@ decomp <- function(
   # Nothing is dispatched, so the only level is the algorithm's: the threads a
   # threaded backend runs on. The named share wins; otherwise the whole worker
   # count, which is 1 under a CRAN check.
-  algorithm <- .get_decom_name(algorithm)
   n_workers <- execution_n_workers(execution_config)
   threaded <- decomposition_traits(algorithm)[["threaded"]]
   n_threads <- if (threaded) algorithm_threads(execution_config) else 1L
