@@ -1649,13 +1649,16 @@ validate_value <- function(value, fields) {
 #' name, so the extra element is inert to S7 itself).
 #'
 #' @param spec `PropertySpec` object.
+#' @param default Literal or quoted constructor expression. Factories evaluate
+#'   quoted defaults once for declaration validation and metadata; S7 retains
+#'   the expression for evaluation in the class environment per instance.
 #'
 #' @return S7 property (with the spec attached as `$spec`).
 #'
 #' @author EDG
 #' @keywords internal
 #' @noRd
-make_prop <- function(spec) {
+make_prop <- function(spec, default = spec@default) {
   fields <- spec_fields(spec)
   if (spec@type == "union") {
     classes <- lapply(spec@alternatives, function(x) make_prop(x)[["class"]])
@@ -1663,7 +1666,7 @@ make_prop <- function(spec) {
     p <- new_property(
       class = if (spec@nullable) NULL | base_class else base_class,
       default = if (spec@default_present) {
-        spec@default
+        default
       } else {
         quote(
           rtemis.core::abort(
@@ -1678,7 +1681,7 @@ make_prop <- function(spec) {
     return(p)
   }
   if (!is.null(spec@target_class)) {
-    return(make_reference_prop(spec))
+    return(make_reference_prop(spec, default))
   }
   # Paired with `validate_spec_type()`, which enforces the same mapping for the
   # elements of a nested container, where the S7 class can only say `list`.
@@ -1722,7 +1725,7 @@ make_prop <- function(spec) {
   p <- new_property(
     class = if (spec@nullable) NULL | base_class else base_class,
     default = if (spec@default_present || spec@nullable) {
-      spec@default
+      default
     } else {
       quote(
         rtemis.core::abort(
@@ -1899,6 +1902,8 @@ prop_boolean <- function(
 #' Integer S7 property with attached PropertySpec
 #'
 #' @param default Integer: Default value (NULL only if `nullable`).
+#'   A quoted expression is evaluated once for validation and declaration
+#'   metadata, then in the class environment for each instance.
 #' @param min,max Integer or NULL: Inclusive bounds.
 #' @param exclusive_min,exclusive_max Integer or NULL: Exclusive bounds.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
@@ -1954,9 +1959,14 @@ prop_integer <- function(
   applies_when = NULL,
   description = ""
 ) {
-  make_prop(PropertySpec(
+  default_value <- if (is.language(default)) {
+    eval(default, parent.frame())
+  } else {
+    default
+  }
+  spec <- PropertySpec(
     type = "integer",
-    default = default,
+    default = default_value,
     default_present = !missing(default),
     minimum = min,
     maximum = max,
@@ -1976,7 +1986,8 @@ prop_integer <- function(
     data_dependent = data_dependent,
     applies_when = applies_when,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 } # /rtemis::prop_integer
 
 
@@ -1991,6 +2002,8 @@ prop_integer <- function(
 #' parse to double anyway, and floats are a superset of integers.
 #'
 #' @param default Numeric: Default value (NULL only if `nullable`).
+#'   A quoted expression is evaluated once for validation and declaration
+#'   metadata, then in the class environment for each instance.
 #' @param min,max Numeric or NULL: Inclusive bounds.
 #' @param exclusive_min,exclusive_max Numeric or NULL: Exclusive bounds.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
@@ -2043,9 +2056,14 @@ prop_float <- function(
   applies_when = NULL,
   description = ""
 ) {
-  make_prop(PropertySpec(
+  default_value <- if (is.language(default)) {
+    eval(default, parent.frame())
+  } else {
+    default
+  }
+  spec <- PropertySpec(
     type = "number",
-    default = default,
+    default = default_value,
     minimum = min,
     maximum = max,
     exclusive_minimum = exclusive_min,
@@ -2063,7 +2081,8 @@ prop_float <- function(
     data_dependent = data_dependent,
     applies_when = applies_when,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 } # /rtemis::prop_float
 
 
@@ -2073,6 +2092,8 @@ prop_float <- function(
 #' @param default Optional Character: Declaration default (NULL only if `nullable`).
 #'   Omitting the argument declares no default and requires an explicit value
 #'   when constructing a non-nullable property.
+#'   A quoted expression is evaluated once for validation and declaration
+#'   metadata, then in the class environment for each instance.
 #' @param enum Character or NULL: Allowed values.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
@@ -2120,9 +2141,14 @@ prop_string <- function(
   applies_when = NULL,
   description = ""
 ) {
-  make_prop(PropertySpec(
+  default_value <- if (is.language(default)) {
+    eval(default, parent.frame())
+  } else {
+    default
+  }
+  spec <- PropertySpec(
     type = "string",
-    default = default,
+    default = default_value,
     default_present = !missing(default),
     minimum = NULL,
     maximum = NULL,
@@ -2141,7 +2167,8 @@ prop_string <- function(
     data_dependent = data_dependent,
     applies_when = applies_when,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 } # /rtemis::prop_string
 
 

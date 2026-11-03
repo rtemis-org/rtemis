@@ -2,6 +2,119 @@
 # ::rtemis::
 # 2026- EDG rtemis.org
 
+test_that("configuration constructors retain explicit default expressions", {
+  pamk <- S7_class(setup_PAMK())
+  preprocessor <- S7_class(setup_Preprocessor())
+  expect_identical(formals(pamk)$krange, quote(2:10))
+  expect_identical(formals(pamk)$criterion, quote(setup_ASWCriterion()))
+  expect_identical(
+    formals(preprocessor)$date_features,
+    quote(c("weekday", "month", "year"))
+  )
+  expect_identical(pamk()@config, setup_PAMK()@config)
+  expect_identical(
+    preprocessor()@date_features,
+    setup_Preprocessor()@date_features
+  )
+  expect_identical(preprocessor()@holidays, setup_Preprocessor()@holidays)
+})
+
+test_that("configuration object defaults are evaluated for each instance", {
+  pamk <- S7_class(setup_PAMK())
+  setup <- setup_ASWCriterion
+  calls <- 0L
+  local_mocked_bindings(setup_ASWCriterion = function() {
+    calls <<- calls + 1L
+    setup()
+  })
+  first <- pamk()
+  second <- pamk()
+  expect_identical(calls, 2L)
+  expect_identical(first@criterion, second@criterion)
+})
+
+test_that("configuration object defaults validate each constructed value", {
+  pamk <- S7_class(setup_PAMK())
+  local_mocked_bindings(setup_ASWCriterion = setup_KMeans)
+  expect_snapshot(
+    error = TRUE,
+    variant = if (packageVersion("S7") == "0.2.2") "S7-0.2.2" else "S7-current",
+    pamk()
+  )
+})
+
+test_that("schema default references are reconstructed for each instance", {
+  withr::local_options(rtemis.verbosity = 0L)
+  schema <- S7_to_JSONSchema(
+    S7_class(setup_PAMK()),
+    id = "https://example.test/pamk/schema.json",
+    base = S7_class(setup_PAMK())@parent
+  )
+  target <- JSONSchema_to_S7(
+    list(
+      title = "ReferenceTarget",
+      properties = list(value = schema$properties$use_pam)
+    ),
+    defaults = list(value = TRUE)
+  )
+  schema$properties <- schema$properties["criterion"]
+  schema$properties$target <- list(
+    `$ref` = "https://example.test/asw/schema.json"
+  )
+  schema$title <- "DefaultReference"
+  declarations <- list(
+    `/properties/criterion` = list(
+      kind = "literal",
+      value = list(criterion = "asw")
+    )
+  )
+  for (nm in c("props", "default_values", "decode_reference", "refs")) {
+    schema$properties[[nm]] <- list(
+      type = "array",
+      items = list(type = "string"),
+      `x-rtemis` = list(type = "string", container = "array")
+    )
+    declarations[[paste0("/properties/", nm)]] <- list(
+      kind = "literal",
+      value = list("a", "b")
+    )
+  }
+  calls <- 0L
+  invalid <- FALSE
+  decode <- function(value, target) {
+    calls <<- calls + 1L
+    expect_identical(target, "rtemis::PAMKCriterionConfig")
+    if (invalid) setup_KMeans() else setup_ASWCriterion()
+  }
+  warnings <- character()
+  cls <- withCallingHandlers(
+    JSONSchema_to_S7(
+      schema,
+      declarations = declarations,
+      refs = list(target = target),
+      decode_reference = decode
+    ),
+    warning = function(w) {
+      warnings <<- c(warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_identical(warnings, character())
+  declaration_calls <- calls
+  first <- cls()
+  second <- cls()
+  expect_identical(calls, declaration_calls + 2L)
+  expect_identical(first@criterion, second@criterion)
+  expect_identical(first@target, target())
+  expect_identical(first@props, c("a", "b"))
+  invalid <- TRUE
+  expect_snapshot(
+    error = TRUE,
+    variant = if (packageVersion("S7") == "0.2.2") "S7-0.2.2" else "S7-current",
+    cls()
+  )
+})
+
 test_that("default declarations preserve null and nested member metadata", {
   property <- prop_struct(
     list(
@@ -353,7 +466,7 @@ test_that("artifact references reconstruct without native readers", {
     package = "artifact",
     properties = list(value = prop_integer(7L, min = 1L))
   )
-  reference <- prop_object(leaf, default = leaf())
+  reference <- prop_object(leaf, default = quote(leaf()))
   leaf_schema <- list(
     `$id` = leaf_id,
     title = "ArtifactLeaf",
@@ -580,7 +693,7 @@ test_that("policy result types are rejected when declared", {
 
 test_that("default previews use the declared candidate wire shape", {
   scalar <- prop_float(1, tunable = TRUE)
-  vector <- prop_float(c(1, 2), vector = TRUE, tunable = TRUE)
+  vector <- prop_float(quote(c(1, 2)), vector = TRUE, tunable = TRUE)
   for (case in list(
     list(
       property = scalar,

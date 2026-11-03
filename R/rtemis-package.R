@@ -58,7 +58,11 @@
 #' [tryCatch()]. See [rtemis_conditions] for the class hierarchy.
 #'
 #' @name rtemis-package
-#' @import stats methods graphics S7 data.table rtemis.core
+#' @import stats methods graphics data.table rtemis.core
+#' @rawNamespace import(S7, except = ":=")
+# data.table's `:=` is the operator rtemis uses inside `[.data.table`; S7's
+# `:=`, exported by S7 releases after 0.2.2, is excluded so the two imports do
+# not collide.
 # rtemis.core exports `gray()` (colored text); grDevices::gray() is excluded so
 # it does not mask it. `grDevices::gray()` is called explicitly where the
 # grayscale palette is needed.

@@ -233,7 +233,7 @@ SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
     description = "Add date-derived features."
   ),
   date_features = prop_string(
-    c("weekday", "month", "year"),
+    quote(c("weekday", "month", "year")),
     enum = c("weekday", "month", "year"),
     vector = TRUE,
     description = "Date features to add."
@@ -247,7 +247,7 @@ SUPERVISED_IMPUTE_TYPES <- c("meanMode", "missRanger")
   # `timeDate::listHolidays()` where they are used, so the set stays accurate
   # for the installed version.
   holidays = prop_string(
-    c("USLaborDay", "NewYearsDay", "ChristmasDay"),
+    quote(c("USLaborDay", "NewYearsDay", "ChristmasDay")),
     vector = TRUE,
     unique_items = TRUE,
     description = "Holidays to flag, named as timeDate holiday functions."
