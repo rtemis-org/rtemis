@@ -215,7 +215,7 @@ test_that("a bare vector on a vector-valued hyperparameter is corrected", {
     package = NULL,
     properties = list(
       hidden_units = prop_integer(
-        c(64L, 32L),
+        quote(c(64L, 32L)),
         min = 1L,
         vector = TRUE,
         tunable = TRUE,

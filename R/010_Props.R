@@ -1639,6 +1639,27 @@ validate_value <- function(value, fields) {
 } # /rtemis::validate_value
 
 
+# %% declared_default_value ----
+#' Evaluate a property factory's default for its declaration metadata
+#'
+#' A factory accepts a literal default or a quoted expression. S7 releases
+#' after 0.2.2 accept, as a directly supplied default, only a scalar or an
+#' attribute-free empty vector; any other default is written quoted, and S7
+#' evaluates it for each constructed object. The `PropertySpec` records the
+#' value, so validation, the defaults artifact, and `get_spec()` see the same
+#' value S7 constructs.
+#'
+#' @param default Literal value or quoted expression, as passed to the factory.
+#' @param env Environment: The factory's calling frame, where a quoted
+#'   expression is evaluated.
+#' @return The literal, or the value of the quoted expression.
+#' @keywords internal
+#' @noRd
+declared_default_value <- function(default, env) {
+  if (is.language(default)) eval(default, env) else default
+} # /rtemis::declared_default_value
+
+
 # %% make_prop ----
 #' Build an S7 property from a PropertySpec
 #'
@@ -1861,6 +1882,8 @@ prop_union <- function(alternatives, nullable = FALSE, description = "") {
 #' Logical (boolean) S7 property with attached PropertySpec
 #'
 #' @param default Logical: Default value (NULL only if `nullable`).
+#'   A quoted expression is evaluated once for validation and declaration
+#'   metadata, then in the class environment for each instance.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param tunable Logical: If TRUE, accepts a vector of search values.
 #' @param applies_when Optional named list: Sibling properties this one is only
@@ -1880,9 +1903,10 @@ prop_boolean <- function(
   applies_when = NULL,
   description = ""
 ) {
-  make_prop(PropertySpec(
+  default_value <- declared_default_value(default, parent.frame())
+  spec <- PropertySpec(
     type = "boolean",
-    default = default,
+    default = default_value,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -1894,7 +1918,8 @@ prop_boolean <- function(
     broadcast = FALSE,
     applies_when = applies_when,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 } # /rtemis::prop_boolean
 
 
@@ -1959,11 +1984,7 @@ prop_integer <- function(
   applies_when = NULL,
   description = ""
 ) {
-  default_value <- if (is.language(default)) {
-    eval(default, parent.frame())
-  } else {
-    default
-  }
+  default_value <- declared_default_value(default, parent.frame())
   spec <- PropertySpec(
     type = "integer",
     default = default_value,
@@ -2056,11 +2077,7 @@ prop_float <- function(
   applies_when = NULL,
   description = ""
 ) {
-  default_value <- if (is.language(default)) {
-    eval(default, parent.frame())
-  } else {
-    default
-  }
+  default_value <- declared_default_value(default, parent.frame())
   spec <- PropertySpec(
     type = "number",
     default = default_value,
@@ -2141,11 +2158,7 @@ prop_string <- function(
   applies_when = NULL,
   description = ""
 ) {
-  default_value <- if (is.language(default)) {
-    eval(default, parent.frame())
-  } else {
-    default
-  }
+  default_value <- declared_default_value(default, parent.frame())
   spec <- PropertySpec(
     type = "string",
     default = default_value,
@@ -2876,6 +2889,18 @@ check_applies_when <- function(object) {
 } # /rtemis::check_applies_when
 
 
+# %% applies_when_validator ----
+#' Class validator that checks applicability gates
+#'
+#' @param self S7 object whose class declares gated properties.
+#' @return Character scalar or NULL, as `check_applies_when()`.
+#' @keywords internal
+#' @noRd
+applies_when_validator <- function(self) {
+  check_applies_when(self)
+} # /rtemis::applies_when_validator
+
+
 # %% prop_bag ----
 #' Open-object S7 property with attached PropertySpec
 #'
@@ -2885,6 +2910,8 @@ check_applies_when <- function(object) {
 #' constraint and validation stops at "is a list".
 #'
 #' @param default List: Default value (NULL only if `nullable`).
+#'   A quoted expression is evaluated once for validation and declaration
+#'   metadata, then in the class environment for each instance.
 #' @param nullable Logical: If TRUE, NULL is a valid value.
 #' @param description Character: Human-readable description.
 #'
@@ -2898,9 +2925,10 @@ prop_bag <- function(
   nullable = FALSE,
   description = ""
 ) {
-  make_prop(PropertySpec(
+  default_value <- declared_default_value(default, parent.frame())
+  spec <- PropertySpec(
     type = "object",
-    default = default,
+    default = default_value,
     minimum = NULL,
     maximum = NULL,
     exclusive_minimum = NULL,
@@ -2912,7 +2940,8 @@ prop_bag <- function(
     items = NULL,
     broadcast = FALSE,
     description = description
-  ))
+  )
+  make_prop(spec, default = default)
 } # /rtemis::prop_bag
 
 

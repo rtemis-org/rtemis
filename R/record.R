@@ -350,7 +350,7 @@ is_S7_list <- function(x) {
 family_base <- function(cls) {
   roots <- Filter(
     function(parent) {
-      identical(attr(parent, "rtemis_schema", exact = TRUE)[["role"]], "family")
+      identical(class_metadata(parent, "publication")[["role"]], "family")
     },
     schema_class_ancestors(cls)
   )
@@ -826,7 +826,7 @@ family_discriminator <- function(x) {
   if (is.null(base)) {
     return(NULL)
   }
-  attr(base, "rtemis_schema", exact = TRUE)[["discriminator"]]
+  class_metadata(base, "publication")[["discriminator"]]
 } # /rtemis::family_discriminator
 
 

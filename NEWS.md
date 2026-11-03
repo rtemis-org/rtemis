@@ -17,10 +17,10 @@
 - `get_loadings()` returns the loadings of a linear decomposition, features by components: the rotation for PCA, the transposed mixing matrix for ICA, and the basis for NMF. It returns NULL for the other algorithms; the `linear` column of `decomposition_traits()` states which algorithms have loadings.
 - `varimp_ranking()` returns a model's variable importance in rank order for every measure: each variable's score per resample, its mean across resamples, and its rank, ranked as the measure's direction declares. `plot_varimp()` draws the same ranking.
 - CART and the LightGBM-based learners report importance zero for predictors in no split, so resampled importance averages over every resample; `plot_varimp()` drops the `absent` argument.
+- rtemis works with S7 0.2.2 and the S7 releases after it, and requires 'rtemis.core' 0.4.7.
 
 ## 1.4.2
 
-- Updates for compatibility with S7 > 0.2.2.
 
 - The standalone Plotly, networkD3, threejs and leaflet `draw_*()` functions move to the 'rtemis.dplot' package on r-universe, with their themes (`theme_*()`, `choose_theme()`, `available_themes()`), palettes (`get_palette()`), color utilities (`col2grayscale()`, `color_adjust()`, `previewcolor()`), `available_draw()`, `uniprot_get()`, `xtdescribe()`, the `xt_example` data and the `rtemis_theme`, `rtemis_palette` and `rtemis_font` options. 'rtemis.draw' provides their replacements. rtemis keeps `draw_linad()`, which takes an 'rtemis.draw' `Theme`, and `roc_curve()`.
 - `setup_PCoA()` configures principal coordinates analysis (classical multidimensional scaling) on a choice of dissimilarities; it applies to new data through Gower's out-of-sample formula, so it can be `train()`'s decomposition step, and does not reconstruct the input.

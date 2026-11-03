@@ -31,7 +31,7 @@
     .class_names,
     function(name) {
       cls <- get(name, envir = ns, inherits = FALSE)
-      !is.null(attr(cls, "rtemis_schema", exact = TRUE))
+      !is.null(class_metadata(cls, "publication"))
     },
     logical(1L)
   )]

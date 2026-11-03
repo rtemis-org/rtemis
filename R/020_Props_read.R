@@ -845,29 +845,28 @@ JSONSchema_to_S7 <- function(
   })
   names(specs) <- spec_names
 
-  default_values <- list()
-  decode_default <- function(nm) {
-    default_from_wire(default_values[[nm]], props[[nm]], decode_reference)
-  }
   properties <- lapply(names(props), function(nm) {
     if (is_ref[[nm]]) {
       cls <- refs[[nm]]
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
     default <- specs[[nm]]@default
-    # Reconstruct complex artifact defaults from serialized data per instance.
-    # Scalars and plain empty vectors can be passed directly to S7.
+    # S7 accepts a scalar or an attribute-free empty vector as a direct default.
+    # Any other default becomes a call that decodes its wire value for each
+    # constructed object. The call holds the wire value, this property's schema,
+    # and the decoder itself, so the constructor encloses no part of this frame.
     if (
       !is.null(default) &&
         !(is.null(attributes(default)) &&
           ((is.atomic(default) && length(default) == 1L) ||
             (is.vector(default) && length(default) == 0L)))
     ) {
-      default_values[[nm]] <<- default_wire_value(
-        default,
-        spec_fields(specs[[nm]])
-      )
-      default <- as.call(list(decode_default, nm))
+      default <- as.call(list(
+        default_from_wire,
+        default_wire_value(default, spec_fields(specs[[nm]])),
+        props[[nm]],
+        decode_reference
+      ))
     }
     prop <- make_prop(specs[[nm]], default = default)
     if (
@@ -939,8 +938,13 @@ JSONSchema_to_S7 <- function(
   names(policy_objects) <- names(policies)
   constructor <- NULL
   if (!is.null(parent)) {
-    .artifact_parent <- parent
-    constructor <- function() new_object(.artifact_parent())
+    # The formals and body are built below. The constructor's environment holds
+    # only the parent class, so the class encloses no part of this frame.
+    constructor <- function() NULL
+    environment(constructor) <- list2env(
+      list(.artifact_parent = parent),
+      parent = topenv()
+    )
     formals(constructor) <- as.pairlist(lapply(properties, function(p) {
       p[["default"]]
     }))
@@ -964,16 +968,14 @@ JSONSchema_to_S7 <- function(
     validator = if (
       any(vapply(specs, function(s) !is.null(s@applies_when), logical(1L)))
     ) {
-      function(self) check_applies_when(self)
+      applies_when_validator
     } else {
       NULL
     },
-    rules = rules
+    rules = rules,
+    artifact_schema = schema,
+    artifact_policies = if (!is.null(policies)) policy_objects
   )
-  attr(cls, "rtemis_artifact_schema") <- schema
-  if (!is.null(policies)) {
-    attr(cls, "rtemis_artifact_policies") <- policy_objects
-  }
   cls
 } # /rtemis::JSONSchema_to_S7
 

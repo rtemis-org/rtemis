@@ -141,11 +141,7 @@ prop_object <- function(
   nullable = FALSE,
   description = ""
 ) {
-  default_value <- if (is.language(default)) {
-    eval(default, parent.frame())
-  } else {
-    default
-  }
+  default_value <- declared_default_value(default, parent.frame())
   if (
     !inherits(cls, "S7_class") || is.null(cls@package) || !nzchar(cls@package)
   ) {
@@ -196,11 +192,7 @@ prop_collection <- function(
   key_not_pattern = NULL,
   description = ""
 ) {
-  default_value <- if (is.language(default)) {
-    eval(default, parent.frame())
-  } else {
-    default
-  }
+  default_value <- declared_default_value(default, parent.frame())
   if (
     !inherits(cls, "S7_class") || is.null(cls@package) || !nzchar(cls@package)
   ) {

@@ -14,3 +14,4 @@
     Condition
       Error:
       ! criterion must hold rtemis::PAMKCriterionConfig objects; invalid element 1.
+

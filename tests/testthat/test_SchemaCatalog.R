@@ -52,6 +52,35 @@ test_that("publication separates generating language from contract scope", {
 })
 
 
+test_that("the class of an instance carries the metadata of its declaration", {
+  cart <- setup_CART()
+  expect_false(is.null(schema_publication(CARTHyperparameters)))
+  expect_identical(
+    schema_publication(S7::S7_class(cart)),
+    schema_publication(CARTHyperparameters)
+  )
+  lightgbm <- setup_LightGBM()
+  expect_gt(length(schema_rules(LightGBMHyperparameters)), 0L)
+  expect_identical(
+    schema_rules(S7::S7_class(lightgbm)),
+    schema_rules(LightGBMHyperparameters)
+  )
+  expect_identical(
+    schema_reporting(S7::S7_class(lightgbm)),
+    schema_reporting(LightGBMHyperparameters)
+  )
+  # The metadata environment is locked once the class is declared.
+  expect_error(
+    assign(
+      "publication",
+      NULL,
+      envir = class_metadata_store(CARTHyperparameters)
+    ),
+    "locked"
+  )
+})
+
+
 test_that("publication is explicit, non-inheriting, and does not change instances", {
   Parent <- schema_class(
     "PublicationParent",
@@ -72,7 +101,7 @@ test_that("publication is explicit, non-inheriting, and does not change instance
     properties = list(algorithm = prop_algorithm("test"))
   )
   expect_null(schema_publication(Child))
-  expect_null(attr(Child(), "rtemis_schema", exact = TRUE))
+  expect_null(schema_publication(S7::S7_class(Child())))
   expect_identical(names(S7::props(Child())), "algorithm")
   # The only descendant is unpublished: discovering the root cannot publish it.
   expect_error(
