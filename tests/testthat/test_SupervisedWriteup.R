@@ -185,13 +185,21 @@ test_that("formatting follows the value kind", {
   expect_identical(fmt_writeup_value(0.0123, "p_value"), "p = 0.012")
   expect_identical(fmt_writeup_value(0.95, "percent"), "95")
   expect_identical(fmt_writeup_value(0.975, "percent"), "97.5")
-  # A setting is written in full.
-  expect_identical(
-    fmt_writeup_value(0.123456789012345678, "exact"),
-    "0.123456789012346"
-  )
-  expect_identical(fmt_writeup_value(1e-08, "exact"), "1e-08")
-  expect_identical(fmt_writeup_value(0.05, "exact"), "0.05")
+  # A setting: three significant digits, or `digits`; scientific below 1e-4.
+  expect_identical(fmt_writeup_value(0.123456789, "setting"), "0.123")
+  expect_identical(fmt_writeup_value(0.123456789, "setting", 5L), "0.12346")
+  expect_identical(fmt_writeup_value(1e-08, "setting"), "1e-08")
+  expect_identical(fmt_writeup_value(0.05, "setting"), "0.05")
+  expect_identical(fmt_writeup_value(1000, "setting"), "1000")
+  expect_identical(fmt_writeup_value(0, "setting"), "0")
+})
+
+test_that("real values listed together get the digits that tell them apart", {
+  expect_identical(writeup_hp_digits(list(0.5, NULL, "a", 1L)), 3L)
+  expect_identical(writeup_hp_digits(list(0.231001297700449, 0.230905)), 4L)
+  expect_identical(writeup_hp_digits(list(c(0.1, 0.1 + 1e-9))), 9L)
+  # Equal values need no extra digits.
+  expect_identical(writeup_hp_digits(list(0.231001, 0.231001)), 3L)
 })
 
 
@@ -754,6 +762,19 @@ test_that("a value that differs between resamples is listed with its count", {
     )),
     "20 (2, default); 1 (1, specified); not applicable (1)"
   )
+  # Real values: three significant digits, more where two would read the same.
+  expect_identical(
+    render(list(.fit_value(0.5123), .fit_value(0.25))),
+    "0.512 (1); 0.25 (1)"
+  )
+  expect_identical(
+    render(list(
+      .fit_value(0.231001297700449),
+      .fit_value(0.230905193596331),
+      .fit_value(0.206111252495589)
+    )),
+    "0.231 (1); 0.2309 (1); 0.2061 (1)"
+  )
   # Configurations that share a summary are told apart by their settings.
   kfold <- function(n) {
     v <- setup_KFold(n_resamples = n)
@@ -769,6 +790,73 @@ test_that("a value that differs between resamples is listed with its count", {
   expect_length(parts, 2L)
   expect_false(identical(parts[[1L]], parts[[2L]]))
   expect_match(parts[[1L]], "\\(1\\)$")
+})
+
+test_that("values a fit selects internally are not values tried", {
+  skip_if_not_installed("glmnet")
+  set.seed(2026)
+  dat <- data.frame(matrix(rnorm(120L * 4L), 120L))
+  dat[["y"]] <- dat[["X1"]] + rnorm(120L)
+  mod <- train(
+    dat,
+    hyperparameters = setup_GLMNET(alpha = 1),
+    outer_resampling_config = setup_KFold(n_resamples = 3L),
+    verbosity = 0L
+  )
+  w <- writeup(mod)
+  lambda <- .hp_row(w, "lambda")
+  # Each resample's grid holds the lambda cv.glmnet selected, one per tuner.
+  expect_true(all(vapply(
+    mod@models,
+    function(m) "lambda" %in% names(m@tuner@tuning_results[["param_grid"]]),
+    logical(1L)
+  )))
+  expect_identical(lambda[["tried"]], "")
+  expect_identical(lambda[["source"]], "tuned")
+  # Each selected value, recorded in full, written to the digits that tell
+  # the values apart.
+  keys <- regmatches(
+    lambda[["value"]],
+    gregexpr("\\{table_hp_lambda_value_[0-9]+\\}", lambda[["value"]])
+  )[[1L]]
+  keys <- substr(keys, 2L, nchar(keys) - 1L)
+  rows <- w@values[match(keys, w@values[["key"]]), ]
+  expect_setequal(
+    rows[["value"]],
+    vapply(mod@models, function(m) m@hyperparameters[["lambda"]], numeric(1L))
+  )
+  expect_identical(unique(rows[["kind"]]), "setting")
+  digits <- writeup_hp_digits(as.list(rows[["value"]]))
+  expect_identical(
+    rows[["text"]],
+    vapply(
+      rows[["value"]],
+      fmt_writeup_value,
+      character(1L),
+      kind = "setting",
+      digits = digits
+    )
+  )
+  expect_false(anyDuplicated(rows[["text"]]) > 0L)
+})
+
+test_that("a long table cell wraps within its column", {
+  table <- rbind(
+    c("Hyperparameter", "Value", "Chosen by"),
+    c("lambda", paste(rep("0.231 (1);", 12L), collapse = " "), "tuning"),
+    c("alpha", "1", "default")
+  )
+  lines <- review_text_table(table, "  ", align_left = TRUE, width = 60L)
+  expect_true(all(nchar(lines) <= 60L))
+  expect_gt(length(lines), 3L)
+  # Every word of the cell is kept, in order, within the column.
+  start <- regexpr("Value", lines[[1L]])
+  end <- regexpr("Chosen by", lines[[1L]]) - 3L
+  cell <- trimws(substr(lines[2:(length(lines) - 1L)], start, end))
+  expect_identical(paste(cell, collapse = " "), table[2L, 2L])
+  expect_match(lines[[2L]], "tuning$")
+  # Without `width`, one line per row.
+  expect_length(review_text_table(table, "  ", align_left = TRUE), 3L)
 })
 
 test_that("values tried are those the evaluated configurations gave", {

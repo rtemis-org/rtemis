@@ -2267,7 +2267,7 @@ serializable_props <- new_generic("serializable_props", "x")
 method(serializable_props, S7_object) <- function(x) {
   values <- props(x)
   declared <- S7_class(x)@properties
-  artifact <- attr(S7_class(x), "rtemis_artifact_schema")
+  artifact <- class_metadata(S7_class(x), "artifact_schema")
   publication <- schema_publication(S7_class(x))
   observed <- !is.null(publication) && publication@kind == "report"
   keep <- vapply(

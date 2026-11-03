@@ -42,7 +42,7 @@ prop_default <- function(property, policy) {
 #' @keywords internal
 #' @noRd
 class_default_policies <- function(cls) {
-  artifact_policies <- attr(cls, "rtemis_artifact_policies", exact = TRUE)
+  artifact_policies <- class_metadata(cls, "artifact_policies")
   if (!is.null(artifact_policies)) {
     return(artifact_policies)
   }
@@ -67,7 +67,7 @@ class_default_policies <- function(cls) {
 #' @keywords internal
 #' @noRd
 compute_class_default_policies <- function(cls) {
-  artifact_kind <- attr(cls, "rtemis_artifact_schema")[["x-rtemis"]][[
+  artifact_kind <- class_metadata(cls, "artifact_schema")[["x-rtemis"]][[
     "publication"
   ]][["kind"]]
   if (!is.null(artifact_kind) && artifact_kind %in% c("report", "component")) {
@@ -105,7 +105,7 @@ compute_class_default_policies <- function(cls) {
     out[[nm]] <- policy
   }
   for (ancestor in c(rev(schema_class_ancestors(cls)), list(cls))) {
-    overrides <- attr(ancestor, "rtemis_defaults", exact = TRUE)
+    overrides <- class_metadata(ancestor, "defaults")
     for (nm in names(overrides)) {
       out[[nm]] <- do.call(DefaultPolicy, overrides[[nm]])
     }
@@ -155,7 +155,7 @@ default_wire_value <- function(value, fields = NULL) {
   if (S7_inherits(value)) {
     cls <- S7_class(value)
     base <- family_base(cls)
-    nms <- if (!is.null(attr(cls, "rtemis_artifact_schema"))) {
+    nms <- if (!is.null(class_metadata(cls, "artifact_schema"))) {
       names(Filter(
         function(p) {
           prop_serialized(p) || isTRUE(get_spec_fields(p)[["constant"]])

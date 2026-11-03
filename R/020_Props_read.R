@@ -652,6 +652,8 @@ schema_to_spec <- function(
 #' supplied S7 reference classes can be passed through `refs`.
 #' Reconstructed constructors use declaration defaults; input resolution policies
 #' remain separate metadata on the class.
+#' Complex defaults are reconstructed from their serialized values for each
+#' instance, including references handled by `decode_reference`.
 #'
 #' @param schema Named list: A JSON Schema, as produced by [S7_to_JSONSchema]
 #' or parsed from the published tree with `jsonlite::fromJSON(simplifyVector =
@@ -848,7 +850,25 @@ JSONSchema_to_S7 <- function(
       cls <- refs[[nm]]
       return(if (schema_is_nullable(props[[nm]])) NULL | cls else cls)
     }
-    prop <- make_prop(specs[[nm]])
+    default <- specs[[nm]]@default
+    # S7 accepts a scalar or an attribute-free empty vector as a direct default.
+    # Any other default becomes a call that decodes its wire value for each
+    # constructed object. The call holds the wire value, this property's schema,
+    # and the decoder itself, so the constructor encloses no part of this frame.
+    if (
+      !is.null(default) &&
+        !(is.null(attributes(default)) &&
+          ((is.atomic(default) && length(default) == 1L) ||
+            (is.vector(default) && length(default) == 0L)))
+    ) {
+      default <- as.call(list(
+        default_from_wire,
+        default_wire_value(default, spec_fields(specs[[nm]])),
+        props[[nm]],
+        decode_reference
+      ))
+    }
+    prop <- make_prop(specs[[nm]], default = default)
     if (
       !is.null(decode_reference) &&
         is.null(prop[["getter"]]) &&
@@ -871,7 +891,15 @@ JSONSchema_to_S7 <- function(
         class = "rtemis_schema_error"
       )
     }
-    properties[[nm]] <- prop_runtime(runtime[[nm]][["description"]])
+    runtime_class <- if (!is.null(parent) && nm %in% names(parent@properties)) {
+      parent@properties[[nm]][["class"]]
+    } else {
+      class_any
+    }
+    properties[[nm]] <- prop_runtime(
+      runtime[[nm]][["description"]],
+      cls = runtime_class
+    )
   }
 
   rules <- lapply(
@@ -910,8 +938,13 @@ JSONSchema_to_S7 <- function(
   names(policy_objects) <- names(policies)
   constructor <- NULL
   if (!is.null(parent)) {
-    .artifact_parent <- parent
-    constructor <- function() new_object(.artifact_parent())
+    # The formals and body are built below. The constructor's environment holds
+    # only the parent class, so the class encloses no part of this frame.
+    constructor <- function() NULL
+    environment(constructor) <- list2env(
+      list(.artifact_parent = parent),
+      parent = topenv()
+    )
     formals(constructor) <- as.pairlist(lapply(properties, function(p) {
       p[["default"]]
     }))
@@ -935,16 +968,14 @@ JSONSchema_to_S7 <- function(
     validator = if (
       any(vapply(specs, function(s) !is.null(s@applies_when), logical(1L)))
     ) {
-      function(self) check_applies_when(self)
+      applies_when_validator
     } else {
       NULL
     },
-    rules = rules
+    rules = rules,
+    artifact_schema = schema,
+    artifact_policies = if (!is.null(policies)) policy_objects
   )
-  attr(cls, "rtemis_artifact_schema") <- schema
-  if (!is.null(policies)) {
-    attr(cls, "rtemis_artifact_policies") <- policy_objects
-  }
   cls
 } # /rtemis::JSONSchema_to_S7
 

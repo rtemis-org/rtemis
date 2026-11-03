@@ -32,7 +32,7 @@ test_that("non-tunable maps preserve a sole candidates key", {
 test_that("candidate-named map defaults reconstruct and retain record origins", {
   spec <- get_spec(prop_map(prop_float(0), nullable = TRUE))
   spec@default <- c(candidates = 1.5)
-  property <- make_prop(spec)
+  property <- make_prop(spec, default = quote(c(candidates = 1.5)))
   schema <- prop_to_schema(property)
   declarations <- default_declarations(spec, schema, "/properties/weights")
   declarations <- jsonlite::fromJSON(
@@ -63,7 +63,7 @@ test_that("declared tunable scalar and vector domains still decode", {
     "CandidateWireConfig",
     properties = list(
       scalar = prop_float(1, tunable = TRUE),
-      vector = prop_integer(c(1L, 2L), vector = TRUE, tunable = TRUE)
+      vector = prop_integer(quote(c(1L, 2L)), vector = TRUE, tunable = TRUE)
     )
   )
   values <- list(
@@ -101,7 +101,7 @@ test_that("map defaults retain scalar storage types and nested values", {
     list(property = prop_boolean(FALSE), value = c(candidates = TRUE)),
     list(property = prop_string(""), value = c(candidates = "value")),
     list(
-      property = prop_integer(c(1L, 2L), vector = TRUE),
+      property = prop_integer(quote(c(1L, 2L)), vector = TRUE),
       value = list(candidates = c(3L, 4L))
     )
   )) {

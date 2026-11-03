@@ -60,7 +60,7 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
     cls <- S7_class(x)
     if (native) {
       declared <- cls@properties
-      artifact <- attr(cls, "rtemis_artifact_schema")
+      artifact <- class_metadata(cls, "artifact_schema")
       names <- if (!is.null(artifact)) {
         names(artifact[["properties"]])
       } else {
@@ -80,7 +80,7 @@ result_walk <- function(x, transform, fields = NULL, native = FALSE) {
     }
     # Use the existing family serializers for configs with computed wire shapes.
     publication <- schema_publication(cls)
-    artifact <- attr(cls, "rtemis_artifact_schema")
+    artifact <- class_metadata(cls, "artifact_schema")
     observed <- !is.null(publication) && identical(publication@kind, "report")
     if (!observed && is.null(artifact)) {
       return(lapply(serializable_props(x), result_walk, transform = transform))
@@ -327,7 +327,7 @@ write_result <- function(
     stop("write_result requires a published report.")
   }
   cls <- S7_class(x)
-  artifact <- attr(cls, "rtemis_artifact_schema")
+  artifact <- class_metadata(cls, "artifact_schema")
   publication <- if (is.null(artifact)) schema_publication(cls) else NULL
   kind <- if (is.null(artifact)) {
     publication@kind

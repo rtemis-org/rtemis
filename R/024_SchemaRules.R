@@ -325,7 +325,7 @@ schema_rule_from_fields <- function(fields) {
 schema_rules <- function(cls) {
   ancestors <- c(rev(schema_class_ancestors(cls)), list(cls))
   unlist(
-    lapply(ancestors, function(x) attr(x, "rtemis_rules", exact = TRUE)),
+    lapply(ancestors, function(x) class_metadata(x, "rules")),
     recursive = FALSE
   )
 }

@@ -547,7 +547,7 @@ testthat::test_that("a tunable array separates its value from its search space",
     package = NULL,
     properties = list(
       hidden_units = prop_integer(
-        c(64L, 32L),
+        quote(c(64L, 32L)),
         min = 1L,
         vector = TRUE,
         tunable = TRUE,

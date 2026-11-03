@@ -132,7 +132,7 @@ default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
         class = "rtemis_schema_error"
       )
     }
-    document <- attr(cls, "rtemis_artifact_schema")
+    document <- class_metadata(cls, "artifact_schema")
     args <- lapply(names(value), function(nm) {
       default_from_wire(value[[nm]], document[["properties"]][[nm]], decode)
     })
@@ -235,7 +235,6 @@ default_artifact_graph <- function(schemas, defaults, authoring = NULL) {
       parent = parent,
       policies = policies
     )
-    attr(cls, "rtemis_artifact_schema") <- schema
     assign(identity, cls, classes)
     cls
   }

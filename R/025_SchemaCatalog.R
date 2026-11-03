@@ -182,26 +182,78 @@ method(repr, SchemaPublication) <- function(x, output_type = NULL, ...) {
 }
 
 
-# %% class_rule_validator ----
-#' Validate an object with a class's native validator and declared rules
+# %% class_validator ----
+#' Build the validator a schema class passes to `S7::new_class()`
+#'
+#' The validator runs the class's native validator and its declared rules, and
+#' carries the class's metadata environment as its `rtemis_class_metadata`
+#' attribute (`class_metadata()`).
 #'
 #' @param original_validator Optional Function: The validator passed to
 #'   `schema_class()`.
 #' @param declared_rules List: Rule fields from `schema_rule_fields()`.
+#' @param metadata Environment: The class's metadata environment.
 #' @return Function of `self` returning a character vector of problems, or
-#'   `NULL`. Its environment holds only the two arguments.
+#'   `NULL`. Its environment holds only the three arguments.
 #' @keywords internal
 #' @noRd
-class_rule_validator <- function(original_validator, declared_rules) {
+class_validator <- function(original_validator, declared_rules, metadata) {
   # Forcing the arguments drops the promises that refer to the caller's frame.
   force(original_validator)
   force(declared_rules)
-  function(self) {
-    c(
-      if (!is.null(original_validator)) original_validator(self),
-      validate_class_rules(self, declared_rules)
-    )
+  force(metadata)
+  validator <- if (length(declared_rules)) {
+    function(self) {
+      c(
+        if (!is.null(original_validator)) original_validator(self),
+        validate_class_rules(self, declared_rules)
+      )
+    }
+  } else if (!is.null(original_validator)) {
+    original_validator
+  } else {
+    function(self) NULL
   }
+  attr(validator, "rtemis_class_metadata") <- metadata
+  validator
+}
+
+
+# %% class_metadata ----
+#' Read metadata declared on a schema class
+#'
+#' `schema_class()` stores a class's metadata in one environment attached to
+#' the validator it passes to `S7::new_class()`. An instance of an S7 release
+#' after 0.2.2 refers to the class object `new_class()` returned, without
+#' attributes set on the class later; the validator is part of that object.
+#' The environment is shared by every copy of the class, so the namespace
+#' binding and `S7::S7_class()` of an instance read the same metadata. A
+#' subclass declared with `S7::new_class()` has its own validator and no
+#' metadata, so metadata does not inherit.
+#'
+#' @param cls S7 class.
+#' @param name Character \{"publication", "rules", "native_validator",
+#'   "defaults", "reporting", "artifact_schema", "artifact_policies"\}: Field.
+#' @return The field's value, or NULL when the class declares none.
+#' @keywords internal
+#' @noRd
+class_metadata <- function(cls, name) {
+  store <- class_metadata_store(cls)
+  if (is.null(store)) NULL else get0(name, envir = store, inherits = FALSE)
+}
+
+
+# %% class_metadata_store ----
+#' The metadata environment of a schema class
+#' @param cls S7 class.
+#' @return Environment, or NULL for a class not declared by `schema_class()`.
+#' @keywords internal
+#' @noRd
+class_metadata_store <- function(cls) {
+  if (!inherits(cls, "S7_class") || !is.function(cls@validator)) {
+    return(NULL)
+  }
+  attr(cls@validator, "rtemis_class_metadata", exact = TRUE)
 }
 
 
@@ -216,7 +268,12 @@ class_rule_validator <- function(original_validator, declared_rules) {
 #'   in the `reporting/v1` artifact. `primary` is a character vector of the
 #'   class's settings a writeup's main hyperparameter table lists for every
 #'   fit (`schema_reporting()`).
-#' @return S7 class with validated, non-inheriting metadata.
+#' @param artifact_schema Optional List: The JSON Schema a class reconstructed
+#'   by `JSONSchema_to_S7()` was read from.
+#' @param artifact_policies Optional List: The DefaultPolicy objects read with
+#'   `artifact_schema`.
+#' @return S7 class with validated, non-inheriting metadata in
+#'   `class_metadata()`.
 #' @keywords internal
 #' @noRd
 schema_class <- function(
@@ -224,7 +281,9 @@ schema_class <- function(
   publication = NULL,
   rules = list(),
   defaults = NULL,
-  reporting = NULL
+  reporting = NULL,
+  artifact_schema = NULL,
+  artifact_policies = NULL
 ) {
   if (!is.null(publication)) {
     check_is_S7(publication, SchemaPublication)
@@ -238,12 +297,26 @@ schema_class <- function(
   declared_rules <- lapply(rules, schema_rule_fields)
   args <- list(...)
   original_validator <- args[["validator"]]
-  if (length(declared_rules)) {
-    args[["validator"]] <- class_rule_validator(
-      original_validator,
-      declared_rules
-    )
-  }
+  # S7 rejects an override that widens an inherited property's type inside
+  # `new_class()`; the inherited contract is checked first so the error names
+  # the rtemis rule.
+  declared <- as.list(
+    match.call(S7::new_class, as.call(c(list(quote(new_class)), args)))
+  )[-1L]
+  validate_inherited_property_contracts(
+    declared[["properties"]],
+    declared[["parent"]],
+    declared[["name"]]
+  )
+  metadata <- new.env(parent = emptyenv())
+  metadata[["native_validator"]] <- original_validator
+  metadata[["artifact_schema"]] <- artifact_schema
+  metadata[["artifact_policies"]] <- artifact_policies
+  args[["validator"]] <- class_validator(
+    original_validator,
+    declared_rules,
+    metadata
+  )
   # The caller's frame becomes the environment of the S7 constructor. Called
   # from this frame, the constructor would enclose `args` and `cls`, and the
   # lazy-load database would store a copy of both with every class.
@@ -263,16 +336,14 @@ schema_class <- function(
     for (policy in defaults) {
       check_is_S7(policy, DefaultPolicy)
     }
-    attr(cls, "rtemis_defaults") <- lapply(defaults, props)
+    metadata[["defaults"]] <- lapply(defaults, props)
   }
   validate_default_policies(cls)
-  validate_inherited_property_contracts(cls)
   if (!is.null(reporting)) {
-    attr(cls, "rtemis_reporting") <- validate_reporting(reporting, cls)
+    metadata[["reporting"]] <- validate_reporting(reporting, cls)
   }
   if (length(declared_rules)) {
-    attr(cls, "rtemis_rules") <- declared_rules
-    attr(cls, "rtemis_native_validator") <- original_validator
+    metadata[["rules"]] <- declared_rules
   }
   inherited_rules <- schema_rules(cls)
   if (length(inherited_rules)) {
@@ -290,6 +361,7 @@ schema_class <- function(
     }
   }
   if (is.null(publication)) {
+    lockEnvironment(metadata, bindings = TRUE)
     return(cls)
   }
   for (nm in publication@record_folds) {
@@ -331,7 +403,11 @@ schema_class <- function(
   ) {
     validate_reference_discriminators(cls)
   }
-  attr(cls, "rtemis_schema") <- S7::props(publication)
+  metadata[["publication"]] <- S7::props(publication)
+  # Lazy loading restores the environment lock of a namespace class but not
+  # its binding locks: an installed class refuses new fields, and no code
+  # writes its fields after this function returns.
+  lockEnvironment(metadata, bindings = TRUE)
   cls
 }
 
@@ -369,7 +445,7 @@ validate_reference_discriminators <- function(cls) {
       if (is.null(family)) {
         next
       }
-      publication <- attr(family, "rtemis_schema", exact = TRUE)
+      publication <- class_metadata(family, "publication")
       if (is.null(publication) || !identical(publication[["role"]], "family")) {
         next
       }
@@ -455,19 +531,25 @@ property_validation_contract <- function(fields) {
 
 # %% validate_inherited_property_contracts ----
 #' Check property declarations against retained ancestor validators
-#' @param cls S7 class: Class to inspect.
+#' @param properties Optional List: Properties a class declares, as passed to
+#'   `S7::new_class()`.
+#' @param parent Optional S7 class: The parent the class declares.
+#' @param name Character: Name of the class being declared, for messages.
 #' @return NULL, invisibly. Invalid overrides raise a schema error.
 #' @keywords internal
 #' @noRd
-validate_inherited_property_contracts <- function(cls) {
+validate_inherited_property_contracts <- function(properties, parent, name) {
+  if (!inherits(parent, "S7_class") || !length(properties)) {
+    return(invisible(NULL))
+  }
   # S7 runs ancestor property validators on descendant instances as well.
-  for (parent in schema_class_ancestors(cls)) {
-    for (nm in names(parent@properties)) {
-      inherited <- get_spec_fields(parent@properties[[nm]])
+  for (ancestor in c(list(parent), schema_class_ancestors(parent))) {
+    for (nm in intersect(names(ancestor@properties), names(properties))) {
+      inherited <- get_spec_fields(ancestor@properties[[nm]])
       if (is.null(inherited)) {
         next
       }
-      declared <- get_spec_fields(cls@properties[[nm]])
+      declared <- get_spec_fields(properties[[nm]])
       if (
         !identical(
           property_validation_contract(inherited),
@@ -475,7 +557,7 @@ validate_inherited_property_contracts <- function(cls) {
         )
       ) {
         rtemis.core::abort(
-          cls@name,
+          name,
           " has an unsupported type, value shape, or constraint override for inherited @",
           nm,
           "; keep its validation contract unchanged.",
@@ -490,7 +572,7 @@ validate_inherited_property_contracts <- function(cls) {
         )
       ) {
         rtemis.core::abort(
-          cls@name,
+          name,
           " changes the declaration default for inherited @",
           nm,
           "; keep its declaration default unchanged and declare input resolution with class defaults.",
@@ -510,7 +592,7 @@ validate_inherited_property_contracts <- function(cls) {
 #' @keywords internal
 #' @noRd
 schema_publication <- function(cls) {
-  fields <- attr(cls, "rtemis_schema", exact = TRUE)
+  fields <- class_metadata(cls, "publication")
   if (is.null(fields)) NULL else do.call(SchemaPublication, fields)
 }
 
@@ -572,7 +654,7 @@ validate_reporting <- function(reporting, cls) {
 #' @keywords internal
 #' @noRd
 schema_reporting <- function(cls) {
-  attr(cls, "rtemis_reporting", exact = TRUE)
+  class_metadata(cls, "reporting")
 } # /rtemis::schema_reporting
 
 
@@ -583,10 +665,10 @@ schema_reporting <- function(cls) {
 #' @keywords internal
 #' @noRd
 schema_native_validator <- function(cls) {
-  if (length(attr(cls, "rtemis_rules", exact = TRUE))) {
-    attr(cls, "rtemis_native_validator", exact = TRUE)
-  } else {
+  if (is.null(class_metadata_store(cls))) {
     cls@validator
+  } else {
+    class_metadata(cls, "native_validator")
   }
 }
 
@@ -600,7 +682,9 @@ schema_native_validator <- function(cls) {
 schema_class_ancestors <- function(cls) {
   out <- list()
   cls <- cls@parent
-  while (inherits(cls, "S7_class") && !identical(cls, S7::S7_object)) {
+  # Compared by name: the `S7_object` held by a class is a separate copy of
+  # `S7::S7_object` under S7 releases after 0.2.2.
+  while (inherits(cls, "S7_class") && !identical(cls@name, "S7_object")) {
     out[[length(out) + 1L]] <- cls
     cls <- cls@parent
   }
@@ -807,7 +891,7 @@ schema_catalog <- function(classes = NULL) {
     function(cls) {
       inherits(cls, "S7_class") &&
         identical(cls@package, "rtemis") &&
-        !is.null(attr(cls, "rtemis_schema", exact = TRUE))
+        !is.null(class_metadata(cls, "publication"))
     },
     classes
   )
