@@ -313,7 +313,7 @@ testthat::test_that("a requested device an algorithm cannot use leaves it on the
       testthat::capture_messages(
         decomp(
           iris[, 1:4],
-          algorithm = "PCA",
+          config = setup_PCA(),
           execution_config = setup_SerialExecution(device = "mps", seed = 1L),
           verbosity = 1L
         )

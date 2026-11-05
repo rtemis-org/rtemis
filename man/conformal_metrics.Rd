@@ -28,7 +28,7 @@ measured back on those same cases is \code{1 - alpha} by construction. Coverage
 is scored against outcomes nothing in the pipeline has seen.
 
 \strong{Read coverage and size together.} A model with no signal attains valid
-coverage by returning uninformatively wide intervals, so coverage alone does
+coverage by returning wide, uninformative intervals, so coverage alone does
 not distinguish an accurate model from a wide one. Width -- or set size, and the
 rate of singleton and empty sets -- is the part that carries information
 about the model.

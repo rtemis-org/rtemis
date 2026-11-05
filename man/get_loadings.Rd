@@ -33,7 +33,7 @@ Rows are named by the features the decomposition was fitted on and columns
 by its components, as in \code{decom@transformed}.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 get_loadings(iris_pca)
 }
 \author{

@@ -53,3 +53,7 @@ method(roc_plot_data, Classification) <- extract_roc_plot_data
 method(roc_plot_data, ClassificationRes) <- extract_roc_plot_data
 method(plot_roc, Classification) <- draw_model_roc
 method(plot_roc, ClassificationRes) <- draw_model_roc
+method(pr_plot_data, Classification) <- extract_pr_plot_data
+method(pr_plot_data, ClassificationRes) <- extract_pr_plot_data
+method(plot_pr, Classification) <- draw_model_pr
+method(plot_pr, ClassificationRes) <- draw_model_pr

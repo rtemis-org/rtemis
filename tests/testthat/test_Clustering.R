@@ -14,7 +14,6 @@ x <- iris[, -5]
     if (is.null(fit)) {
       fit <<- cluster(
         x,
-        algorithm = "HOPACH",
         config = setup_HOPACH(
           dist = "euclid",
           max_levels = 3L,
@@ -121,7 +120,7 @@ test_that("every algorithm produces the variant the roster claims", {
     cl <- if (nm == "HOPACH") {
       .hopach_fit()
     } else {
-      cluster(x, algorithm = nm, config = configs[[nm]], verbosity = 0L)
+      cluster(x, config = configs[[nm]], verbosity = 0L)
     }
     want <- if (.clust_capabilities[[nm]][["soft"]]) {
       SoftClustering
@@ -155,7 +154,6 @@ test_that("setup_KMeans() throws error with bad values or wrong types", {
 test_that("cluster_KMeans() succeeds", {
   iris_kmeans <- cluster(
     x,
-    algorithm = "kmeans",
     config = setup_KMeans(k = 3L)
   )
   expect_s7_class(iris_kmeans, Clustering)
@@ -166,7 +164,6 @@ test_that("cluster_KMeans() with k = 10 succeeds", {
   skip_if_not_installed("flexclust")
   iris_kmeans10 <- cluster(
     x,
-    algorithm = "kmeans",
     config = setup_KMeans(k = 10L)
   )
   expect_s7_class(iris_kmeans10, Clustering)
@@ -182,7 +179,6 @@ test_that("cluster_HardCL() succeeds", {
   skip_if_not_installed("flexclust")
   iris_hardcl <- cluster(
     x,
-    algorithm = "HardCL",
     config = setup_HardCL(k = 3L)
   )
   expect_s7_class(iris_hardcl, Clustering)
@@ -198,7 +194,6 @@ test_that("cluster_NeuralGas() succeeds", {
   skip_if_not_installed("flexclust")
   iris_neuralgas <- cluster(
     x,
-    algorithm = "NeuralGas",
     config = setup_NeuralGas(k = 3L)
   )
   expect_s7_class(iris_neuralgas, Clustering)
@@ -214,7 +209,6 @@ test_that("cluster_CMeans() succeeds", {
   skip_if_not_installed("e1071")
   iris_cmeans <- cluster(
     x,
-    algorithm = "CMeans",
     config = setup_CMeans(k = 3L)
   )
   expect_s7_class(iris_cmeans, Clustering)
@@ -264,13 +258,11 @@ test_that("cluster_DBSCAN() succeeds", {
   skip_if_not_installed("dbscan")
   iris_dbscan <- cluster(
     x,
-    algorithm = "DBSCAN",
     config = setup_DBSCAN(eps = 0.5, min_points = 5L)
   )
   expect_s7_class(iris_dbscan, Clustering)
   iris_dbscan_approx <- cluster(
     x,
-    algorithm = "DBSCAN",
     config = setup_DBSCAN(eps = 0.5, min_points = 5L, approx = 0.5),
     verbosity = 0L
   )
@@ -284,7 +276,6 @@ test_that("cluster() does not count DBSCAN noise as a cluster", {
   # remain: `@k` must count the clusters, not the noise label.
   partial <- cluster(
     x,
-    algorithm = "DBSCAN",
     config = setup_DBSCAN(eps = 0.3, min_points = 5L),
     verbosity = 0L
   )
@@ -295,7 +286,6 @@ test_that("cluster() does not count DBSCAN noise as a cluster", {
   # Nothing dense enough to cluster: zero clusters, not one.
   all_noise <- cluster(
     x,
-    algorithm = "DBSCAN",
     config = setup_DBSCAN(eps = 0.01, min_points = 50L),
     verbosity = 0L
   )
@@ -358,7 +348,7 @@ test_that("cluster_HOPACH() reports a tree collapsed to one cluster", {
   expect_error(
     suppressWarnings(cluster(
       overcollapse,
-      algorithm = "HOPACH",
+      config = setup_HOPACH(),
       verbosity = 0L
     )),
     class = "rtemis_runtime_error"
@@ -366,7 +356,6 @@ test_that("cluster_HOPACH() reports a tree collapsed to one cluster", {
   expect_error(
     suppressWarnings(cluster(
       overcollapse,
-      algorithm = "HOPACH",
       config = setup_HOPACH(max_levels = 1L),
       verbosity = 0L
     )),
@@ -391,7 +380,6 @@ test_that("cluster_PAM() succeeds", {
   skip_if_not_installed("cluster")
   iris_pam <- cluster(
     x,
-    algorithm = "PAM",
     config = setup_PAM(k = 3L),
     verbosity = 0L
   )
@@ -413,7 +401,6 @@ test_that("cluster_PAMK() succeeds", {
   skip_if_not_installed("fpc")
   iris_pamk <- cluster(
     x,
-    algorithm = "PAMK",
     config = setup_PAMK(krange = 2:5),
     verbosity = 0L
   )
@@ -452,7 +439,6 @@ test_that("cluster_PAMK() accepts the CLARA fit that use_pam = FALSE produces", 
   skip_if_not_installed("fpc")
   iris_pamk <- cluster(
     x,
-    algorithm = "PAMK",
     config = setup_PAMK(krange = 2:4, use_pam = FALSE),
     verbosity = 0L
   )
@@ -466,13 +452,11 @@ test_that("assign_clusters() refuses PAM and PAMK clusterings", {
   skip_if_not_installed("fpc")
   iris_pam <- cluster(
     x,
-    algorithm = "PAM",
     config = setup_PAM(k = 3L),
     verbosity = 0L
   )
   iris_pamk <- cluster(
     x,
-    algorithm = "PAMK",
     config = setup_PAMK(krange = 2:4),
     verbosity = 0L
   )
@@ -498,7 +482,6 @@ test_that("cluster_GMM() is soft, and k is fixed or selected", {
   skip_if_not_installed("mclust")
   fixed <- cluster(
     x,
-    algorithm = "GMM",
     config = setup_GMM(k = 3L),
     verbosity = 0L
   )
@@ -508,7 +491,6 @@ test_that("cluster_GMM() is soft, and k is fixed or selected", {
   # `k` unset: BIC selects it, and `@k` is the fitted component count.
   selected <- cluster(
     x,
-    algorithm = "GMM",
     config = setup_GMM(),
     verbosity = 0L
   )
@@ -636,7 +618,6 @@ test_that("Clustering is abstract; every result is one of the two variants", {
   expect_error(Clustering())
   km <- cluster(
     x,
-    algorithm = "KMeans",
     config = setup_KMeans(k = 3L),
     verbosity = 0L
   )
@@ -649,7 +630,6 @@ test_that("CMeans yields a SoftClustering carrying its membership matrix", {
   skip_if_not_installed("e1071")
   cl <- cluster(
     x,
-    algorithm = "CMeans",
     config = setup_CMeans(k = 3L),
     verbosity = 0L
   )
@@ -673,7 +653,6 @@ test_that("SoftClustering rejects a permuted membership matrix", {
   skip_if_not_installed("e1071")
   cl <- cluster(
     x,
-    algorithm = "CMeans",
     config = setup_CMeans(k = 3L),
     verbosity = 0L
   )
@@ -724,7 +703,6 @@ test_that("clusters() and get_membership() return a soft clustering's assignment
   skip_if_not_installed("e1071")
   cl <- cluster(
     x,
-    algorithm = "CMeans",
     config = setup_CMeans(k = 3L),
     verbosity = 0L
   )
@@ -753,7 +731,6 @@ test_that("get_membership() names columns by cluster label for every backend", {
   skip_if_not_installed("mclust")
   cl <- cluster(
     x,
-    algorithm = "GMM",
     config = setup_GMM(k = 3L),
     verbosity = 0L
   )
@@ -766,7 +743,6 @@ test_that("get_membership() refuses a hard clustering", {
   skip_if_not_installed("flexclust")
   cl <- cluster(
     x,
-    algorithm = "KMeans",
     config = setup_KMeans(k = 3L),
     verbosity = 0L
   )
@@ -837,7 +813,6 @@ test_that("cluster_k has no label-counting default", {
 test_that("cluster() attaches metrics, with soft measures only where supported", {
   hard <- cluster(
     x,
-    algorithm = "KMeans",
     config = setup_KMeans(k = 3L),
     verbosity = 0L
   )
@@ -853,7 +828,6 @@ test_that("cluster() attaches metrics, with soft measures only where supported",
   skip_if_not_installed("e1071")
   soft <- cluster(
     x,
-    algorithm = "CMeans",
     config = setup_CMeans(k = 3L),
     verbosity = 0L
   )
@@ -876,7 +850,6 @@ test_that("DBSCAN noise reaches the metrics as a fraction, not a cluster", {
   skip_if_not_installed("dbscan")
   cl <- cluster(
     x,
-    algorithm = "DBSCAN",
     config = setup_DBSCAN(eps = 0.3, min_points = 5L),
     verbosity = 0L
   )
@@ -1034,27 +1007,20 @@ test_that("cluster() validates config@features against the data", {
 })
 
 # one place for the algorithm ----
-test_that("cluster() takes the algorithm from config and refuses a disagreeing label", {
-  fit <- cluster(x, config = setup_KMeans(k = 3L), verbosity = 0L)
+test_that("cluster() takes the algorithm from config alone", {
+  fit <- cluster(x, setup_KMeans(k = 3L), verbosity = 0L)
   expect_identical(fit@algorithm, "KMeans")
+  expect_identical(cluster(x, verbosity = 0L)@algorithm, "KMeans")
   expect_error(
-    cluster(
-      x,
-      algorithm = "PAM",
-      config = setup_KMeans(k = 3L),
-      verbosity = 0L
-    ),
-    "pass one or the other",
-    class = "rtemis_value_error"
+    cluster(x, algorithm = "KMeans", verbosity = 0L),
+    "unused argument"
   )
-  # An alias of the config's own algorithm is not a disagreement.
-  fit2 <- cluster(
-    x,
-    algorithm = "kmeans",
-    config = setup_KMeans(k = 3L),
-    verbosity = 0L
+  expect_error(
+    cluster(x, "KMeans", verbosity = 0L),
+    "`config` must be a `ClusteringConfig` object",
+    fixed = TRUE,
+    class = "rtemis_type_error"
   )
-  expect_identical(fit2@algorithm, "KMeans")
 })
 
 
@@ -1066,7 +1032,7 @@ test_that("cluster() prints one resources line and runs on one thread", {
       "",
       testthat::capture_messages(cluster(
         x,
-        algorithm = "KMeans",
+        config = setup_KMeans(),
         execution_config = setup_SerialExecution(n_workers_algorithm = 2L),
         verbosity = 1L
       ))
@@ -1086,7 +1052,6 @@ test_that("cluster() seeds the fit from the execution config and restores the ca
   fit <- function(seed) {
     cluster(
       x,
-      algorithm = "KMeans",
       config = setup_KMeans(k = 3L),
       execution_config = setup_SerialExecution(seed = seed),
       verbosity = 0L
@@ -1103,7 +1068,7 @@ test_that("cluster() seeds the fit from the execution config and restores the ca
 test_that("the cluster record states the execution config once, with origins only for flat fields", {
   cl <- cluster(
     x,
-    algorithm = "KMeans",
+    config = setup_KMeans(),
     execution_config = setup_SerialExecution(seed = 3L),
     verbosity = 0L
   )

@@ -1007,7 +1007,6 @@ train <- function(
       )
       decomposition <- decomp(
         x = feat,
-        algorithm = decomposition_config@algorithm,
         config = decomposition_config,
         execution_config = decomposition_execution,
         verbosity = verbosity

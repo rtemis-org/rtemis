@@ -2180,7 +2180,7 @@ preprocessed <- new_generic("preprocessed", "x", function(x) {
 #' @author EDG
 #' @export
 #' @examples
-#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 #' transformed(iris_pca)
 transformed <- new_generic("transformed", "x", function(x) {
   S7_dispatch()
@@ -2206,7 +2206,7 @@ transformed <- new_generic("transformed", "x", function(x) {
 #' @author EDG
 #' @export
 #' @examplesIf requireNamespace("flexclust", quietly = TRUE)
-#' iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans", verbosity = 0L)
+#' iris_km <- cluster(exc(iris, "Species"), config = setup_KMeans(), verbosity = 0L)
 #' clusters(iris_km)
 clusters <- new_generic("clusters", "x", function(x) {
   S7_dispatch()
@@ -2234,7 +2234,7 @@ clusters <- new_generic("clusters", "x", function(x) {
 #' @author EDG
 #' @export
 #' @examplesIf requireNamespace("e1071", quietly = TRUE)
-#' iris_cm <- cluster(exc(iris, "Species"), algorithm = "CMeans", verbosity = 0L)
+#' iris_cm <- cluster(exc(iris, "Species"), config = setup_CMeans(), verbosity = 0L)
 #' get_membership(iris_cm)
 get_membership <- new_generic("get_membership", "x", function(x) {
   S7_dispatch()

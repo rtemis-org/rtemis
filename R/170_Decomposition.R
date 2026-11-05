@@ -214,7 +214,7 @@ decomp_matrix <- function(decom, data) {
 #' @author EDG
 #' @export
 #' @examples
-#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+#' iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA())
 #' apply_decomposition(iris_pca, exc(iris, "Species"))
 apply_decomposition <- function(
   decom,
@@ -265,7 +265,7 @@ apply_decomposition <- function(
 #' @author EDG
 #' @export
 #' @examples
-#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 #' suppressWarnings(apply_decomp(iris_pca, exc(iris, "Species")))
 apply_decomp <- function(
   decom,
@@ -326,7 +326,7 @@ apply_decomp <- function(
 #' @export
 #' @examples
 #' x <- exc(iris, "Species")
-#' iris_pca <- decomp(x, algorithm = "PCA", config = setup_PCA(k = 2L))
+#' iris_pca <- decomp(x, config = setup_PCA(k = 2L))
 #' reconstructed <- reconstruct(iris_pca, x)
 #' # What the two components could not represent, per case:
 #' head(rowMeans((as.matrix(x) - as.matrix(reconstructed))^2))
@@ -409,7 +409,7 @@ reconstruct <- function(decom, x, execution_config = NULL, verbosity = 1L) {
 #' @author EDG
 #' @export
 #' @examples
-#' iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA", verbosity = 0L)
+#' iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA(), verbosity = 0L)
 #' get_loadings(iris_pca)
 get_loadings <- function(decom) {
   check_is_S7(decom, Decomposition)

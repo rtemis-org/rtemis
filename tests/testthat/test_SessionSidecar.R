@@ -204,7 +204,7 @@ test_that("the sidecar is named after the record, whatever the record is called"
 
 test_that("a result carrying no session writes no sidecar", {
   dir <- withr::local_tempdir()
-  x <- decomp(iris[, 1:4], algorithm = "PCA", verbosity = 0L)
+  x <- decomp(iris[, 1:4], config = setup_PCA(), verbosity = 0L)
   file <- file.path(dir, "decomp_PCA.record.json")
   write_record(x, file, verbosity = 0L)
   expect_false(file.exists(file.path(dir, "decomp_PCA.session.parquet")))

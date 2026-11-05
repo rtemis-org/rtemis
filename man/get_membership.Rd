@@ -26,7 +26,7 @@ each case to one cluster with no weights, raises an error.
 }
 \examples{
 \dontshow{if (requireNamespace("e1071", quietly = TRUE)) withAutoprint(\{ # examplesIf}
-iris_cm <- cluster(exc(iris, "Species"), algorithm = "CMeans", verbosity = 0L)
+iris_cm <- cluster(exc(iris, "Species"), config = setup_CMeans(), verbosity = 0L)
 get_membership(iris_cm)
 \dontshow{\}) # examplesIf}
 }

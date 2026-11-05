@@ -461,7 +461,7 @@ warn_data_mismatch <- function(decom, x, verbosity = 1L) {
 #' @export
 #' @examples
 #' x <- exc(iris, "Species")
-#' iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
+#' iris_pca <- decomp(x, config = setup_PCA(), verbosity = 0L)
 #' decomposition_metrics(iris_pca, x, verbosity = 0L)
 decomposition_metrics <- function(
   decom,
@@ -499,7 +499,7 @@ decomposition_metrics <- function(
 #' @export
 #' @examples
 #' x <- exc(iris, "Species")
-#' iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
+#' iris_pca <- decomp(x, config = setup_PCA(), verbosity = 0L)
 #' suppressWarnings(decomp_metrics(iris_pca, x, verbosity = 0L))
 decomp_metrics <- function(
   decom,

@@ -241,7 +241,6 @@ test_that("get_predictions() labels each row of a resampled model with its resam
 test_that("get_metrics() returns the stored metrics of a clustering", {
   clust <- cluster(
     iris[, -5],
-    algorithm = "kmeans",
     config = setup_KMeans(k = 3L),
     verbosity = 0L
   )
@@ -264,7 +263,6 @@ test_that("get_metrics() returns the stored metrics of a clustering", {
 test_that("get_metrics() returns the stored metrics of a decomposition", {
   pca <- decomp(
     iris[, -5],
-    algorithm = "pca",
     config = setup_PCA(),
     verbosity = 0L
   )
@@ -289,7 +287,6 @@ test_that("`$` and `[[` read properties of result objects by name", {
   )
   pca <- decomp(
     iris[, -5],
-    algorithm = "pca",
     config = setup_PCA(),
     verbosity = 0L
   )

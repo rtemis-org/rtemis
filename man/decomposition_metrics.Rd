@@ -63,7 +63,7 @@ from components alone.
 }
 \examples{
 x <- exc(iris, "Species")
-iris_pca <- decomp(x, algorithm = "PCA", verbosity = 0L)
+iris_pca <- decomp(x, config = setup_PCA(), verbosity = 0L)
 decomposition_metrics(iris_pca, x, verbosity = 0L)
 }
 \author{

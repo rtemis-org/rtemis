@@ -39,7 +39,7 @@ Available for algorithms whose \code{can_apply} trait is TRUE; see
 the decomposition was fitted on.
 }
 \examples{
-iris_pca <- decomp(exc(iris, "Species"), algorithm = "PCA")
+iris_pca <- decomp(exc(iris, "Species"), config = setup_PCA())
 apply_decomposition(iris_pca, exc(iris, "Species"))
 }
 \author{

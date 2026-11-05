@@ -67,13 +67,19 @@ method(roc_align_folds, class_any) <- function(x, ids) {
 #' @noRd
 roc_plot_data <- new_generic("roc_plot_data", "x")
 
-#' Normalize classification prediction samples before computing ROC curves
+#' Normalize classification prediction samples before computing curves
+#'
+#' One definition of sample selection, fold alignment, and pooling for threshold
+#' curves.
 #' @inheritParams plot_roc
-#' @return Data frame of selected ROC records.
+#' @param vertices Function: Computes curve records from the normalized labels
+#'   and probabilities of `rtemis.draw::roc_probabilities()`.
+#' @return Data frame of selected curve records.
 #' @keywords internal
 #' @noRd
-extract_roc_plot_data <- function(
+extract_curve_plot_data <- function(
   x,
+  vertices,
   what = "all",
   variant = "aggregate",
   positive = NULL,
@@ -122,7 +128,7 @@ extract_roc_plot_data <- function(
   }
   if (any(ids == "aggregate") && resampled) {
     abort(
-      "Reserve the fold identifier 'aggregate' for pooled ROC curves; rename that resample.",
+      "Reserve the fold identifier 'aggregate' for pooled curves; rename that resample.",
       class = c("rtemis_value_error", "rtemis_input_error")
     )
   }
@@ -224,13 +230,13 @@ extract_roc_plot_data <- function(
       pooled <- normalized[[1L]]
       pooled[["y"]] <- unlist(lapply(normalized, `[[`, "y"), use.names = FALSE)
       pooled[["prob"]] <- do.call(rbind, lapply(normalized, `[[`, "prob"))
-      out <- rtemis.draw::roc_vertices(pooled)
+      out <- vertices(pooled)
       out[["fold"]] <- "aggregate"
     } else {
       out <- do.call(
         rbind,
         lapply(seq_along(normalized), function(i) {
-          curve <- rtemis.draw::roc_vertices(normalized[[i]])
+          curve <- vertices(normalized[[i]])
           curve[["fold"]] <- ids[[i]]
           curve
         })
@@ -254,6 +260,46 @@ extract_roc_plot_data <- function(
   out
 }
 
+#' Normalize classification prediction samples before computing ROC curves
+#' @inheritParams plot_roc
+#' @return Data frame of selected ROC records.
+#' @keywords internal
+#' @noRd
+extract_roc_plot_data <- function(
+  x,
+  what = "all",
+  variant = "aggregate",
+  positive = NULL,
+  labelify = TRUE
+) {
+  extract_curve_plot_data(
+    x,
+    rtemis.draw::roc_vertices,
+    what,
+    variant,
+    positive,
+    labelify
+  )
+}
+
+#' Draw curve records extracted from a classification result
+#'
+#' Binary curves are colored by split; multiclass curves by class, with the
+#' split distinguished by line type.
+#' @param draw_curves Function: rtemis.draw curve function.
+#' @param data Data frame: Curve records with `class` and `split` columns.
+#' @param variant Character: Curve variant.
+#' @param args List: Additional arguments to `draw_curves`.
+#' @return An ECharts htmlwidget.
+#' @keywords internal
+#' @noRd
+draw_model_curves <- function(draw_curves, data, variant, args) {
+  if (length(unique(data[["class"]])) == 1L) {
+    args <- split_palette(args, unique(data[["split"]]))
+  }
+  do.call(draw_curves, c(list(data, variant = variant), args))
+}
+
 #' Draw ROC records extracted from a classification result
 #' @inheritParams plot_roc
 #' @return An ECharts htmlwidget.
@@ -267,12 +313,10 @@ draw_model_roc <- function(
   labelify = TRUE,
   ...
 ) {
-  data <- roc_plot_data(x, what, variant, positive, labelify)
-  args <- list(...)
-  # Binary curves are colored by split; multiclass curves by class, with the
-  # split distinguished by line type.
-  if (length(unique(data[["class"]])) == 1L) {
-    args <- split_palette(args, unique(data[["split"]]))
-  }
-  do.call(rtemis.draw::draw_roc, c(list(data, variant = variant), args))
+  draw_model_curves(
+    rtemis.draw::draw_roc,
+    roc_plot_data(x, what, variant, positive, labelify),
+    variant,
+    list(...)
+  )
 }

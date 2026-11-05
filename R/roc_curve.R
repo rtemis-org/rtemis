@@ -181,6 +181,42 @@ roc_table <- function(
   positive = NULL,
   max_points = NULL
 ) {
+  curve_table(
+    x,
+    roc_plot_data,
+    c("fpr", "tpr", "auc"),
+    sample,
+    variant,
+    positive,
+    max_points
+  )
+} # /rtemis::roc_table
+
+
+# %% curve_table ----
+#' Threshold curves of a classification model as a table
+#'
+#' One definition of the checks, column names, and down-sampling of
+#' `roc_table()` and `pr_table()`.
+#' @param x `Classification` or `ClassificationRes` object.
+#' @param plot_data S7 generic: `roc_plot_data` or `pr_plot_data`.
+#' @param coordinates Character: Columns following `class`, ahead of `omitted`.
+#' @param sample Optional Character: Sample whose curves to return.
+#' @param variant Character: `"aggregate"` or `"per_resample"`.
+#' @param positive Optional Character: Positive class of a binary model.
+#' @param max_points Optional Integer \[2, Inf): Cap on vertices per curve.
+#' @return data.table of curve records.
+#' @keywords internal
+#' @noRd
+curve_table <- function(
+  x,
+  plot_data,
+  coordinates,
+  sample,
+  variant,
+  positive,
+  max_points
+) {
   if (!S7_inherits(x, Classification) && !S7_inherits(x, ClassificationRes)) {
     rtemis.core::abort(
       "`x` must be a Classification or ClassificationRes model.",
@@ -199,7 +235,7 @@ roc_table <- function(
       )
     }
   }
-  curves <- data.table::as.data.table(roc_plot_data(
+  curves <- data.table::as.data.table(plot_data(
     x,
     what = sample %||% "all",
     variant = variant,
@@ -220,9 +256,9 @@ roc_table <- function(
   data.table::setcolorder(
     curves,
     intersect(
-      c("sample", "resample", "class", "fpr", "tpr", "auc", "omitted"),
+      c("sample", "resample", "class", coordinates, "omitted"),
       names(curves)
     )
   )
   curves[]
-} # /rtemis::roc_table
+} # /rtemis::curve_table

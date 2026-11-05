@@ -7,8 +7,8 @@
 #' A single model prints its `describe()` output, unless `verbosity = 0`, and
 #' returns its default `plot()` view: true/predicted values for regression,
 #' confusion matrices for classification, and stored metric distributions for
-#' resampled models. [plot_roc()] draws ROC curves for classification models
-#' with predicted probabilities.
+#' resampled models. [plot_roc()] and [plot_pr()] draw ROC and precision-recall
+#' curves for classification models with predicted probabilities.
 #'
 #' A nonempty homogeneous list compares models of the same task and sampling
 #' kind. Ordinary models use grouped metric bars. Resampled models use one

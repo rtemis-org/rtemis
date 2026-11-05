@@ -24,7 +24,7 @@ clustering assigns each case to the cluster of its highest membership;
 }
 \examples{
 \dontshow{if (requireNamespace("flexclust", quietly = TRUE)) withAutoprint(\{ # examplesIf}
-iris_km <- cluster(exc(iris, "Species"), algorithm = "KMeans", verbosity = 0L)
+iris_km <- cluster(exc(iris, "Species"), config = setup_KMeans(), verbosity = 0L)
 clusters(iris_km)
 \dontshow{\}) # examplesIf}
 }
