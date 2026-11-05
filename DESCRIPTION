@@ -1,5 +1,5 @@
 Package: rtemis
-Version: 1.4.3
+Version: 1.4.4
 Title: Schema-Driven Machine Learning and Visualization
 Date: 2026-11-03
 Authors@R: person(given = "E.D.", family = "Gennatas", role = c("aut", "cre", "cph"), 
@@ -33,7 +33,7 @@ Imports:
     parallel,
     parallelly,
     rtemis.core (>= 0.4.7),
-    rtemis.draw (>= 0.5.4),
+    rtemis.draw (>= 0.5.5),
     stats,
     S7,
     utils

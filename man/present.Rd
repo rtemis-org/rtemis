@@ -24,8 +24,8 @@ htmlwidget: One chart or one complete \code{\link[rtemis.draw:draw_panels]{rtemi
 A single model prints its \code{describe()} output, unless \code{verbosity = 0}, and
 returns its default \code{plot()} view: true/predicted values for regression,
 confusion matrices for classification, and stored metric distributions for
-resampled models. \code{\link[=plot_roc]{plot_roc()}} draws ROC curves for classification models
-with predicted probabilities.
+resampled models. \code{\link[=plot_roc]{plot_roc()}} and \code{\link[=plot_pr]{plot_pr()}} draw ROC and precision-recall
+curves for classification models with predicted probabilities.
 }
 \details{
 A nonempty homogeneous list compares models of the same task and sampling

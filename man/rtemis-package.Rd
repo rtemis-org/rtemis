@@ -16,8 +16,8 @@ machine learning workflows.
 
 \section{Visualization}{
 
-Model plots (\code{plot_true_pred()}, \code{plot_roc()}, \code{plot_varimp()}, \code{plot_metric()},
-\code{plot_learning()}, \code{plot_session()}, \code{plot_manhattan()}) and \code{present()} render
+Model plots (\code{plot_true_pred()}, \code{plot_roc()}, \code{plot_pr()}, \code{plot_varimp()},
+\code{plot_metric()}, \code{plot_learning()}, \code{plot_session()}, \code{plot_manhattan()}) and \code{present()} render
 interactive charts through 'rtemis.draw', which also provides the \verb{draw_*()} functions for
 data. \code{draw_linad()} draws a LINAD tree.
 }

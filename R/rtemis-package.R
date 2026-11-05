@@ -12,8 +12,8 @@
 #' <https://docs.rtemis.org/r/ml>
 #'
 #' @section Visualization:
-#' Model plots (`plot_true_pred()`, `plot_roc()`, `plot_varimp()`, `plot_metric()`,
-#' `plot_learning()`, `plot_session()`, `plot_manhattan()`) and `present()` render
+#' Model plots (`plot_true_pred()`, `plot_roc()`, `plot_pr()`, `plot_varimp()`,
+#' `plot_metric()`, `plot_learning()`, `plot_session()`, `plot_manhattan()`) and `present()` render
 #' interactive charts through 'rtemis.draw', which also provides the `draw_*()` functions for
 #' data. `draw_linad()` draws a LINAD tree.
 #'

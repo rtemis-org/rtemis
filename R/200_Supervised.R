@@ -345,9 +345,9 @@ method(print, VariableImportance) <- function(x, output_type = NULL, ...) {
 # Supervised: plot_varimp
 # SupervisedRes: plot_varimp, plot_metric
 # Regression: plot_true_pred,
-# Classification: plot_true_pred, plot_roc
+# Classification: plot_true_pred, plot_roc, plot_pr
 # RegressionRes: plot_metric, plot_true_pred,
-# ClassificationRes: plot_metric, plot_true_pred, plot_roc
+# ClassificationRes: plot_metric, plot_true_pred, plot_roc, plot_pr
 
 # %% SUPERVISED_TYPES ----
 # The two kinds of supervised learning rtemis performs, decided by the outcome:

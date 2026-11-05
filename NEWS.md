@@ -2,6 +2,8 @@
 
 ## 1.4.4
 
+- `plot_pr()` draws the precision-recall curves of a classification model for each stored sample, pooled or per outer resample, with average precision in the legend and a prevalence baseline per curve group; requires 'rtemis.draw' 0.5.5.
+- `pr_table()` returns the precision-recall curves of a classification model for each stored sample, pooled or per outer resample: the data `plot_pr()` draws.
 - `decomp()` and `cluster()` take the algorithm from `config` alone, as in `decomp(x, config = setup_PCA())`; the `algorithm` argument is removed and `config` is the second argument.
 
 ## 1.4.3
