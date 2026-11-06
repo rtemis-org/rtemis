@@ -38,6 +38,9 @@ under \code{what = "all"}; explicit unavailable samples are errors.
 Comparison labels use \code{model_names}, complete list names, or algorithm
 names, made unique in that order. A data-fingerprint mismatch notice is
 printed, including when descriptions are disabled.
+
+With \code{width} and \code{height} unset, a figure follows the viewer or browser
+window. A resampled comparison stacks its panels in the window height.
 }
 \section{Default plots}{
 

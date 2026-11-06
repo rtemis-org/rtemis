@@ -21,6 +21,9 @@
 #' names, made unique in that order. A data-fingerprint mismatch notice is
 #' printed, including when descriptions are disabled.
 #'
+#' With `width` and `height` unset, a figure follows the viewer or browser
+#' window. A resampled comparison stacks its panels in the window height.
+#'
 #' @section Default plots:
 #' `plot()` on a fitted model draws the view `present()` returns, without the
 #' description:
@@ -275,7 +278,7 @@ method(comparison_drawing, class_list) <- function(
   whisker = 1.5,
   palette = NULL,
   theme = NULL,
-  width = 900,
+  width = NULL,
   height = NULL,
   filename = NULL
 ) {
@@ -395,7 +398,7 @@ method(present, class_list) <- function(
   whisker = 1.5,
   palette = NULL,
   theme = NULL,
-  width = 900,
+  width = NULL,
   height = NULL,
   filename = NULL,
   verbosity = 1L
