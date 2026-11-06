@@ -134,6 +134,21 @@ test_that("ordinary comparisons use stored metrics and unique aligned labels", {
   )
 })
 
+test_that("comparisons follow the host unless a size is stated", {
+  a <- train(
+    iris[1:100, c("Sepal.Length", "Petal.Length", "Petal.Width")],
+    hyperparameters = setup_GLM(),
+    verbosity = 0L
+  )
+  bars <- present(list(A = a, B = a), verbosity = 0L)
+  expect_null(bars[["width"]])
+  expect_null(bars[["height"]])
+  expect_true(bars[["sizingPolicy"]][["viewer"]][["fill"]])
+  fixed <- present(list(A = a, B = a), width = 700, verbosity = 0L)
+  expect_identical(fixed[["width"]], 700)
+  expect_false(fixed[["sizingPolicy"]][["viewer"]][["fill"]])
+})
+
 test_that("resampled comparisons preserve unequal folds and common panel limits", {
   a <- present_model_fixture(resamples = 2L)
   b <- present_model_fixture(resamples = 3L)
