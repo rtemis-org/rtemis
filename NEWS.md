@@ -1,12 +1,10 @@
-# rtemis news
-
-## 1.4.4
+# rtemis 1.4.4
 
 - `plot_pr()` draws the precision-recall curves of a classification model for each stored sample, pooled or per outer resample, with average precision in the legend and a prevalence baseline per curve group; requires 'rtemis.draw' 0.5.5.
 - `pr_table()` returns the precision-recall curves of a classification model for each stored sample, pooled or per outer resample: the data `plot_pr()` draws.
 - `decomp()` and `cluster()` take the algorithm from `config` alone, as in `decomp(x, config = setup_PCA())`; the `algorithm` argument is removed and `config` is the second argument.
 
-## 1.4.3
+# rtemis 1.4.3
 
 - `transformed()` returns a decomposition's components for the data it was fitted on, `clusters()` the cluster label of each case, and `get_membership()` the membership matrix of a soft clustering (CMeans, GMM); `transformed()` and `get_membership()` return a data.table.
 - `get_predictions()` returns the true and predicted values and class probabilities a supervised model stores for each sample, and each outer resample of a resampled model.
@@ -25,7 +23,7 @@
 - CART and the LightGBM-based learners report importance zero for predictors in no split, so resampled importance averages over every resample; `plot_varimp()` drops the `absent` argument.
 - rtemis works with S7 0.2.2 and the S7 releases after it, and requires 'rtemis.core' 0.4.7.
 
-## 1.4.2
+# rtemis 1.4.2
 
 
 - The standalone Plotly, networkD3, threejs and leaflet `draw_*()` functions move to the 'rtemis.dplot' package on r-universe, with their themes (`theme_*()`, `choose_theme()`, `available_themes()`), palettes (`get_palette()`), color utilities (`col2grayscale()`, `color_adjust()`, `previewcolor()`), `available_draw()`, `uniprot_get()`, `xtdescribe()`, the `xt_example` data and the `rtemis_theme`, `rtemis_palette` and `rtemis_font` options. 'rtemis.draw' provides their replacements. rtemis keeps `draw_linad()`, which takes an 'rtemis.draw' `Theme`, and `roc_curve()`.
@@ -68,12 +66,12 @@
   - micePMM imputation is available to `preprocess()` only: `setup_SupervisedPreprocessor()` does not offer it, and `apply_preprocessor()` refuses a preprocessor that uses it.
   - `setup_SupervisedPreprocessor()` imputes with mean and mode values by default (`impute_type = "meanMode"`); missRanger, fitted on every training set of a `train()` run, is chosen explicitly. The Imputation sections of `setup_SupervisedPreprocessor()` and `setup_Preprocessor()` describe each method's cost and limits.
 
-### Supervised result validation
+## Supervised result validation
 
 - Outcomes, predictions, and classification probabilities must have matching row counts within each sample.
 - Categorical outcomes and predictions must preserve the training class levels and their order; probability matrices require one column for binary classification or one per class for multiclass classification.
 
-## 1.4.1
+# rtemis 1.4.1
 
 - Model plotting and `present()` use rtemis.draw, including session timelines and SVG export; standalone Plotly `draw_*()` functions remain available.
 - Require R >= 4.4.0 for the rtemis.draw backend.
@@ -112,7 +110,7 @@
 - `JSONSchema_to_S7()` reconstructs standalone inheritance and runtime-only properties from schema artifacts, and rejects a `parent` other than the one the schema declares.
 - Reading a table or object with a field its schema does not declare fails with an error naming the field.
 
-## 1.4.0
+# rtemis 1.4.0
 
 - `setup_SerialExecution()`, `setup_FutureExecution()`, and `setup_MiraiExecution()` configure their respective execution backends, replacing `setup_ExecutionConfig()`.
 - `JSONSchema_to_S7()` reconstructs declaration defaults, typed references, and input policies from a supplied artifact graph.
@@ -123,7 +121,7 @@
 - `setup_PAM()` and `setup_PAMK()` configure medoid clustering through 'cluster' and 'fpc'.
 - `setup_HOPACH()` configures hierarchical clustering through 'hopach'.
 
-## 1.3.9
+# rtemis 1.3.9
 
 - Config families publish flat documents with a discriminator and the selected variant's settings.
 - A separate authoring artifact identifies properties reserved for the host.
@@ -134,7 +132,7 @@
 - Supervised records reference session graphs stored as Parquet sidecars.
 - `DataRef` records a sidecar's path, encoding, digest, size, and optional table dimensions.
 
-## 1.3.8
+# rtemis 1.3.8
 
 - `ingest()` reads supported data formats using format-specific configurations and writes Parquet output with a record of the reading decisions.
 - Ingestion configurations accept explicit column type declarations.
@@ -148,7 +146,7 @@
 - `Diagnostic` and `Diagnostics` have published schemas.
 - `check_data()` reports distinct value counts per column.
 
-## 1.3.7
+# rtemis 1.3.7
 
 - `setup_LINAD()` configures the Linear Additive Tree, a decision tree with a linear model at every node whose leaf coefficients are the sum along the path.
 - LINAD recovers a pure linear model at `max_leaves = 1` and a CART-equivalent tree with constant nodes at `gamma = 0`.
@@ -171,7 +169,7 @@
 - Case weights must have one finite, non-negative value per case and a positive mean.
 - Volcano and Manhattan plots share one package-wide pair of colors for positive and negative effects.
 
-## 1.3.6
+# rtemis 1.3.6
 
 - Configs store the paths they are given, without resolving them against the working directory or expanding `~`.
 - `predict()` on a multiclass resampled classification returns an `n x k` probability matrix for `type = "avg"` and a list of them for `type = "all"`.
@@ -203,7 +201,7 @@
 - `setup_Resampler(id_strat = )` takes a column name; `train()` groups resamples by it and excludes it from the features.
 - `read()` reads Parquet files with Arrow `string_view` and `binary_view` columns.
 
-## 1.3.5
+# rtemis 1.3.5
 
 - rtemis is licensed under BSD 3-clause, replacing GPL (>= 3).
 - `train()` parallelizes outer resampling.
@@ -237,7 +235,7 @@
 - MLP uses CUDA when available and the CPU otherwise; `device = "mps"` is supported on request.
 - Printed hyperparameters show search spaces inline, tagged `<tune>`.
 
-## 1.3.4
+# rtemis 1.3.4
 
 - Tuning requires `tune_over()`: `setup_LightRF(max_depth = tune_over(3L, 4L, 5L))`. A bare vector is a value, and `max_depth = 3:5` is an error naming the replacement.
 - Serialized search spaces are tagged objects, `{"candidates": [3, 4, 5]}`, with at least two candidates.
@@ -246,7 +244,7 @@
 - `factor2integer` codes are integer.
 - `scale` and `center` skip columns coded by `factor2integer`.
 
-## 1.3.3
+# rtemis 1.3.3
 
 - `setup_SuperLearner()` configures the cross-validated stacked ensemble of van der Laan, Polley & Hubbard for regression and binary classification.
 - `setup_ModalityStacking()` stacks base learners, each bound to one group of features.
@@ -257,7 +255,7 @@
 - A `SuperConfig` `weights` column supplies case weights and is excluded from the features.
 - `read_config()` validates configs without calling the rtemis CLI; `options(rtemis.validate = )` and `options(rtemis.cli = )` are removed.
 
-## 1.3.2
+# rtemis 1.3.2
 
 - Isotonic calibration keeps probabilities at least `1 / (2 * n)` from 0 and 1.
 - `calibrate(hyperparameters = NULL)` selects `setup_Isotonic()`.
@@ -274,7 +272,7 @@
 - `CalibratedClassification@calibrator` and `CalibratedClassificationRes@calibrator` record the calibrator used.
 - `plot_varimp(measure = )` selects among a model's importance measures.
 
-## 1.3.1
+# rtemis 1.3.1
 
 - Predicted probabilities are a matrix with one row per case and one column per class; binary outcomes carry a single column for the positive class.
 - `train()`, `calibrate()`, `setup_SuperConfig()`, and `setup_SuperConfigLive()` no longer take `algorithm`; the `setup_*()` function names the algorithm.
@@ -298,14 +296,14 @@
 - Hyperparameters bounded by the training data are checked before any model is fit.
 - `setup_LightRF(feature_fraction = NULL)` derives the value from the data.
 
-## 1.3.0
+# rtemis 1.3.0
 
 - Configuration classes declare typed, validated properties from which their JSON Schemas are generated.
 - Optional config properties use `NULL` as the only unset value and reject zero-length values.
 - `S7_to_JSONSchema()`, `S7_dispatcher_JSONSchema()`, and `write_JSONSchema()` generate and write JSON Schemas from S7 classes.
 - `setup_Preprocessor(impute_type = )` lists its choices in the signature.
 
-## 1.2.8
+# rtemis 1.2.8
 
 - `session_timeline()` flattens a `SupervisedSession` execution graph into a timeline table; `session_kind_colors()` provides a shared color map.
 - Progress reporting uses `rtemis.core::progress_lapply()`, including for parallel tuning; 'cli' is no longer a dependency.
@@ -314,7 +312,7 @@
 - `apply_preprocessor()` applies a trained `Preprocessor` to new data, replacing `preprocess(x, Preprocessor)`.
 - `preprocess()` accepts `setup_Preprocessor()` arguments directly, e.g. `preprocess(x, scale = TRUE)`.
 
-## 1.2.7
+# rtemis 1.2.7
 
 - Added `DecomposeConfig` and `ClusterConfig` pipeline-recipe classes with `setup_DecomposeConfig()` / `setup_ClusterConfig()`, mirroring `SuperConfig`: they bundle a data path, the algorithm config (`DecompositionConfig` / `ClusteringConfig`), and an output directory.
 - `decomp()` now accepts `DecomposeConfig` objects.
@@ -322,7 +320,7 @@
 - Added `outdir` arg to `decomp()` and `cluster()`.
 - Added `read_config()` & `write_config()` with support for the new `supervised`, `decompose`, `cluster` schemas.
 
-## 1.2.6
+# rtemis 1.2.6
 
 - `SupervisedRes` now records `preprocessor_config` and `decomposition_config`; updated `repr`.
 - Added early input validation: column-type check in `check_supervised`, new `check_numeric_or_factor()`, and a check that the requested decomposition exists.
@@ -331,14 +329,14 @@
 - `repr` moved to `rtemis.core`; metric acronyms now capitalized in console output.
 - Extracted `roc_curve()`.
 
-## 1.2.5
+# rtemis 1.2.5
 
 - Adopted the `rtemis.core` condition system (`rtemis.core::abort()` / `warn()`); documentation now links to rtemis conditions.
 - `read()` now errors if the file does not exist.
 - Improved `sanitize_path()`.
 - Initial `SupervisedSession` support.
 
-## 1.2.4
+# rtemis 1.2.4
 
 - Added `nanoparquet` support for reading and writing data (added to Suggests).
 - Added `default_n_workers()`, used in `.onAttach()`.
@@ -347,14 +345,14 @@
 - WASM-safe parallel-worker detection.
 - Moved shared utilities to `rtemis.core`.
 
-## 1.2.3
+# rtemis 1.2.3
 
 - Added `decomposition_config` support to `SuperConfig`, `SuperConfigLive`, and `train()`, with new `apply_decomp` methods where supported.
 - Converted `Regression` and `Classification` metric field names to lower case.
 - Added `description` field to `to_json()` output.
 - Added `verbosity` argument to the `describe()` S7 generic and methods.
 
-## 1.2.2
+# rtemis 1.2.2
 
 - Added `set_positive_class()`. Can be used directly by users. Used by `rtemis.server` and `rtemislive` to pass the positive case from the UI to `rtemis`.
 - Added `positive_class` field to `SuperConfigLive`.
@@ -363,12 +361,12 @@
 - Added `get_varimp()` method.
 - Added `rtemis.core` to Imports.
 
-## 1.2.1
+# rtemis 1.2.1
 
 - Added the package name to S7 class definitions.
 - Exported additional internals required by `rtemis.server`.
 
-## 1.2.0
+# rtemis 1.2.0
 
 - Add `rtemis.server` support:
   - New `SuperConfigLive` S7 class for server-based training configuration.
@@ -377,10 +375,10 @@
 - Add `verbosity` argument to `predict_super()`; remove `...`.
 - Add `names()` S7 method for `Theme` objects.
 
-## 1.0.1
+# rtemis 1.0.1
 
 - Introduce `VariableImportance` S7 class to represent variable importance data, allowing for more than one measure of importance per model and update all relevant classes and methods.
 - Calculate Partial_Effect_Variance as variable importance measure for GAM models
 - Add `execution_config` argument to internal `train_` method and use it in LightRuleFit to propagate to LightGBM and GLMNET calls.
 
-## 1.0.0 First CRAN release
+# rtemis 1.0.0 First CRAN release
