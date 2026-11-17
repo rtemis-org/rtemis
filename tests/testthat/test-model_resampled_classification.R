@@ -85,7 +85,7 @@ test_that("real resampled classifiers retain fold metrics and pooled prediction 
       widget <- plot_roc(model, what = sample, variant = variant)
       expect_s3_class(widget, "htmlwidget")
       expect_length(
-        widget[["x"]][["option"]][["series"]],
+        drawn_option(widget)[["series"]],
         if (variant == "aggregate") 2L else 6L
       )
     }

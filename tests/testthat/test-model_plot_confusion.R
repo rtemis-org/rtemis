@@ -114,7 +114,7 @@ test_that("resampled classification uses pooled counts and shares class order ac
     rtemis.draw::draw_confusion(mod@metrics_test@confusion_long)[["x"]]
   )
   expect_s3_class(plot_true_pred(mod), "htmlwidget")
-  expect_length(plot_true_pred(mod)[["x"]][["option"]][["grid"]], 8L)
+  expect_length(drawn_option(plot_true_pred(mod))[["grid"]], 8L)
   expect_error(plot_true_pred(mod, what = "validation"), "Select unique")
 })
 
@@ -138,7 +138,7 @@ test_that("ordinary fallback counts missing pairs and rejects mismatched lengths
     "supervised.rows.y_test.predicted_test",
     fixed = TRUE
   )
-  # Bypass S7 to retain defensive coverage for malformed legacy objects.
+  # Bypass S7 to cover the check on a malformed object.
   attr(mod, "predicted_test") <- shortened
   expect_error(classification_plot_data(mod), "equally sized")
 })

@@ -107,7 +107,7 @@ test_that("binary ROC curves color each split; multiclass curves color classes",
   )
   curves <- Filter(
     function(s) !is.null(s[["name"]]),
-    plot_roc(multiclass)[["x"]][["option"]][["series"]]
+    drawn_option(plot_roc(multiclass))[["series"]]
   )
   expect_length(curves, 6L)
   colors <- unlist(lapply(curves, line_color))
@@ -117,7 +117,7 @@ test_that("binary ROC curves color each split; multiclass curves color classes",
 test_that("confusion matrices shade correct cells blue and incorrect cells orange", {
   m <- color_fixture(TRUE)
   ranges <- unlist(lapply(
-    graphics::plot(m)[["x"]][["option"]][["visualMap"]],
+    drawn_option(graphics::plot(m))[["visualMap"]],
     function(v) v[["inRange"]][["color"]][[2L]]
   ))
   expect_true(all(c("#2D83D3", "#C55E28") %in% ranges))

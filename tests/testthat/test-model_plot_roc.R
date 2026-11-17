@@ -121,7 +121,7 @@ test_that("resampled ROC pools matrix rows with class and fold identity intact",
   fold <- roc_plot_data(mod, "training", "per_resample")
   expect_identical(unique(fold[["fold"]]), c("Fold1", "Fold2"))
   expect_length(
-    plot_roc(mod, "training", variant = "per_resample")[["x"]][["option"]][[
+    drawn_option(plot_roc(mod, "training", variant = "per_resample"))[[
       "series"
     ]],
     7
@@ -154,10 +154,8 @@ test_that("resampled ROC distinguishes pooled AUC from mean fold AUC and unavail
   d <- roc_plot_data(mod, "training", "per_resample")
   expect_true(all(is.na(d[["auc"]][d[["fold"]] == "Fold2"])))
   expect_equal(unique(d[["omitted"]][d[["fold"]] == "Fold2"]), 2)
-  widget <- plot_roc(mod, "training", variant = "per_resample")[["x"]][[
-    "option"
-  ]]
-  expect_match(widget[["legend"]][["data"]][[1]], "SD NA[)]$")
+  widget <- drawn_option(plot_roc(mod, "training", variant = "per_resample"))
+  expect_match(widget[["legend"]][["data"]][[1]], "[(]NA[)]$")
   expect_null(widget[["title"]][["subtext"]])
   pooled <- roc_plot_data(mod, "training")
   expect_equal(unique(pooled[["omitted"]]), 2)
@@ -199,7 +197,7 @@ test_that("unnamed model score columns follow their producer's class order", {
     "supervised.levels.y_test.y_training",
     fixed = TRUE
   )
-  # Legacy objects can carry a test dictionary distinct from the producer's.
+  # An object whose test dictionary differs from the producer's.
   attr(ordinary, "y_test") <- reversed
   attr(ordinary, "predicted_prob_test") <- matrix(
     1 - c(.125, .875, .5, .5),

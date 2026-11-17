@@ -66,10 +66,10 @@ pr_data_of <- function(...) {
 
 test_that("plot_pr() draws one stepped curve and baseline per available sample", {
   mod <- pr_model_fixture()
-  option <- plot_pr(mod)[["x"]][["option"]]
+  option <- drawn_option(plot_pr(mod))
   expect_identical(
     substr(unlist(option[["legend"]][["data"]]), 1L, 5L),
-    c("Train", "Valid", "Test:")
+    c("Train", "Valid", "Test ")
   )
   series <- option[["series"]]
   expect_length(series, 6L)
@@ -82,7 +82,7 @@ test_that("plot_pr() draws one stepped curve and baseline per available sample",
     expect_identical(series[[i]][["name"]], series[[i - 3L]][["name"]])
   }
   expect_identical(
-    plot_pr(mod, what = "test")[["x"]][["option"]][["series"]][[1L]][["name"]],
+    drawn_option(plot_pr(mod, what = "test"))[["series"]][[1L]][["name"]],
     series[[3L]][["name"]]
   )
   expect_identical(
@@ -99,7 +99,7 @@ test_that("plot_pr() validates samples and variants as plot_roc() does", {
   mod@predicted_prob_training <- NULL
   expect_error(plot_pr(mod, what = "training"), "no probabilities")
   expect_length(
-    plot_pr(mod)[["x"]][["option"]][["legend"]][["data"]],
+    drawn_option(plot_pr(mod))[["legend"]][["data"]],
     2L
   )
   mod@predicted_prob_validation <- NULL
@@ -147,7 +147,7 @@ test_that("multiclass curves use class color, with one baseline per class and sp
   expect_identical(unique(out[["class"]]), c("A", "B", "C"))
   expect_equal(unique(out[["prevalence"]]), 1 / 3)
   expect_equal(unique(out[["ap"]]), 1)
-  series <- plot_pr(mod, what = "test")[["x"]][["option"]][["series"]]
+  series <- drawn_option(plot_pr(mod, what = "test"))[["series"]]
   expect_length(series, 6L)
 })
 
@@ -163,11 +163,9 @@ test_that("resampled curves pool rows or summarize folds", {
   )
   folds <- pr_data_of(mod, "training", "per_resample", NULL, FALSE)
   expect_identical(unique(folds[["fold"]]), c("Fold1", "Fold2"))
-  option <- plot_pr(mod, "training", variant = "per_resample")[["x"]][[
-    "option"
-  ]]
+  option <- drawn_option(plot_pr(mod, "training", variant = "per_resample"))
   expect_length(option[["legend"]][["data"]], 1L)
-  expect_match(option[["legend"]][["data"]][[1L]], "AP mean")
+  expect_match(option[["legend"]][["data"]][[1L]], "\\(([0-9.]+|NA)\\)$")
   # Two fold curves share a name with their one baseline.
   expect_length(option[["series"]], 3L)
   expect_error(plot_pr(mod, what = "validation"), "unique")
@@ -181,10 +179,10 @@ test_that("a resample without probabilities stays an undefined curve", {
   expect_true(all(is.na(folds[folds[["fold"]] == "Fold2", "ap"])))
   expect_false(anyNA(folds[folds[["fold"]] == "Fold1", "ap"]))
   expect_message(
-    option <- plot_pr(mod, "test", variant = "per_resample")[["x"]][["option"]],
+    option <- drawn_option(plot_pr(mod, "test", variant = "per_resample")),
     "1 undefined curve"
   )
-  expect_match(option[["legend"]][["data"]][[1L]], "SD NA")
+  expect_match(option[["legend"]][["data"]][[1L]], "\\(NA\\)$")
 })
 
 test_that("plot_pr() and plot_roc() select the same samples and folds", {
@@ -217,7 +215,7 @@ test_that("pr_table() returns the curves plot_pr() draws", {
   )
   test <- pr_table(mod, "test")
   expect_identical(unique(test[["sample"]]), "test")
-  drawn <- plot_pr(mod, what = "test")[["x"]][["option"]][["series"]][[1L]]
+  drawn <- drawn_option(plot_pr(mod, what = "test"))[["series"]][[1L]]
   expect_equal(
     vapply(drawn[["data"]], `[[`, numeric(1L), 1L),
     test[["recall"]]
@@ -290,12 +288,12 @@ test_that("a fitted model draws precision-recall curves", {
   widget <- plot_pr(mod)
   expect_s3_class(widget, "htmlwidget")
   expect_match(
-    widget[["x"]][["option"]][["legend"]][["data"]][[1L]],
-    "virginica \\(AP"
+    drawn_option(widget)[["legend"]][["data"]][[1L]],
+    "^Training [0-9.]+$"
   )
   multiclass <- train(iris, hyperparameters = setup_CART(), verbosity = 0L)
   expect_length(
-    plot_pr(multiclass)[["x"]][["option"]][["legend"]][["data"]],
+    drawn_option(plot_pr(multiclass))[["legend"]][["data"]],
     3L
   )
 })
