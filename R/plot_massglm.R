@@ -111,20 +111,32 @@ extract_massglm_plot_data <- function(x, coefname = NULL) {
 #' Draw the default volcano view of a MassGLM object
 #' @inheritParams plot_manhattan
 #' @param title Optional Character: Chart title; unset names the coefficient.
+#' @param xlab Optional Character: X-axis label; unset reads "Coefficient of"
+#'   and the coefficient's name.
 #' @return An ECharts htmlwidget.
 #' @keywords internal
 #' @noRd
-draw_massglm_volcano <- function(x, coefname = NULL, ..., title = NULL) {
+draw_massglm_volcano <- function(
+  x,
+  coefname = NULL,
+  ...,
+  title = NULL,
+  xlab = NULL
+) {
   extracted <- massglm_plot_data(x, coefname)
   data <- extracted[["data"]]
   if (missing(title)) {
     title <- paste("MassGLM:", extracted[["coefname"]])
+  }
+  if (missing(xlab)) {
+    xlab <- paste("Coefficient of", extracted[["coefname"]])
   }
   rtemis.draw::draw_volcano(
     data[["estimate"]],
     data[["p_value"]],
     data[["label"]],
     title = title,
+    xlab = xlab,
     ...
   )
 }

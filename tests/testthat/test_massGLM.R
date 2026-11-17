@@ -40,7 +40,7 @@ test_that("every plot of a coefficient's sign agrees on what a sign looks like",
   # any one of them fails.
   signs <- toupper(rtemis:::sign_colors())
   series_colors <- function(widget) {
-    series <- widget[["x"]][["option"]][["series"]]
+    series <- drawn_option(widget)[["series"]]
     series <- Filter(function(s) !is.null(s[["name"]]), series)
     colors <- vapply(series, function(s) s[["itemStyle"]][["color"]], "")
     stats::setNames(toupper(colors), vapply(series, `[[`, "", "name"))

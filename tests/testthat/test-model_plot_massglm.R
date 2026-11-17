@@ -84,7 +84,8 @@ test_that("plot uses the shared graphics generic and named view stays rtemis-own
       c(-2, .1, 3),
       c(.001, .6, .002),
       c("A", "B", "C"),
-      title = "MassGLM: age"
+      title = "MassGLM: age",
+      xlab = "Coefficient of age"
     )[["x"]]
   )
   expect_identical(
@@ -96,7 +97,11 @@ test_that("plot uses the shared graphics generic and named view stays rtemis-own
       title = "MassGLM: sex"
     )[["x"]]
   )
-  expect_null(graphics::plot(model, title = NULL)[["x"]][["option"]][["title"]])
+  expect_null(drawn_option(graphics::plot(model, title = NULL))[["title"]])
+  expect_identical(
+    drawn_option(graphics::plot(model))[["xAxis"]][["name"]],
+    "Coefficient of age"
+  )
   # S7 installs an S3 bridge for the namespaced S7 class. The old bare-class
   # S3 registration and rtemis's named plotting generic remain unchanged.
   legacy <- utils::getS3method("plot", "MassGLM", optional = TRUE)
