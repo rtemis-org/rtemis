@@ -105,9 +105,12 @@ test_that("ordinary comparisons use stored metrics and unique aligned labels", {
       2
     )
   )
-  w <- present(x, verbosity = 0L)[["x"]][["option"]]
-  expect_equal(as.character(w[["xAxis"]][["data"]]), c("Linear", "Linear_1"))
-  expect_equal(vapply(w[["series"]], `[[`, "", "name"), c("Training", "Test"))
+  # The bar option is built by rtemis.draw's widget; present() supplies the
+  # config and the data.
+  w <- present(x, verbosity = 0L)[["x"]][["build"]]
+  bars <- jsonlite::fromJSON(w[["data"]])[["columns"]]
+  expect_equal(bars[["model"]], c("Linear", "Linear_1"))
+  expect_equal(w[["config"]][["y"]], c("Training", "Test"))
   expect_equal(
     comparison_data(
       x,
@@ -117,9 +120,11 @@ test_that("ordinary comparisons use stored metrics and unique aligned labels", {
     c("Test", "Training")
   )
   m@metrics_test <- NULL
-  partial <- present(list(m, x[[2]]), verbosity = 0L)[["x"]][["option"]]
-  expect_true(is.na(partial[["series"]][[2]][["data"]][[1]]))
-  expect_null(partial[["title"]][["subtext"]])
+  partial <- present(list(m, x[[2]]), verbosity = 0L)[["x"]][["build"]]
+  expect_true(is.na(
+    jsonlite::fromJSON(partial[["data"]])[["columns"]][["Test"]][[1]]
+  ))
+  expect_true(is.na(partial[["config"]][["title"]]))
   expect_equal(comparison_data(list(m, m))[["splits"]], "Training")
   expect_error(
     present(list(m, m), what = "test", verbosity = 0L),
@@ -131,6 +136,12 @@ test_that("ordinary comparisons use stored metrics and unique aligned labels", {
   expect_error(
     present(list(m, m), ylim = c(1, 0), verbosity = 0L),
     "increasing"
+  )
+  expect_equal(
+    present(list(m, m), ylim = c(0, 1), verbosity = 0L)[["x"]][["build"]][[
+      "config"
+    ]][["ylim"]],
+    c(0, 1)
   )
 })
 
@@ -159,19 +170,24 @@ test_that("resampled comparisons preserve unequal folds and common panel limits"
   )
   w <- present(list(A = a, B = b), verbosity = 0L)
   expect_s3_class(w, "rtemis-panels")
-  panels <- w[["x"]][["panels"]]
+  panels <- lapply(w[["x"]][["panels"]], function(panel) {
+    list(option = drawn_option(panel))
+  })
   expect_length(panels, 2)
   expect_equal(
     panels[[1]][["option"]][["yAxis"]][c("min", "max")],
     panels[[2]][["option"]][["yAxis"]][c("min", "max")]
   )
   for (panel in panels) {
-    expect_equal(panel[["option"]][["xAxis"]][["data"]], c("A", "B"))
+    expect_equal(unlist(panel[["option"]][["xAxis"]][["data"]]), c("A", "B"))
     expect_length(panel[["option"]][["series"]][[2]][["data"]], 5)
   }
-  exact <- present(list(A = a, B = b), verbosity = 0L, ylim = c(-1, 1))[["x"]][[
-    "panels"
-  ]]
+  exact <- lapply(
+    present(list(A = a, B = b), verbosity = 0L, ylim = c(-1, 1))[["x"]][[
+      "panels"
+    ]],
+    function(panel) list(option = drawn_option(panel))
+  )
   expect_equal(exact[[1]][["option"]][["yAxis"]][["min"]], -1)
   expect_equal(exact[[2]][["option"]][["yAxis"]][["max"]], 1)
   expect_s3_class(present(list(a), verbosity = 0L), "rtemis-panels")
@@ -182,11 +198,11 @@ test_that("resampled comparisons preserve unequal folds and common panel limits"
     folds[[i]]@metrics <- values
   }
   a@metrics_test@res_metrics <- folds
-  partial <- present(list(A = a, B = b), verbosity = 0L)[["x"]][["panels"]][[
-    2
-  ]][["option"]]
+  partial <- drawn_option(
+    present(list(A = a, B = b), verbosity = 0L)[["x"]][["panels"]][[2]]
+  )
   expect_null(partial[["title"]][["subtext"]])
-  expect_equal(partial[["xAxis"]][["data"]], c("A", "B"))
+  expect_equal(unlist(partial[["xAxis"]][["data"]]), c("A", "B"))
   expect_length(partial[["series"]][[2]][["data"]], 3)
   expect_equal(comparison_data(list(a, a))[["splits"]], "Training")
   expect_error(

@@ -63,7 +63,7 @@ test_that("rtemis owns the generic and dispatches on regression results", {
     labelify = FALSE,
     fit = NULL
   )
-  series <- w[["x"]][["option"]][["series"]]
+  series <- drawn_option(w)[["series"]]
   expect_identical(vapply(series[1:2], `[[`, "", "name"), c("test", "training"))
   expect_equal(lengths(lapply(series[1:2], `[[`, "data")), c(3L, 5L))
 })

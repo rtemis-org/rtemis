@@ -9,7 +9,7 @@ purple <- "#7364F2"
 magenta <- "#BE2E5F"
 
 series_colors <- function(widget, field) {
-  series <- widget[["x"]][["option"]][["series"]]
+  series <- drawn_option(widget)[["series"]]
   named <- Filter(
     function(s) !is.null(s[["name"]]) && !is.null(field(s)),
     series
@@ -77,16 +77,14 @@ test_that("regression predictions color each split by name", {
 
 test_that("resampled metric boxes color each split by name", {
   m <- color_fixture(resamples = 2L)
-  boxes <- graphics::plot(m)[["x"]][["option"]][["series"]][[1L]][["data"]]
+  boxes <- drawn_option(graphics::plot(m))[["series"]][[1L]][["data"]]
   expect_identical(
     vapply(boxes, function(b) b[["itemStyle"]][["borderColor"]], ""),
     c(teal, magenta)
   )
   expect_identical(vapply(boxes, `[[`, "", "name"), c("Training", "Test"))
   # A single box carries its color on the series.
-  test_only <- plot_metric(m, what = "test")[["x"]][["option"]][["series"]][[
-    1L
-  ]]
+  test_only <- drawn_option(plot_metric(m, what = "test"))[["series"]][[1L]]
   expect_identical(test_only[["itemStyle"]][["borderColor"]], magenta)
 })
 
@@ -128,9 +126,9 @@ test_that("confusion matrices shade correct cells blue and incorrect cells orang
 
 test_that("ordinary model comparison bars color each split by name", {
   m <- color_fixture()
-  series <- present(list(A = m, B = m), verbosity = 0L)[["x"]][["option"]][[
-    "series"
+  config <- present(list(A = m, B = m), verbosity = 0L)[["x"]][["build"]][[
+    "config"
   ]]
-  expect_identical(vapply(series, `[[`, "", "name"), c("Training", "Test"))
-  expect_identical(vapply(series, `[[`, "", "color"), c(teal, magenta))
+  expect_identical(config[["y"]], c("Training", "Test"))
+  expect_identical(config[["palette"]], c(teal, magenta))
 })

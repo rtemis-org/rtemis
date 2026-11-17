@@ -303,25 +303,20 @@ method(comparison_drawing, class_list) <- function(
     })
     names(values) <- x[["splits"]]
     chart_data <- data.frame(model = x[["models"]], values, check.names = FALSE)
-    opt <- rtemis.draw::compile(
-      rtemis.draw::setup_BarConfig(
-        x = "model",
-        y = names(values),
-        palette = palette %||% unname(split_colors(names(values))),
-        ylab = labelify(x[["metric"]])
-      ),
-      data = chart_data
+    config <- rtemis.draw::setup_BarConfig(
+      x = "model",
+      y = names(values),
+      ylim = ylim,
+      palette = palette %||% unname(split_colors(names(values))),
+      ylab = labelify(x[["metric"]])
     )
     missing <- sum(is.na(unlist(values)))
     if (missing) {
       msg(missing, "missing metric value(s) omitted")
     }
-    if (!is.null(ylim)) {
-      opt@y_axis@min <- ylim[[1]]
-      opt@y_axis@max <- ylim[[2]]
-    }
     return(rtemis.draw::draw(
-      opt,
+      config,
+      data = chart_data,
       theme = theme,
       width = width,
       height = height,
@@ -354,7 +349,9 @@ method(comparison_drawing, class_list) <- function(
       )
     }
     rows <- rows[order(match(rows[["model"]], x[["models"]])), , drop = FALSE]
-    opt <- rtemis.draw::compile(
+    # Each model keeps its color in every panel, and the panels share one
+    # value axis.
+    rtemis.draw::draw(
       rtemis.draw::setup_BoxplotConfig(
         x = "value",
         group = "model",
@@ -363,14 +360,14 @@ method(comparison_drawing, class_list) <- function(
         quartiles = quartiles,
         whisker = whisker,
         palette = palette,
+        color_by_group = TRUE,
+        ylim = limits,
         title = split,
         ylab = labelify(x[["metric"]])
       ),
-      data = rows
+      data = rows,
+      theme = theme
     )
-    opt@y_axis@min <- limits[[1]]
-    opt@y_axis@max <- limits[[2]]
-    rtemis.draw::draw(opt, theme = theme)
   })
   rtemis.draw::draw_panels(
     panels,

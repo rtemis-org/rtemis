@@ -416,8 +416,7 @@ test_that("plots rank bars as each measure's direction declares", {
     )
   )
   bars <- function(...) {
-    option <- plot_varimp(mod, top_n = 1L, ...)[["x"]][["option"]]
-    unlist(option[["yAxis"]][["data"]] %||% option[["xAxis"]][["data"]])
+    drawn_bars(plot_varimp(mod, top_n = 1L, ...))[["categories"]]
   }
   expect_identical(bars(measure = "cv_risk"), "good")
   expect_identical(bars(measure = "permutation"), "good")

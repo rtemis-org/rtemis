@@ -26,16 +26,14 @@ test_that("learning methods dispatch on fitted regression and classification obj
       )[["x"]]
     )
     expect_identical(
-      drawing[["x"]][["option"]][["xAxis"]][["name"]],
+      drawn_option(drawing)[["xAxis"]][["name"]],
       "Leaves"
     )
     custom <- plot_learning(model, title = "Custom", xlab = "Size", width = 700)
-    expect_identical(custom[["x"]][["option"]][["title"]][["text"]], "Custom")
-    expect_identical(custom[["x"]][["option"]][["xAxis"]][["name"]], "Size")
+    expect_identical(drawn_option(custom)[["title"]][["text"]], "Custom")
+    expect_identical(drawn_option(custom)[["xAxis"]][["name"]], "Size")
     expect_equal(custom[["width"]], 700)
-    expect_null(plot_learning(model, title = NULL)[["x"]][["option"]][[
-      "title"
-    ]])
+    expect_null(drawn_option(plot_learning(model, title = NULL))[["title"]])
   }
 })
 
@@ -51,7 +49,7 @@ test_that("the model method aggregates the forest extractor's per-tree curves", 
   curve <- rtemis::get_learning_curve(model)
   expect_true("tree" %in% names(curve))
   drawing <- plot_learning(model)
-  option <- drawing[["x"]][["option"]]
+  option <- drawn_option(drawing)
   training <- option[["series"]][[1L]][["data"]]
   expected <- vapply(
     sort(unique(curve[["iteration"]])),

@@ -82,7 +82,9 @@ test_that("draw-owned importance dispatch works for both supervised families", {
           title = "GLM variable importance"
         )[["x"]]
       )
-      expect_null(plot_varimp(mod, title = NULL)[["x"]][["option"]][["title"]])
+      expect_true(is.na(
+        plot_varimp(mod, title = NULL)[["x"]][["build"]][["config"]][["title"]]
+      ))
       expect_identical(mod@varimp, before)
     }
   }
@@ -107,12 +109,9 @@ test_that("fold extraction aligns named measures and retains unavailable folds",
   records <- varimp_plot_data(mod)
   expect_identical(records[["folds"]], c("A", "B"))
   expect_identical(records[["data"]][["fold"]], c("B", "B"))
-  option <- plot_varimp(mod)[["x"]][["option"]]
-  expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(2, 8))
-  expect_identical(
-    option[["yAxis"]][["data"]],
-    c("b", "a")
-  )
+  bars <- drawn_bars(plot_varimp(mod))
+  expect_equal(bars[["values"]], c(8, 2))
+  expect_identical(bars[["categories"]], c("a", "b"))
 })
 
 test_that("an omitted row is an unavailable score for every algorithm", {
@@ -124,9 +123,9 @@ test_that("an omitted row is an unavailable score for every algorithm", {
       vi(data.table::data.table(variable = c("a", "b"), Gain = c(8, 2))),
       vi(data.table::data.table(variable = "b", Gain = 4))
     )
-    option <- plot_varimp(mod)[["x"]][["option"]]
-    expect_equal(unlist(option[["series"]][[1L]][["data"]]), c(3, 8))
-    expect_identical(option[["yAxis"]][["data"]], c("b", "a"))
+    bars <- drawn_bars(plot_varimp(mod))
+    expect_equal(bars[["values"]], c(8, 3))
+    expect_identical(bars[["categories"]], c("a", "b"))
     expect_error(plot_varimp(mod, absent = "zero"), "unused argument")
   }
 })
@@ -178,18 +177,14 @@ test_that("model distributions preserve producer omissions and legacy dispatch",
       )),
       A = vi(data.table::data.table(variable = "b", importance = 4))
     )
-    opt <- suppressMessages(plot_varimp(mod, type = "boxplot"))[["x"]][[
-      "option"
-    ]]
+    opt <- drawn_option(suppressMessages(plot_varimp(mod, type = "boxplot")))
     expect_length(opt[["series"]][[2]][["data"]], 2)
     expect_setequal(
       vapply(opt[["series"]][[2]][["data"]], function(p) p[["value"]][[3]], ""),
       c("A", "B")
     )
     mod@varimp <- list(NULL, mod@varimp[[2]])
-    opt <- suppressMessages(plot_varimp(mod, type = "boxplot"))[["x"]][[
-      "option"
-    ]]
+    opt <- drawn_option(suppressMessages(plot_varimp(mod, type = "boxplot")))
     expect_length(opt[["series"]][[2]][["data"]], 1)
     expect_equal(opt[["yAxis"]][["data"]], list("b"))
     expect_null(opt[["title"]][["subtext"]])
@@ -218,8 +213,10 @@ test_that("a SHAP explanation plots its mean absolute contributions", {
     records[["data"]][[names(shap@phi)]],
     unname(colMeans(abs(shap@phi[[1L]])))
   )
-  option <- plot_varimp(shap)[["x"]][["option"]]
-  expect_setequal(option[["yAxis"]][["data"]], c("age", "bmi"))
+  expect_setequal(
+    drawn_bars(plot_varimp(shap))[["categories"]],
+    c("age", "bmi")
+  )
 })
 
 
@@ -253,11 +250,8 @@ test_that("varimp_ranking() agrees with the order plot_varimp() draws", {
   ranking <- varimp_ranking(mod)
   for (measure in c("gain", "other")) {
     rows <- ranking[ranking[["measure"]] == measure, ]
-    option <- plot_varimp(mod, measure = measure)[["x"]][["option"]]
-    expect_identical(
-      rev(unlist(option[["yAxis"]][["data"]])),
-      unique(rows[["variable"]])
-    )
+    bars <- drawn_bars(plot_varimp(mod, measure = measure))
+    expect_identical(bars[["categories"]], unique(rows[["variable"]]))
   }
 })
 
