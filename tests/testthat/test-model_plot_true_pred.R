@@ -76,14 +76,14 @@ test_that("all skips unavailable samples while explicit selections are checked",
   expect_equal(nrow(regression_plot_data(mod)), 8L)
   expect_error(
     plot_true_pred(mod, what = "validation"),
-    "both true and predicted"
+    "both observed and predicted"
   )
   expect_error(plot_true_pred(mod, what = "other"), "sample names")
   expect_error(plot_true_pred(mod, what = c("all", "training")), "sample names")
   expect_error(plot_true_pred(mod, what = c("training", "training")), "unique")
   expect_error(plot_true_pred(mod, labelify = NA))
   mod@predicted_test <- NULL
-  expect_error(plot_true_pred(mod), "both true and predicted")
+  expect_error(plot_true_pred(mod), "both observed and predicted")
 })
 
 

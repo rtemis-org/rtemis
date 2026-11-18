@@ -1,15 +1,16 @@
 # rtemis 1.4.4
 
+- `plot_true_pred()` names the observed values "Observed" on the x axis and in its messages.
 - `plot()` on a MassGLM names the coefficient on the x axis, as "Coefficient of age".
-- `plot_pr()` draws the precision-recall curves of a classification model for each stored sample, pooled or per outer resample, with average precision in the legend and a prevalence baseline per curve group; requires 'rtemis.draw' 0.5.5.
-- `pr_table()` returns the precision-recall curves of a classification model for each stored sample, pooled or per outer resample: the data `plot_pr()` draws.
+- `plot_pr()` draws the precision-recall curves of a classification model for each stored sample: pooled or per outer resample, with average precision in the legend and a prevalence baseline per curve group; requires 'rtemis.draw' 0.5.5.
+- `pr_table()` returns the precision-recall curves of a classification model for each stored sample: pooled or per outer resample: the data `plot_pr()` draws.
 - `decomp()` and `cluster()` take the algorithm from `config` alone, as in `decomp(x, config = setup_PCA())`; the `algorithm` argument is removed and `config` is the second argument.
 
 # rtemis 1.4.3
 
 - `transformed()` returns a decomposition's components for the data it was fitted on, `clusters()` the cluster label of each case, and `get_membership()` the membership matrix of a soft clustering (CMeans, GMM); `transformed()` and `get_membership()` return a data.table.
 - `get_predictions()` returns the true and predicted values and class probabilities a supervised model stores for each sample, and each outer resample of a resampled model.
-- `roc_table()` returns the ROC curves of a classification model for each stored sample, pooled or per outer resample: the data `plot_roc()` draws.
+- `roc_table()` returns the ROC curves of a classification model for each stored sample: pooled or per outer resample: the data `plot_roc()` draws.
 - `session_timeline()` takes a model as well as its session, and returns zero rows for a session that recorded no events or a model that carries none.
 - `read()` and `ingest()` read from an `http://` or `https://` URL and from a public Hugging Face dataset (`hf://datasets/<owner>/<name>[@<revision>][/<file>]`), downloaded to a temporary file and read by its extension; an `hf://` path naming the repository only reads its one data file, and each `hf://` download is checked against the hash the Hub lists. The `ingest()` manifest records the SHA-256 of the input file, the retrieval time, and an `hf://` path pinned to the resolved commit.
 - `assign_clusters()` assigns new cases to the clusters of a fitted KMeans, HardCL, or NeuralGas clustering.

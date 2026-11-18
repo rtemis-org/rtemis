@@ -3,7 +3,7 @@
 # 2026- EDG rtemis.org
 
 # %% plot_true_pred ----
-#' Plot a Model's True Versus Predicted Values
+#' Plot a Model's Observed Versus Predicted Values
 #'
 #' S7 generic for ECharts plots of rtemis regression and classification results.
 #'
@@ -107,7 +107,7 @@ extract_regression_plot_data <- function(x, what = "all", labelify = TRUE) {
       abort(
         "Sample '",
         sample,
-        "' needs both true and predicted values; select an available sample.",
+        "' needs both observed and predicted values; select an available sample.",
         class = c("rtemis_null_input", "rtemis_input_error")
       )
     }
@@ -124,7 +124,7 @@ extract_regression_plot_data <- function(x, what = "all", labelify = TRUE) {
   parts <- Filter(Negate(is.null), parts)
   if (!length(parts)) {
     abort(
-      "No true/predicted pairs are available; plot a result containing predictions.",
+      "No observed/predicted pairs are available; plot a result containing predictions.",
       class = c("rtemis_null_input", "rtemis_input_error")
     )
   }

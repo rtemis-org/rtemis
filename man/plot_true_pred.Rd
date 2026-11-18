@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_true_pred.R
 \name{plot_true_pred}
 \alias{plot_true_pred}
-\title{Plot a Model's True Versus Predicted Values}
+\title{Plot a Model's Observed Versus Predicted Values}
 \usage{
 plot_true_pred(x, ...)
 }
