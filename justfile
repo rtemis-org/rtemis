@@ -84,10 +84,17 @@ spell-update:
     {{ rscript }} -e "spelling::update_wordlist(confirm = FALSE)"
     @just _msg "Done"
 
-# Document and install the package locally with pak
+# Document, build the source tarball in a temporary directory, install it, and
+# remove the directory
 install: document
     @just _msg "─── Installing {{ pkg }} package... ───"
-    {{ rscript }} -e "pak::local_install(upgrade = TRUE)"
+    tmp="$(mktemp -d)" && cd "$tmp" && {{ r }} CMD build --no-build-vignettes --no-manual "{{ justfile_directory() }}" && {{ r }} CMD INSTALL {{ tarball_glob }}; status=$?; rm -rf "$tmp"; exit $status
+    @just _msg "Done"
+
+# Install and update the dependencies of the package with pak
+deps:
+    @just _msg "─── Installing the dependencies of {{ pkg }}... ───"
+    {{ rscript }} -e "pak::local_install_deps(upgrade = TRUE)"
     @just _msg "Done"
 
 # Run testthat::test_local(stop_on_failure = TRUE)
